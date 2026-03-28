@@ -4,15 +4,53 @@
     android:layout_height="wrap_content"
     android:layout_margin="4dp">
 
-    <TextView
-        android:id="@+id/memory_card_label"
+    <FrameLayout
+        android:id="@+id/memory_card_back_face"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:minHeight="56dp"
         android:background="@drawable/bg_card_surface_22"
-        android:fontFamily="sans-serif-medium"
+        android:foreground="?attr/selectableItemBackgroundBorderless">
+
+        <TextView
+            android:id="@+id/memory_card_back_label"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="?"
+            android:textColor="@color/gh_text_secondary"
+            android:textSize="24sp" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/memory_card_front_face"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:minHeight="56dp"
+        android:background="@drawable/bg_card_brand_22"
         android:gravity="center"
-        android:textColor="@color/gh_text_primary"
-        android:textSize="24sp"
-        android:text="" />
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/memory_card_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="A"
+            android:textColor="@color/gh_text_primary"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/memory_card_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="cặp"
+            android:textColor="@color/gh_text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
 </FrameLayout>

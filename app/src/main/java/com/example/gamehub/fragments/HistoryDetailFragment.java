@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.example.gamehub.MainActivity;
@@ -24,7 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
+public class HistoryDetailFragment extends Fragment {
     private static final String ARG_HISTORY_ID = "history_id";
 
     public static HistoryDetailFragment newInstance(int historyId) {
@@ -79,7 +80,8 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
         playSimilarView = view.findViewById(R.id.history_detail_play_similar);
 
         view.findViewById(R.id.history_detail_back).setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
-        view.findViewById(R.id.history_detail_view_statistics).setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE));
+        view.findViewById(R.id.history_detail_view_statistics).setOnClickListener(v ->
+                requireActivity().getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE));
         playSimilarView.setOnClickListener(v -> openSimilarGame());
 
         if (requireActivity() instanceof MainActivity) {
@@ -105,8 +107,10 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
 
     private void renderHistory() {
         boolean success = isSuccessful(history.status);
-        subtitleView.setText(history.isSynced ? "Lưu cục bộ và đã đồng bộ vào hồ sơ" : "Đang lưu cục bộ và chờ đồng bộ hồ sơ");
-        overviewGameView.setText(history.gameName);
+        subtitleView.setText(history.isSynced
+                ? "Lưu cục bộ và đã đồng bộ vào hồ sơ"
+                : "Đang lưu cục bộ và chờ đồng bộ hồ sơ");
+        overviewGameView.setText(getDisplayGameName(history));
         overviewTitleView.setText(String.format(
                 Locale.getDefault(),
                 "%s trong %s",
@@ -123,7 +127,7 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
 
         secondaryLabelView.setText("Trạng thái");
         secondaryValueView.setText(getStatusLabel(history.status));
-        secondaryCaptionView.setText(history.isSynced ? "Đã đồng bộ vào hồ sơ" : "Đang chờ mạng và luồng sync");
+        secondaryCaptionView.setText(buildSecondaryCaption(history));
 
         notesView.setText(buildNotes(history));
         playSimilarView.setText(getReplayLabel(history));
@@ -134,12 +138,11 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
             return;
         }
         Intent intent = null;
-        String gameName = history.gameName.toLowerCase(Locale.getDefault());
-        if (gameName.contains("sudoku")) {
+        if (isSudokuGame(history)) {
             intent = new Intent(requireContext(), SudokuActivity.class);
-        } else if (gameName.contains("ghi nhớ")) {
+        } else if (isMemoryGame(history)) {
             intent = new Intent(requireContext(), MemoryGameActivity.class);
-        } else if (gameName.contains("đố vui")) {
+        } else if (isQuizGame(history)) {
             intent = new Intent(requireContext(), QuizActivity.class);
         }
         if (intent != null) {
@@ -151,40 +154,44 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
         return String.format(
                 Locale.getDefault(),
                 "%s · %s · Hoàn thành ngày %s",
-                getPrimaryLabel(item).toLowerCase(Locale.getDefault()) + " " + getPrimaryValue(item),
-                getStatusLabel(item.status).toLowerCase(Locale.getDefault()),
+                getDisplayGameName(item),
+                getStatusLabel(item.status),
                 new SimpleDateFormat("dd/MM", new Locale("vi", "VN")).format(new Date(item.playDate))
         );
     }
 
     private String getPrimaryLabel(LocalHistory item) {
-        String gameName = item.gameName.toLowerCase(Locale.getDefault());
-        if (gameName.contains("ghi nhớ")) {
-            return "Lượt";
-        }
-        if (gameName.contains("đố vui")) {
-            return "Điểm";
+        if (isMemoryGame(item)) {
+            return "Lượt đoán";
         }
         return "Điểm";
     }
 
     private String getPrimaryValue(LocalHistory item) {
-        String gameName = item.gameName.toLowerCase(Locale.getDefault());
-        if (gameName.contains("sudoku") && item.score > 0) {
+        if (isMemoryGame(item)) {
+            return String.valueOf(item.attemptCount);
+        }
+        if (isSudokuGame(item) && item.score > 0) {
             return String.format(Locale.getDefault(), "+%d", item.score);
         }
         return String.valueOf(item.score);
     }
 
     private String getPrimaryCaption(LocalHistory item) {
-        String gameName = item.gameName.toLowerCase(Locale.getDefault());
-        if (gameName.contains("đố vui")) {
-            return "Số câu đúng của phiên";
+        if (isMemoryGame(item)) {
+            return "Tổng số lượt đoán của phiên ghi nhớ";
         }
-        if (gameName.contains("ghi nhớ")) {
-            return "Số lượt ghép được ghi nhận";
+        if (isQuizGame(item)) {
+            return "Điểm số đạt được trong phiên đố vui";
         }
         return "Điểm thưởng của phiên";
+    }
+
+    private String buildSecondaryCaption(LocalHistory item) {
+        if (item.detail != null && !item.detail.trim().isEmpty()) {
+            return item.detail.trim();
+        }
+        return item.isSynced ? "Đã đồng bộ vào hồ sơ" : "Đang chờ mạng và luồng sync";
     }
 
     private String getStatusLabel(String status) {
@@ -199,7 +206,13 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
 
     private String buildNotes(LocalHistory item) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Phiên này đang hiển thị đúng theo dữ liệu thật có trong Local_History: điểm, thời gian, trạng thái và trạng thái đồng bộ.");
+        builder.append("Phiên này đang hiển thị đúng theo dữ liệu thật trong Local_History: điểm, thời gian, trạng thái và tiến độ đồng bộ.");
+        if (isMemoryGame(item) && item.attemptCount > 0) {
+            builder.append(" Memory có thêm số lượt đoán để bạn so sánh hiệu quả giữa các level.");
+        }
+        if (item.detail != null && !item.detail.trim().isEmpty()) {
+            builder.append(" Ghi chú level: ").append(item.detail.trim()).append(".");
+        }
         if (!item.isSynced) {
             builder.append(" Bản ghi hiện vẫn ở hàng chờ cục bộ.");
         }
@@ -207,14 +220,44 @@ public class HistoryDetailFragment extends androidx.fragment.app.Fragment {
     }
 
     private String getReplayLabel(LocalHistory item) {
-        String gameName = item.gameName.toLowerCase(Locale.getDefault());
-        if (gameName.contains("sudoku")) {
-            return "Chơi bàn tương tự";
+        if (isSudokuGame(item)) {
+            return "Chơi bàn Sudoku khác";
         }
-        if (gameName.contains("ghi nhớ")) {
+        if (isMemoryGame(item)) {
             return "Chơi màn ghi nhớ khác";
         }
         return "Chơi lượt đố vui khác";
+    }
+
+    private String getDisplayGameName(LocalHistory item) {
+        if (isQuizGame(item)) {
+            return "Đố vui";
+        }
+        if (isMemoryGame(item)) {
+            return "Ghi nhớ";
+        }
+        if (isSudokuGame(item)) {
+            return "Sudoku";
+        }
+        return item.gameName;
+    }
+
+    private boolean isQuizGame(LocalHistory item) {
+        String normalized = normalizeGameName(item);
+        return normalized.contains("quiz") || normalized.contains("đố vui");
+    }
+
+    private boolean isMemoryGame(LocalHistory item) {
+        String normalized = normalizeGameName(item);
+        return normalized.contains("memory") || normalized.contains("ghi nhớ");
+    }
+
+    private boolean isSudokuGame(LocalHistory item) {
+        return normalizeGameName(item).contains("sudoku");
+    }
+
+    private String normalizeGameName(LocalHistory item) {
+        return item.gameName == null ? "" : item.gameName.toLowerCase(Locale.getDefault());
     }
 
     private boolean isSuccessful(String status) {

@@ -11,14 +11,17 @@ public class MemoryLevel {
     @ColumnInfo(name = "level_id")
     public int levelId;
 
-    @ColumnInfo(name = "grid_size")
-    public int gridSize;
+    @ColumnInfo(name = "row_count")
+    public int rowCount;
 
-    @ColumnInfo(name = "time_limit")
-    public long timeLimit;
+    @ColumnInfo(name = "column_count")
+    public int columnCount;
 
-    @ColumnInfo(name = "best_time")
-    public long bestTime;
+    @ColumnInfo(name = "time_limit_sec")
+    public long timeLimitSec;
+
+    @ColumnInfo(name = "best_time_ms")
+    public long bestTimeMs;
 
     @ColumnInfo(name = "is_unlocked")
     public boolean isUnlocked;
@@ -27,11 +30,22 @@ public class MemoryLevel {
     }
 
     @Ignore
-    public MemoryLevel(int levelId, int gridSize, long timeLimit, long bestTime, boolean isUnlocked) {
+    public MemoryLevel(int levelId, int rowCount, int columnCount, long timeLimitSec, long bestTimeMs, boolean isUnlocked) {
         this.levelId = levelId;
-        this.gridSize = gridSize;
-        this.timeLimit = timeLimit;
-        this.bestTime = bestTime;
+        this.rowCount = rowCount;
+        this.columnCount = columnCount;
+        this.timeLimitSec = timeLimitSec;
+        this.bestTimeMs = bestTimeMs;
         this.isUnlocked = isUnlocked;
+    }
+
+    @Ignore
+    public int getPairCount() {
+        return (rowCount * columnCount) / 2;
+    }
+
+    @Ignore
+    public String getDisplayLabel() {
+        return rowCount + "x" + columnCount;
     }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipToPadding="false"
@@ -34,7 +35,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
                 android:fontFamily="sans-serif-medium"
-                android:text="32 lượt"
+                android:text="1743 điểm"
                 android:textColor="@color/gh_text_primary"
                 android:textSize="24sp" />
 
@@ -43,7 +44,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Thời gian 05:14 · Chính xác 92% · Chuỗi tốt nhất 7"
+                android:text="Màn 1 · 3x4 · 6 cặp khớp · 9 lượt đoán"
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
 
@@ -64,9 +65,11 @@
                         android:layout_height="42dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_primary_button_round"
-                        android:text="Chơi lại"
+                        android:backgroundTint="@null"
+                        android:text="Quay lại"
                         android:textAllCaps="false"
-                        android:textColor="@color/white" />
+                        android:textColor="@color/white"
+                        app:backgroundTint="@null" />
 
                     <Button
                         android:id="@+id/memory_result_next"
@@ -75,12 +78,14 @@
                         android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_filter_unselected"
+                        android:backgroundTint="@null"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
-                        android:text="Cấp độ tiếp theo"
+                        android:text="Màn tiếp"
                         android:textAllCaps="false"
-                        android:textColor="@color/gh_text_primary"
-                        android:textSize="12sp" />
+                        android:textColor="@color/gh_button_secondary_text"
+                        android:textSize="12sp"
+                        app:backgroundTint="@null" />
                 </LinearLayout>
 
                 <Button
@@ -89,9 +94,11 @@
                     android:layout_height="42dp"
                     android:layout_marginTop="10dp"
                     android:background="@drawable/bg_filter_unselected"
+                    android:backgroundTint="@null"
                     android:text="Về trang chủ"
                     android:textAllCaps="false"
-                    android:textColor="@color/gh_text_primary" />
+                    android:textColor="@color/gh_button_secondary_text"
+                    app:backgroundTint="@null" />
             </LinearLayout>
         </LinearLayout>
 
@@ -122,7 +129,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="05:14"
+                    android:text="00:05"
                     android:textColor="@color/gh_text_primary"
                     android:textSize="22sp" />
             </LinearLayout>
@@ -149,7 +156,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="92%"
+                    android:text="67%"
                     android:textColor="@color/gh_text_primary"
                     android:textSize="22sp" />
             </LinearLayout>
@@ -176,7 +183,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="7"
+                    android:text="5"
                     android:textColor="@color/gh_text_primary"
                     android:textSize="22sp" />
             </LinearLayout>
@@ -185,8 +192,8 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="144dp"
             android:layout_marginTop="16dp"
+            android:minHeight="144dp"
             android:background="@drawable/bg_card_surface_24"
             android:orientation="vertical"
             android:padding="18dp">
@@ -204,7 +211,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Phiên ghi nhớ hiện tại đã được lưu cục bộ và dùng cho lịch sử."
+                android:text="Đã mở màn tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng màn mới."
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>

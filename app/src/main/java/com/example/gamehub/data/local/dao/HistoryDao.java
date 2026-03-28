@@ -32,10 +32,10 @@ public interface HistoryDao {
     @Query("SELECT COUNT(*) FROM Local_History WHERE is_synced = 0")
     int getUnsyncedCount();
 
-    @Query("SELECT MIN(time_spent) FROM Local_History WHERE lower(game_name) LIKE '%' || lower(:gameName) || '%' AND lower(status) IN ('won', 'completed') AND time_spent > 0")
+    @Query("SELECT MIN(time_spent) FROM Local_History WHERE lower(game_name) = lower(:gameName) AND lower(status) IN ('won', 'completed') AND time_spent > 0")
     Long getBestTimeForGame(String gameName);
 
-    @Query("SELECT * FROM Local_History WHERE lower(game_name) LIKE '%' || lower(:gameName) || '%' AND lower(status) IN ('won', 'completed') AND time_spent > 0 ORDER BY time_spent ASC, play_date DESC LIMIT 1")
+    @Query("SELECT * FROM Local_History WHERE lower(game_name) = lower(:gameName) AND lower(status) IN ('won', 'completed') AND time_spent > 0 ORDER BY time_spent ASC, play_date DESC LIMIT 1")
     LocalHistory getBestRecordForGame(String gameName);
 
     @Query("SELECT * FROM Local_History WHERE id = :historyId LIMIT 1")

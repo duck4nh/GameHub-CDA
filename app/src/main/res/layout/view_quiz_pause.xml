@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/quiz_pause_overlay"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -46,9 +47,11 @@
                 android:layout_height="42dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_primary_button_round"
+                android:backgroundTint="@null"
                 android:text="Tiếp tục"
                 android:textAllCaps="false"
-                android:textColor="@color/white" />
+                android:textColor="@color/white"
+                app:backgroundTint="@null" />
 
             <Button
                 android:id="@+id/quiz_pause_exit"
@@ -57,9 +60,11 @@
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_filter_unselected"
+                android:backgroundTint="@null"
                 android:text="Thoát"
                 android:textAllCaps="false"
-                android:textColor="@color/gh_text_primary" />
+                android:textColor="@color/gh_button_secondary_text"
+                app:backgroundTint="@null" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

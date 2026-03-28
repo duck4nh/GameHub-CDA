@@ -25,4 +25,17 @@
     <color name="gh_progress_track">#E9EEF4</color>
     <color name="gh_progress_fill">#63A4EE</color>
     <color name="gh_grid_blue">#7FB1FF</color>
+    <color name="gh_button_primary">#2F7CD3</color>
+    <color name="gh_button_primary_border">#1E5FA5</color>
+    <color name="gh_button_secondary_bg">#FFFFFFFF</color>
+    <color name="gh_button_secondary_border">#A8C0D6</color>
+    <color name="gh_button_secondary_text">#17324F</color>
+    <color name="gh_quiz_option_bg">#FFF8FBFF</color>
+    <color name="gh_quiz_option_border">#C9D9E7</color>
+    <color name="gh_quiz_option_selected_bg">#E7F2FF</color>
+    <color name="gh_quiz_option_selected_border">#5C9FE6</color>
+    <color name="gh_quiz_option_correct_bg">#E7F7EC</color>
+    <color name="gh_quiz_option_correct_border">#58A36C</color>
+    <color name="gh_quiz_option_wrong_bg">#FDECEC</color>
+    <color name="gh_quiz_option_wrong_border">#D56A6A</color>
 </resources>

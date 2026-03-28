@@ -119,8 +119,8 @@ public class StatisticsFragment extends Fragment {
             leaderboardSummaryCaption.setText(repository.getCurrentUserTrendLabel(true));
         }
 
-        bindBestHistoryRow(bestQuizRow, bestQuizTime, repository.getBestHistoryForGame("đố vui"));
-        bindBestHistoryRow(bestMemoryRow, bestMemoryTime, repository.getBestHistoryForGame("ghi nhớ"));
+        bindBestHistoryRow(bestQuizRow, bestQuizTime, repository.getBestHistoryForGame("quiz"));
+        bindBestHistoryRow(bestMemoryRow, bestMemoryTime, repository.getBestHistoryForGame("memory"));
         bindBestHistoryRow(bestSudokuRow, bestSudokuTime, repository.getBestHistoryForGame("sudoku"));
         historySummaryCaption.setText(
                 String.format(
