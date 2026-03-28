@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:paddingStart="20dp"
+    android:paddingTop="104dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="32dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="228dp"
+            android:background="@drawable/bg_game_card_sudoku_28"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kết quả Sudoku"
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/sudoku_result_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="Hoàn thành trong 09:14"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="24sp" />
+
+            <TextView
+                android:id="@+id/sudoku_result_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Chế độ khó · 1 lỗi · 0 gợi ý · +100 điểm"
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/sudoku_result_retry"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_primary_button_round"
+                        android:text="Chơi lại"
+                        android:textAllCaps="false"
+                        android:textColor="@color/white" />
+
+                    <Button
+                        android:id="@+id/sudoku_result_change_level"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_filter_unselected"
+                        android:text="Đổi cấp độ"
+                        android:textAllCaps="false"
+                        android:textColor="@color/gh_text_primary" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/sudoku_result_close"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_filter_unselected"
+                    android:text="Về trang chủ"
+                    android:textAllCaps="false"
+                    android:textColor="@color/gh_text_primary" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_chip_warning"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chế độ"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/sudoku_result_level_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Khó"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card_surface_20"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Lỗi"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/sudoku_result_errors_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="1"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="22sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card_brand_20"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thưởng"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/sudoku_result_reward_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="+100"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="22sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_card_surface_24"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="Tóm tắt phiên"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/sudoku_result_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Đã lưu vào lịch sử, cập nhật thống kê và sẵn sàng cho lần đồng bộ tiếp theo."
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/sudoku_result_sync_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_chip_success"
+                android:gravity="center"
+                android:minWidth="132dp"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="Sẵn sàng đồng bộ"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

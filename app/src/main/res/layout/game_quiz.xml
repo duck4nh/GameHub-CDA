@@ -1,5 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-</androidx.constraintlayout.widget.ConstraintLayout>
+    android:layout_height="match_parent"
+    android:background="@color/gh_bg_screen">
+
+    <View
+        android:layout_width="232dp"
+        android:layout_height="232dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="-42dp"
+        android:layout_marginEnd="-32dp"
+        android:background="@drawable/bg_screen_glow_blue" />
+
+    <View
+        android:layout_width="196dp"
+        android:layout_height="196dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-86dp"
+        android:layout_marginBottom="88dp"
+        android:background="@drawable/bg_screen_glow_warm" />
+
+    <include
+        android:id="@+id/quiz_setup_screen"
+        layout="@layout/view_quiz_setup" />
+
+    <include
+        android:id="@+id/quiz_gameplay_screen"
+        layout="@layout/view_quiz_gameplay"
+        android:visibility="gone" />
+
+    <include
+        android:id="@+id/quiz_result_screen"
+        layout="@layout/view_quiz_result"
+        android:visibility="gone" />
+
+    <include
+        android:id="@+id/quiz_pause_screen"
+        layout="@layout/view_quiz_pause"
+        android:visibility="gone" />
+</FrameLayout>

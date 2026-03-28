@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp">
+
+    <TextView
+        android:id="@+id/memory_card_label"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:minHeight="56dp"
+        android:background="@drawable/bg_card_surface_22"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:textColor="@color/gh_text_primary"
+        android:textSize="24sp"
+        android:text="" />
+</FrameLayout>

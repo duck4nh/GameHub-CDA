@@ -2,4 +2,27 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="gh_text_primary">#1F3141</color>
+    <color name="gh_text_secondary">#5E7083</color>
+    <color name="gh_border">#D9E3EC</color>
+    <color name="gh_border_soft">#94D9E3EC</color>
+    <color name="gh_bg_surface">#FFFFFFFF</color>
+    <color name="gh_bg_screen">#FFFDFEFF</color>
+    <color name="gh_bg_brand">#63A4EE</color>
+    <color name="gh_bg_brand_soft">#EEF6FF</color>
+    <color name="gh_bg_brand_tint">#D8E9FF</color>
+    <color name="gh_bg_brand_tint_strong">#DDEBFF</color>
+    <color name="gh_bg_success_soft">#EEF8F1</color>
+    <color name="gh_bg_success">#8DB89D</color>
+    <color name="gh_bg_warning_soft">#FDF6EA</color>
+    <color name="gh_bg_warning">#E0BA7A</color>
+    <color name="gh_bg_success_chip">#ECF8EE</color>
+    <color name="gh_bg_warning_chip">#F7EEDC</color>
+    <color name="gh_bg_scrim">#EFFFFFFF</color>
+    <color name="gh_shadow">#145896CF</color>
+    <color name="gh_glow_blue">#1A63A4EE</color>
+    <color name="gh_glow_warm">#14F2E2BF</color>
+    <color name="gh_progress_track">#E9EEF4</color>
+    <color name="gh_progress_fill">#63A4EE</color>
+    <color name="gh_grid_blue">#7FB1FF</color>
 </resources>

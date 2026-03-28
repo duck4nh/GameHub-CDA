@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:paddingStart="20dp"
+    android:paddingTop="22dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="32dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/sudoku_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_back_button"
+                android:gravity="center"
+                android:text="‹"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="24sp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/sudoku_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Sudoku · Khó"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/sudoku_subtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thời gian 00:00 · 0 lỗi"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/sudoku_tool_card"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="22dp"
+            android:background="@drawable/bg_card_surface_22"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="18dp">
+
+            <TextView
+                android:id="@+id/sudoku_tool_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ghi chú tắt · 0 gợi ý · Tạm dừng"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="282dp"
+            android:layout_height="282dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_card_surface_24">
+
+            <com.example.gamehub.games.sudoku.SudokuGridView
+                android:id="@+id/sudoku_board"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/white" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="32dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/sudoku_number_1"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="1"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_2"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="2"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_3"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="3"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_4"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="4"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_5"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="5"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_marginTop="14dp"
+            android:background="@color/gh_grid_blue" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/sudoku_number_6"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="6"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_7"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="7"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_8"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="8"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+
+            <Button
+                android:id="@+id/sudoku_number_9"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="36dp"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="9"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
