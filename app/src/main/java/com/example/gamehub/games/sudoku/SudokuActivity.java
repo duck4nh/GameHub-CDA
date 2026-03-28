@@ -109,6 +109,9 @@ public class SudokuActivity extends AppCompatActivity {
         gameplayScreen = findViewById(R.id.sudoku_gameplay_screen);
         resultScreen = findViewById(R.id.sudoku_result_screen);
         pauseOverlay = findViewById(R.id.sudoku_pause_screen);
+        if (pauseOverlay == null) {
+            pauseOverlay = findViewById(R.id.sudoku_pause_overlay);
+        }
         continueCard = findViewById(R.id.sudoku_continue_card);
 
         continueTitleView = findViewById(R.id.sudoku_continue_title);
@@ -232,6 +235,7 @@ public class SudokuActivity extends AppCompatActivity {
     }
 
     private void refreshSetupState() {
+        ensureValidSelectedLevel();
         loadContinueState();
         updateLevelTile(R.id.sudoku_tile_easy, R.id.sudoku_status_easy, "easy");
         updateLevelTile(R.id.sudoku_tile_medium, R.id.sudoku_status_medium, "medium");
@@ -242,6 +246,20 @@ public class SudokuActivity extends AppCompatActivity {
         boolean hasBoard = sudokuDao.getBoardByLevel(selectedLevel) != null;
         startButton.setEnabled(hasBoard);
         startButton.setAlpha(hasBoard ? 1f : 0.45f);
+    }
+
+    private void ensureValidSelectedLevel() {
+        if (sudokuDao.getBoardByLevel(selectedLevel) != null) {
+            return;
+        }
+        String[] levels = {"easy", "medium", "hard", "expert"};
+        for (String level : levels) {
+            if (sudokuDao.getBoardByLevel(level) != null) {
+                selectedLevel = level;
+                preferenceManager.putString(PreferenceManager.KEY_LAST_SUDOKU_LEVEL, level);
+                return;
+            }
+        }
     }
 
     private void loadContinueState() {
@@ -352,8 +370,7 @@ public class SudokuActivity extends AppCompatActivity {
     }
 
     private void showPauseOverlay() {
-        if (gameplayScreen.getVisibility() != View.VISIBLE || currentBoardEntity == null || sessionFinished) {
-            finish();
+        if (pauseOverlay == null || gameplayScreen.getVisibility() != View.VISIBLE || currentBoardEntity == null || sessionFinished) {
             return;
         }
         handler.removeCallbacks(timerRunnable);

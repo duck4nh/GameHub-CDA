@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.gamehub" />
+                  <option name="mobileSdkAppId" value="1:540006805252:android:ac455d21d78fa09e2b2a51" />
+                  <option name="projectId" value="gamehub-9fa19" />
+                  <option name="projectNumber" value="540006805252" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
