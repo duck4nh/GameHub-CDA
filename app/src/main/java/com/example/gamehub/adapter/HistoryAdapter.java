@@ -16,7 +16,16 @@ import java.util.List;
 import java.util.Locale;
 
 public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
+    public interface OnHistoryClickListener {
+        void onHistoryClick(LocalHistory item);
+    }
+
     private final List<LocalHistory> items = new ArrayList<>();
+    private final OnHistoryClickListener clickListener;
+
+    public HistoryAdapter(OnHistoryClickListener clickListener) {
+        this.clickListener = clickListener;
+    }
 
     public void submitList(List<LocalHistory> historyItems) {
         items.clear();
@@ -36,6 +45,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         LocalHistory item = items.get(position);
         holder.titleView.setText(item.gameName);
         holder.subtitleView.setText(buildSubtitle(item));
+        holder.itemView.setOnClickListener(v -> clickListener.onHistoryClick(item));
     }
 
     @Override
@@ -53,7 +63,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             return String.format(Locale.getDefault(), "%d lượt · %s", history.score, syncStatus);
         }
         if (gameName.contains("sudoku")) {
-            return String.format(Locale.getDefault(), "%s · %s", formatDuration(history.timeSpent), history.isSynced ? "synced" : "cục bộ");
+            return String.format(Locale.getDefault(), "%s · %s", formatDuration(history.timeSpent), history.isSynced ? "đã đồng bộ" : "cục bộ");
         }
         return String.format(Locale.getDefault(), "%d điểm · %s · %s", history.score, formatDuration(history.timeSpent), syncStatus);
     }

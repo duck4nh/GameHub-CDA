@@ -183,6 +183,42 @@ public class GameRepository {
         return best == null ? 0L : best;
     }
 
+    public long getBestQuizTime() {
+        Long best = historyDao.getBestTimeForGame("đố vui");
+        return best == null ? 0L : best;
+    }
+
+    public long getBestMemoryTime() {
+        Long best = historyDao.getBestTimeForGame("ghi nhớ");
+        return best == null ? 0L : best;
+    }
+
+    @Nullable
+    public LocalHistory getBestHistoryForGame(String gameName) {
+        return historyDao.getBestRecordForGame(gameName);
+    }
+
+    @Nullable
+    public LocalHistory getHistoryById(int historyId) {
+        return historyDao.getById(historyId);
+    }
+
+    public int[] getWeeklyMatchCountByDay() {
+        int[] values = new int[7];
+        long startOfWeek = getStartOfCurrentWeek();
+        List<LocalHistory> historyItems = historyDao.getAllNewestFirst();
+        for (LocalHistory item : historyItems) {
+            if (item.playDate < startOfWeek) {
+                continue;
+            }
+            int index = getDayBucketIndex(startOfWeek, item.playDate);
+            if (index >= 0 && index < values.length) {
+                values[index]++;
+            }
+        }
+        return values;
+    }
+
     public int getUnsyncedCount() {
         return historyDao.getUnsyncedCount();
     }
@@ -431,5 +467,12 @@ public class GameRepository {
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
+    }
+
+    public static String formatDuration(long durationMillis) {
+        long totalSeconds = Math.max(0L, durationMillis / 1000L);
+        long minutes = totalSeconds / 60L;
+        long seconds = totalSeconds % 60L;
+        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
     }
 }
