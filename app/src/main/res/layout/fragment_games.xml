@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/gh_bg_screen">
+
+    <View
+        android:layout_width="232dp"
+        android:layout_height="232dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="-42dp"
+        android:layout_marginEnd="-32dp"
+        android:background="@drawable/bg_screen_glow_blue" />
+
+    <View
+        android:layout_width="196dp"
+        android:layout_height="196dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-86dp"
+        android:layout_marginBottom="52dp"
+        android:background="@drawable/bg_screen_glow_warm" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingStart="18dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Trò chơi"
+                        android:textColor="@color/gh_text_secondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Chọn trò chơi"
+                        android:textColor="@color/gh_text_primary"
+                        android:textSize="24sp" />
+
+                    <TextView
+                        android:layout_width="180dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Chọn một trò chơi để bắt đầu nhanh."
+                        android:textColor="@color/gh_text_secondary"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="138dp"
+                    android:layout_height="78dp"
+                    android:background="@drawable/bg_card_brand_22"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="13dp"
+                    android:paddingVertical="13dp">
+
+                    <TextView
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
+                        android:background="@drawable/bg_primary_button_round"
+                        android:fontFamily="sans-serif-medium"
+                        android:gravity="center"
+                        android:text="#1"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="Bảng xếp hạng"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Cộng đồng"
+                            android:textColor="@color/gh_text_secondary"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/launch_quiz"
+                android:layout_width="match_parent"
+                android:layout_height="138dp"
+                android:layout_marginTop="28dp"
+                android:background="@drawable/bg_game_card_quiz_28"
+                android:clickable="true"
+                android:focusable="true">
+
+                <View
+                    android:layout_width="124dp"
+                    android:layout_height="124dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="-35dp"
+                    android:layout_marginEnd="-23dp"
+                    android:background="@drawable/bg_screen_glow_blue" />
+
+                <TextView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="19dp"
+                    android:layout_marginTop="19dp"
+                    android:background="@drawable/bg_primary_button_round"
+                    android:gravity="center"
+                    android:text="?"
+                    android:textColor="@color/white"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="87dp"
+                    android:layout_marginTop="20dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Đố vui"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="87dp"
+                    android:layout_marginTop="52dp"
+                    android:text="Tùy chọn chủ đề, độ khó và số câu trước khi bắt đầu."
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="14sp" />
+
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginStart="19dp"
+                    android:layout_marginTop="107dp"
+                    android:background="@drawable/bg_primary_button_round" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="31dp"
+                    android:layout_marginTop="100dp"
+                    android:text="Nhấn để mở phần thiết lập nhanh"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/launch_memory"
+                android:layout_width="match_parent"
+                android:layout_height="138dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_game_card_memory_28"
+                android:clickable="true"
+                android:focusable="true">
+
+                <View
+                    android:layout_width="124dp"
+                    android:layout_height="124dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="-35dp"
+                    android:layout_marginEnd="-23dp"
+                    android:background="@drawable/bg_screen_glow_warm" />
+
+                <TextView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="19dp"
+                    android:layout_marginTop="19dp"
+                    android:background="@drawable/bg_chip_success"
+                    android:gravity="center"
+                    android:text="◎"
+                    android:textColor="@color/gh_bg_success"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="87dp"
+                    android:layout_marginTop="20dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Ghi nhớ"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="87dp"
+                    android:layout_marginTop="52dp"
+                    android:text="Chọn kích thước lưới phù hợp rồi bắt đầu lật thẻ."
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="14sp" />
+
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginStart="19dp"
+                    android:layout_marginTop="107dp"
+                    android:background="@drawable/bg_chip_success" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="31dp"
+                    android:layout_marginTop="100dp"
+                    android:text="Nhấn để chọn mức 4x4 đến 8x8"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/launch_sudoku"
+                android:layout_width="match_parent"
+                android:layout_height="138dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_game_card_sudoku_28"
+                android:clickable="true"
+                android:focusable="true">
+
+                <View
+                    android:layout_width="124dp"
+                    android:layout_height="124dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="-35dp"
+                    android:layout_marginEnd="-23dp"
+                    android:background="@drawable/bg_screen_glow_warm" />
+
+                <TextView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="19dp"
+                    android:layout_marginTop="19dp"
+                    android:background="@drawable/bg_chip_warning"
+                    android:gravity="center"
+                    android:text="▦"
+                    android:textColor="@color/gh_bg_warning"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="87dp"
+                    android:layout_marginTop="20dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Sudoku"
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="87dp"
+                    android:layout_marginTop="52dp"
+                    android:text="Vào phần chọn cấp độ rồi giải bảng số theo tốc độ của bạn."
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="14sp" />
+
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginStart="19dp"
+                    android:layout_marginTop="107dp"
+                    android:background="@drawable/bg_chip_warning" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="31dp"
+                    android:layout_marginTop="100dp"
+                    android:text="Nhấn để chọn từ dễ đến chuyên gia"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+            </FrameLayout>
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

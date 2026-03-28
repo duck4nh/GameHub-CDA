@@ -1,5 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/leaderboard_item_root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
-</androidx.cardview.widget.CardView>
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_card_surface_20"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/avatar_badge"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_avatar_placeholder"
+        android:gravity="center"
+        android:text="A"
+        android:textColor="@color/gh_text_secondary"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/leaderboard_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="An Nguyen"
+            android:textColor="@color/gh_text_primary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/leaderboard_score"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="992 điểm"
+            android:textColor="@color/gh_text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/leaderboard_rank"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="#19"
+        android:textColor="@color/gh_text_secondary"
+        android:textSize="11sp" />
+</LinearLayout>

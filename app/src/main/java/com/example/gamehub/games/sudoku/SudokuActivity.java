@@ -1,6 +1,509 @@
 package com.example.gamehub.games.sudoku;
 
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.OnBackPressedCallback;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+
+import com.example.gamehub.R;
+import com.example.gamehub.data.local.AppDatabase;
+import com.example.gamehub.data.local.dao.HistoryDao;
+import com.example.gamehub.data.local.dao.SudokuDao;
+import com.example.gamehub.data.local.dao.SudokuGameStateDao;
+import com.example.gamehub.data.local.dao.SudokuStatsDao;
+import com.example.gamehub.data.local.entities.LocalHistory;
+import com.example.gamehub.data.local.entities.SudokuBoard;
+import com.example.gamehub.data.local.entities.SudokuGameState;
+import com.example.gamehub.data.local.entities.SudokuStats;
+import com.example.gamehub.data.pref.PreferenceManager;
+import com.example.gamehub.data.remote.FirebaseManager;
+import com.example.gamehub.workers.SyncWorker;
+
+import java.util.Locale;
 
 public class SudokuActivity extends AppCompatActivity {
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable timerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (gameplayScreen.getVisibility() != View.VISIBLE || currentBoardEntity == null || sessionFinished || pauseOverlay.getVisibility() == View.VISIBLE) {
+                return;
+            }
+            elapsedTimeMs += 1000L;
+            renderGameplayMeta();
+            handler.postDelayed(this, 1000L);
+        }
+    };
+
+    private SudokuDao sudokuDao;
+    private SudokuGameStateDao sudokuGameStateDao;
+    private SudokuStatsDao sudokuStatsDao;
+    private HistoryDao historyDao;
+    private PreferenceManager preferenceManager;
+
+    private View setupScreen;
+    private View gameplayScreen;
+    private View resultScreen;
+    private View pauseOverlay;
+    private View continueCard;
+
+    private TextView continueTitleView;
+    private TextView continueSummaryView;
+    private TextView titleView;
+    private TextView subtitleView;
+    private TextView toolTextView;
+    private TextView pauseMessageView;
+
+    private TextView resultTitleView;
+    private TextView resultSubtitleView;
+    private TextView resultLevelValueView;
+    private TextView resultErrorsValueView;
+    private TextView resultRewardValueView;
+    private TextView resultNoteView;
+    private TextView resultSyncBadgeView;
+
+    private SudokuGridView boardView;
+
+    private String selectedLevel = "easy";
+    private String gameplaySubtitleBeforePause;
+    private SudokuBoard currentBoardEntity;
+    private SudokuBoard continueBoard;
+    private SudokuGameState continueState;
+    private int[][] initialBoard = new int[9][9];
+    private int[][] solutionBoard = new int[9][9];
+    private int[][] currentBoard = new int[9][9];
+    private long elapsedTimeMs;
+    private boolean sessionFinished;
+    private int currentErrorCount;
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.game_sudoku);
+
+        AppDatabase database = AppDatabase.getInstance(this);
+        sudokuDao = database.sudokuDao();
+        sudokuGameStateDao = database.sudokuGameStateDao();
+        sudokuStatsDao = database.sudokuStatsDao();
+        historyDao = database.historyDao();
+        preferenceManager = new PreferenceManager(this);
+
+        bindViews();
+        bindActions();
+        installBackHandler();
+
+        selectedLevel = preferenceManager.getString(PreferenceManager.KEY_LAST_SUDOKU_LEVEL, "easy");
+        showSetupScreen();
+    }
+
+    private void bindViews() {
+        setupScreen = findViewById(R.id.sudoku_setup_screen);
+        gameplayScreen = findViewById(R.id.sudoku_gameplay_screen);
+        resultScreen = findViewById(R.id.sudoku_result_screen);
+        pauseOverlay = findViewById(R.id.sudoku_pause_screen);
+        continueCard = findViewById(R.id.sudoku_continue_card);
+
+        continueTitleView = findViewById(R.id.sudoku_continue_title);
+        continueSummaryView = findViewById(R.id.sudoku_continue_summary);
+        titleView = findViewById(R.id.sudoku_title);
+        subtitleView = findViewById(R.id.sudoku_subtitle);
+        toolTextView = findViewById(R.id.sudoku_tool_text);
+        pauseMessageView = findViewById(R.id.sudoku_pause_message);
+
+        resultTitleView = findViewById(R.id.sudoku_result_title);
+        resultSubtitleView = findViewById(R.id.sudoku_result_subtitle);
+        resultLevelValueView = findViewById(R.id.sudoku_result_level_value);
+        resultErrorsValueView = findViewById(R.id.sudoku_result_errors_value);
+        resultRewardValueView = findViewById(R.id.sudoku_result_reward_value);
+        resultNoteView = findViewById(R.id.sudoku_result_note);
+        resultSyncBadgeView = findViewById(R.id.sudoku_result_sync_badge);
+
+        boardView = findViewById(R.id.sudoku_board);
+    }
+
+    private void bindActions() {
+        findViewById(R.id.sudoku_setup_back).setOnClickListener(v -> finish());
+        continueCard.setOnClickListener(v -> startSavedBoard());
+        findViewById(R.id.sudoku_tile_easy).setOnClickListener(v -> selectLevel("easy"));
+        findViewById(R.id.sudoku_tile_medium).setOnClickListener(v -> selectLevel("medium"));
+        findViewById(R.id.sudoku_tile_hard).setOnClickListener(v -> selectLevel("hard"));
+        findViewById(R.id.sudoku_tile_expert).setOnClickListener(v -> selectLevel("expert"));
+        findViewById(R.id.sudoku_start_button).setOnClickListener(v -> startSelectedLevel());
+
+        findViewById(R.id.sudoku_back).setOnClickListener(v -> showPauseOverlay());
+        findViewById(R.id.sudoku_tool_card).setOnClickListener(v -> showPauseOverlay());
+
+        int[] numberButtonIds = {
+                R.id.sudoku_number_1,
+                R.id.sudoku_number_2,
+                R.id.sudoku_number_3,
+                R.id.sudoku_number_4,
+                R.id.sudoku_number_5,
+                R.id.sudoku_number_6,
+                R.id.sudoku_number_7,
+                R.id.sudoku_number_8,
+                R.id.sudoku_number_9
+        };
+        for (int index = 0; index < numberButtonIds.length; index++) {
+            final int value = index + 1;
+            findViewById(numberButtonIds[index]).setOnClickListener(v -> boardView.setSelectedValue(value));
+        }
+
+        findViewById(R.id.sudoku_pause_resume).setOnClickListener(v -> hidePauseOverlay(true));
+        findViewById(R.id.sudoku_pause_exit).setOnClickListener(v -> finish());
+
+        findViewById(R.id.sudoku_result_retry).setOnClickListener(v -> startSelectedLevel());
+        findViewById(R.id.sudoku_result_change_level).setOnClickListener(v -> showSetupScreen());
+        findViewById(R.id.sudoku_result_close).setOnClickListener(v -> finish());
+
+        boardView.setOnBoardChangedListener(new SudokuGridView.OnBoardChangedListener() {
+            @Override
+            public void onCellSelected(int row, int col, boolean editable) {
+                if (!sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
+                    renderGameplayMeta();
+                }
+            }
+
+            @Override
+            public void onBoardChanged(int[][] board) {
+                currentBoard = SudokuLogic.copyMatrix(board);
+                currentErrorCount = SudokuLogic.countIncorrectFilledCells(currentBoard, solutionBoard);
+                renderGameplayMeta();
+                if (SudokuLogic.isSolved(currentBoard, solutionBoard)) {
+                    finishSession(true);
+                }
+            }
+        });
+    }
+
+    private void installBackHandler() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (pauseOverlay.getVisibility() == View.VISIBLE) {
+                    hidePauseOverlay(true);
+                    return;
+                }
+                if (gameplayScreen.getVisibility() == View.VISIBLE) {
+                    showPauseOverlay();
+                    return;
+                }
+                if (resultScreen.getVisibility() == View.VISIBLE) {
+                    showSetupScreen();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
+            }
+        });
+    }
+
+    private void showSetupScreen() {
+        handler.removeCallbacks(timerRunnable);
+        setupScreen.setVisibility(View.VISIBLE);
+        gameplayScreen.setVisibility(View.GONE);
+        resultScreen.setVisibility(View.GONE);
+        hidePauseOverlay(false);
+        refreshSetupState();
+    }
+
+    private void showGameplayScreen() {
+        setupScreen.setVisibility(View.GONE);
+        gameplayScreen.setVisibility(View.VISIBLE);
+        resultScreen.setVisibility(View.GONE);
+        hidePauseOverlay(false);
+    }
+
+    private void showResultScreen() {
+        handler.removeCallbacks(timerRunnable);
+        setupScreen.setVisibility(View.GONE);
+        gameplayScreen.setVisibility(View.GONE);
+        resultScreen.setVisibility(View.VISIBLE);
+        hidePauseOverlay(false);
+    }
+
+    private void refreshSetupState() {
+        loadContinueState();
+        updateLevelTile(R.id.sudoku_tile_easy, R.id.sudoku_status_easy, "easy");
+        updateLevelTile(R.id.sudoku_tile_medium, R.id.sudoku_status_medium, "medium");
+        updateLevelTile(R.id.sudoku_tile_hard, R.id.sudoku_status_hard, "hard");
+        updateLevelTile(R.id.sudoku_tile_expert, R.id.sudoku_status_expert, "expert");
+
+        View startButton = findViewById(R.id.sudoku_start_button);
+        boolean hasBoard = sudokuDao.getBoardByLevel(selectedLevel) != null;
+        startButton.setEnabled(hasBoard);
+        startButton.setAlpha(hasBoard ? 1f : 0.45f);
+    }
+
+    private void loadContinueState() {
+        continueState = sudokuGameStateDao.getLatestState();
+        continueBoard = continueState == null ? null : sudokuDao.getBoard(continueState.boardId);
+
+        boolean canContinue = continueState != null && continueBoard != null && continueState.currentMatrix != null && !continueState.currentMatrix.isEmpty();
+        continueCard.setClickable(canContinue);
+        continueCard.setFocusable(canContinue);
+        continueCard.setAlpha(canContinue ? 1f : 0.75f);
+        if (!canContinue) {
+            continueTitleView.setText("Chưa có bàn đang chơi dở");
+            continueSummaryView.setText("Dữ liệu cục bộ sẽ xuất hiện ở đây khi bạn tạm dừng ván.");
+            return;
+        }
+
+        int[][] savedBoard = SudokuLogic.parseMatrix(continueState.currentMatrix);
+        int correctCells = SudokuLogic.countCorrectCells(savedBoard, SudokuLogic.parseMatrix(continueBoard.solutionMatrix));
+        continueTitleView.setText("Tiếp tục · " + getLevelLabel(continueBoard.level));
+        continueSummaryView.setText(String.format(
+                Locale.getDefault(),
+                "%s đã lưu cục bộ · %d/81 ô đúng",
+                formatDuration(continueState.elapsedTime),
+                correctCells
+        ));
+    }
+
+    private void updateLevelTile(int tileId, int statusId, String level) {
+        View tile = findViewById(tileId);
+        TextView statusView = findViewById(statusId);
+        boolean isSelected = level.equals(selectedLevel);
+        boolean hasBoard = sudokuDao.getBoardByLevel(level) != null;
+
+        tile.setEnabled(hasBoard);
+        tile.setAlpha(hasBoard ? 1f : 0.5f);
+        tile.setBackgroundResource(isSelected ? R.drawable.bg_tile_selected_sudoku : R.drawable.bg_card_surface_22);
+
+        if (!hasBoard) {
+            statusView.setText("Chưa có dữ liệu");
+        } else if (isSelected) {
+            statusView.setText("Đang chọn");
+        } else {
+            statusView.setText("Đã mở");
+        }
+    }
+
+    private void selectLevel(String level) {
+        selectedLevel = level;
+        preferenceManager.putString(PreferenceManager.KEY_LAST_SUDOKU_LEVEL, level);
+        refreshSetupState();
+    }
+
+    private void startSelectedLevel() {
+        SudokuBoard board = sudokuDao.getBoardByLevel(selectedLevel);
+        if (board == null) {
+            Toast.makeText(this, "Chưa có bàn Sudoku cục bộ cho level này.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        sudokuGameStateDao.clearStateForBoard(board.id);
+        startBoard(board, null);
+    }
+
+    private void startSavedBoard() {
+        if (continueState == null || continueBoard == null) {
+            return;
+        }
+        startBoard(continueBoard, continueState);
+    }
+
+    private void startBoard(SudokuBoard board, @Nullable SudokuGameState savedState) {
+        currentBoardEntity = board;
+        selectedLevel = board.level;
+        preferenceManager.putString(PreferenceManager.KEY_LAST_SUDOKU_LEVEL, selectedLevel);
+        initialBoard = SudokuLogic.parseMatrix(board.initialMatrix);
+        solutionBoard = SudokuLogic.parseMatrix(board.solutionMatrix);
+        currentBoard = SudokuLogic.copyMatrix(initialBoard);
+        elapsedTimeMs = 0L;
+        sessionFinished = false;
+        currentErrorCount = 0;
+
+        if (savedState != null && savedState.currentMatrix != null && !savedState.currentMatrix.isEmpty()) {
+            int[][] restored = SudokuLogic.parseMatrix(savedState.currentMatrix);
+            if (SudokuLogic.isSolved(restored, solutionBoard)) {
+                sudokuGameStateDao.clearStateForBoard(board.id);
+            } else {
+                currentBoard = restored;
+                elapsedTimeMs = Math.max(0L, savedState.elapsedTime);
+                currentErrorCount = SudokuLogic.countIncorrectFilledCells(currentBoard, solutionBoard);
+            }
+        }
+
+        boardView.setBoard(initialBoard, currentBoard);
+        showGameplayScreen();
+        renderGameplayMeta();
+        startTimer();
+    }
+
+    private void renderGameplayMeta() {
+        if (currentBoardEntity == null) {
+            return;
+        }
+        titleView.setText(String.format(Locale.getDefault(), "Sudoku · %s", getLevelLabel(currentBoardEntity.level)));
+        gameplaySubtitleBeforePause = String.format(Locale.getDefault(), "Thời gian %s · %d lỗi", formatDuration(elapsedTimeMs), currentErrorCount);
+        if (pauseOverlay.getVisibility() != View.VISIBLE) {
+            subtitleView.setText(gameplaySubtitleBeforePause);
+        }
+        toolTextView.setText("Ghi chú tắt · 0 gợi ý · Tạm dừng");
+    }
+
+    private void showPauseOverlay() {
+        if (gameplayScreen.getVisibility() != View.VISIBLE || currentBoardEntity == null || sessionFinished) {
+            finish();
+            return;
+        }
+        handler.removeCallbacks(timerRunnable);
+        saveInProgressState();
+        subtitleView.setText("Tạm dừng");
+        pauseMessageView.setText("Bàn hiện tại đã được lưu cục bộ, nên bạn có thể tiếp tục ngay hoặc quay lại sau.");
+        pauseOverlay.setVisibility(View.VISIBLE);
+    }
+
+    private void hidePauseOverlay(boolean resumeTimer) {
+        if (pauseOverlay == null) {
+            return;
+        }
+        pauseOverlay.setVisibility(View.GONE);
+        if (gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null) {
+            subtitleView.setText(gameplaySubtitleBeforePause);
+        }
+        if (resumeTimer && gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null && !sessionFinished) {
+            startTimer();
+        }
+    }
+
+    private void finishSession(boolean won) {
+        if (sessionFinished || currentBoardEntity == null) {
+            return;
+        }
+
+        sessionFinished = true;
+        handler.removeCallbacks(timerRunnable);
+        sudokuGameStateDao.clearStateForBoard(currentBoardEntity.id);
+
+        int reward = won ? 100 : 0;
+        historyDao.insert(new LocalHistory("Sudoku", won ? "won" : "lost", reward, elapsedTimeMs, System.currentTimeMillis(), false));
+        updateSudokuStats(won);
+        enqueueSudokuSync();
+
+        FirebaseManager firebaseManager = new FirebaseManager();
+        boolean canSync = firebaseManager.canSyncSudokuResults();
+
+        resultTitleView.setText(String.format(Locale.getDefault(), "Hoàn thành trong %s", formatDuration(elapsedTimeMs)));
+        resultSubtitleView.setText(String.format(
+                Locale.getDefault(),
+                "Chế độ %s · %d lỗi · 0 gợi ý · +%d điểm",
+                getLevelLabel(currentBoardEntity.level).toLowerCase(Locale.getDefault()),
+                currentErrorCount,
+                reward
+        ));
+        resultLevelValueView.setText(getLevelLabel(currentBoardEntity.level));
+        resultErrorsValueView.setText(String.valueOf(currentErrorCount));
+        resultRewardValueView.setText(String.format(Locale.getDefault(), "+%d", reward));
+        resultSyncBadgeView.setText(canSync ? "Sẵn sàng đồng bộ" : "Chờ cấu hình đồng bộ");
+        resultSyncBadgeView.setBackgroundResource(canSync ? R.drawable.bg_chip_success : R.drawable.bg_chip_warning);
+        resultNoteView.setText(canSync
+                ? "Đã lưu vào lịch sử, cập nhật vào thống kê và sẵn sàng cho lần đồng bộ trực tuyến tiếp theo."
+                : "Đã lưu vào lịch sử, cập nhật vào thống kê và chờ cấu hình đồng bộ trực tuyến của dự án.");
+        showResultScreen();
+    }
+
+    private void updateSudokuStats(boolean won) {
+        SudokuStats stats = sudokuStatsDao.getStatsForLevel(selectedLevel);
+        if (stats == null) {
+            sudokuStatsDao.insert(new SudokuStats(selectedLevel, 1, won ? 1 : 0, won ? elapsedTimeMs : 0L));
+            return;
+        }
+
+        int played = stats.gamesPlayed + 1;
+        int winCount = stats.gamesWon + (won ? 1 : 0);
+        long bestTime = stats.bestTime;
+        if (won && (bestTime == 0L || elapsedTimeMs < bestTime)) {
+            bestTime = elapsedTimeMs;
+        }
+        sudokuStatsDao.updateStats(stats.id, played, winCount, bestTime);
+    }
+
+    private void enqueueSudokuSync() {
+        WorkManager.getInstance(this).enqueue(new OneTimeWorkRequest.Builder(SyncWorker.class).build());
+    }
+
+    private void saveInProgressState() {
+        if (currentBoardEntity == null || sessionFinished) {
+            return;
+        }
+        if (!isBoardChanged() && elapsedTimeMs == 0L) {
+            sudokuGameStateDao.clearStateForBoard(currentBoardEntity.id);
+            return;
+        }
+        sudokuGameStateDao.clearStateForBoard(currentBoardEntity.id);
+        sudokuGameStateDao.insert(new SudokuGameState(
+                currentBoardEntity.id,
+                SudokuLogic.serializeMatrix(currentBoard),
+                elapsedTimeMs,
+                System.currentTimeMillis()
+        ));
+    }
+
+    private boolean isBoardChanged() {
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                if (initialBoard[row][col] != currentBoard[row][col]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void startTimer() {
+        handler.removeCallbacks(timerRunnable);
+        if (gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null && !sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
+            handler.postDelayed(timerRunnable, 1000L);
+        }
+    }
+
+    private String getLevelLabel(String level) {
+        if ("medium".equals(level)) {
+            return "Trung bình";
+        }
+        if ("hard".equals(level)) {
+            return "Khó";
+        }
+        if ("expert".equals(level)) {
+            return "Chuyên gia";
+        }
+        return "Dễ";
+    }
+
+    private String formatDuration(long durationMillis) {
+        long totalSeconds = Math.max(0L, durationMillis / 1000L);
+        long minutes = totalSeconds / 60L;
+        long seconds = totalSeconds % 60L;
+        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+    }
+
+    protected void onPause() {
+        saveInProgressState();
+        handler.removeCallbacks(timerRunnable);
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (gameplayScreen.getVisibility() == View.VISIBLE && pauseOverlay.getVisibility() != View.VISIBLE && currentBoardEntity != null && !sessionFinished) {
+            startTimer();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
 }

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/gh_bg_screen">
+
+    <View
+        android:layout_width="232dp"
+        android:layout_height="232dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="-42dp"
+        android:layout_marginEnd="-32dp"
+        android:background="@drawable/bg_screen_glow_blue" />
+
+    <View
+        android:layout_width="196dp"
+        android:layout_height="196dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-86dp"
+        android:layout_marginBottom="120dp"
+        android:background="@drawable/bg_screen_glow_warm" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card_surface_24"
+            android:elevation="4dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:id="@+id/placeholder_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="24sp"
+                android:text="Trang chủ" />
+
+            <TextView
+                android:id="@+id/placeholder_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="14sp"
+                android:text="Màn này thuộc teammate khác." />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

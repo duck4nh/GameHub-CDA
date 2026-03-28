@@ -1,3 +1,26 @@
 <resources>
     <string name="app_name">GameHub</string>
+    <string name="nav_home">Trang chủ</string>
+    <string name="nav_games">Trò chơi</string>
+    <string name="nav_friends">Bạn bè</string>
+    <string name="nav_statistics">Thống kê</string>
+    <string name="nav_profile">Hồ sơ</string>
+    <string name="leaderboard_weekly">Tuần</string>
+    <string name="leaderboard_all_time">Tất cả thời gian</string>
+    <string name="community_send">Gửi</string>
+    <string name="community_message_hint">Viết tin nhắn</string>
+    <string name="history_filter_all">Tất cả</string>
+    <string name="history_filter_quiz">Đố vui</string>
+    <string name="history_filter_memory">Ghi nhớ</string>
+    <string name="history_filter_sudoku">Sudoku</string>
+    <string name="history_title">Lịch sử</string>
+    <string name="history_subtitle">Các phiên gần đây được lưu cục bộ và trên đám mây</string>
+    <string name="history_queue_pending_title">Hàng chờ đồng bộ · %1$d mục đang chờ</string>
+    <string name="history_queue_pending_subtitle">Kết quả sẽ được tải lên khi có mạng.</string>
+    <string name="history_queue_empty_title">Hàng chờ đồng bộ trống</string>
+    <string name="history_queue_empty_subtitle">Không có mục nào cần đồng bộ thêm.</string>
+    <string name="placeholder_home_subtitle">Phần Trang chủ thuộc scope khác. Mục này chỉ được giữ để navigation đúng với shell của app.</string>
+    <string name="placeholder_games_subtitle">Phần Trò chơi thuộc teammate khác. Flow này được giữ ở mức tối thiểu để không làm lệch bottom navigation.</string>
+    <string name="placeholder_profile_subtitle">Phần Hồ sơ không nằm trong scope hiện tại. Tab này được giữ làm integration placeholder.</string>
+    <string name="feature_not_in_scope">Mục này ngoài phạm vi hiện tại.</string>
 </resources>

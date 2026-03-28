@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/memory_pause_overlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/gh_bg_scrim"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="310dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_card_surface_28"
+        android:elevation="6dp"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="Tạm dừng trò chơi"
+            android:textColor="@color/gh_text_primary"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/memory_pause_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Phiên ghi nhớ hiện tại đang được tạm dừng. Bạn có thể tiếp tục ngay hoặc thoát khỏi phiên."
+            android:textColor="@color/gh_text_secondary"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/memory_pause_resume"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_primary_button_round"
+                android:text="Tiếp tục"
+                android:textAllCaps="false"
+                android:textColor="@color/white" />
+
+            <Button
+                android:id="@+id/memory_pause_exit"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_filter_unselected"
+                android:text="Thoát"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
