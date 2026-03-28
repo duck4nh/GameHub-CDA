@@ -27,10 +27,14 @@ public class StatisticsFragment extends Fragment {
     private TextView metricWeeklyDelta;
     private TextView metricStreak;
     private TextView metricStreakCaption;
-    private TextView metricAverageTime;
     private TextView offlineBannerTitle;
     private TextView offlineBannerSubtitle;
     private TextView leaderboardSummaryCaption;
+    private View bestQuizRow;
+    private TextView bestQuizTime;
+    private View bestMemoryRow;
+    private TextView bestMemoryTime;
+    private View bestSudokuRow;
     private TextView bestSudokuTime;
     private TextView historySummaryCaption;
     private View[] chartBars;
@@ -49,10 +53,14 @@ public class StatisticsFragment extends Fragment {
         metricWeeklyDelta = view.findViewById(R.id.metric_weekly_delta);
         metricStreak = view.findViewById(R.id.metric_streak);
         metricStreakCaption = view.findViewById(R.id.metric_streak_caption);
-        metricAverageTime = view.findViewById(R.id.metric_average_time);
         offlineBannerTitle = view.findViewById(R.id.offline_banner_title);
         offlineBannerSubtitle = view.findViewById(R.id.offline_banner_subtitle);
         leaderboardSummaryCaption = view.findViewById(R.id.leaderboard_summary_caption);
+        bestQuizRow = view.findViewById(R.id.best_quiz_row);
+        bestQuizTime = view.findViewById(R.id.best_quiz_time);
+        bestMemoryRow = view.findViewById(R.id.best_memory_row);
+        bestMemoryTime = view.findViewById(R.id.best_memory_time);
+        bestSudokuRow = view.findViewById(R.id.best_sudoku_row);
         bestSudokuTime = view.findViewById(R.id.best_sudoku_time);
         historySummaryCaption = view.findViewById(R.id.history_summary_caption);
         chartBars = new View[]{
@@ -83,12 +91,19 @@ public class StatisticsFragment extends Fragment {
         renderStatistics();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getView() != null) {
+            renderStatistics();
+        }
+    }
+
     private void renderStatistics() {
         metricWeeklyScore.setText(numberFormat.format(repository.getWeeklyScore()));
         metricWeeklyDelta.setText(repository.getWeeklyScoreChangeLabel());
         metricStreak.setText(String.format(Locale.getDefault(), "%d ngày", repository.getCurrentStreakDays()));
         metricStreakCaption.setText("Duy trì từ Local_History");
-        metricAverageTime.setText(formatDuration(repository.getAverageCompletionTime()));
 
         LeaderboardEntry weeklyEntry = repository.getCurrentUserEntry(true);
         if (weeklyEntry != null) {
@@ -104,7 +119,9 @@ public class StatisticsFragment extends Fragment {
             leaderboardSummaryCaption.setText(repository.getCurrentUserTrendLabel(true));
         }
 
-        bestSudokuTime.setText(formatDuration(repository.getBestSudokuTime()));
+        bindBestHistoryRow(bestQuizRow, bestQuizTime, repository.getBestHistoryForGame("quiz"));
+        bindBestHistoryRow(bestMemoryRow, bestMemoryTime, repository.getBestHistoryForGame("memory"));
+        bindBestHistoryRow(bestSudokuRow, bestSudokuTime, repository.getBestHistoryForGame("sudoku"));
         historySummaryCaption.setText(
                 String.format(
                         Locale.getDefault(),
@@ -124,7 +141,7 @@ public class StatisticsFragment extends Fragment {
             offlineBannerSubtitle.setText("Không còn trận nào chờ tải lên.");
         }
 
-        updateChart(repository.getPlayTimeMinutesByDay());
+        updateChart(repository.getWeeklyMatchCountByDay());
     }
 
     private void updateChart(int[] values) {
@@ -140,7 +157,24 @@ public class StatisticsFragment extends Fragment {
             int scaled = minHeight + Math.round((maxHeight - minHeight) * (values[i] / (float) max));
             layoutParams.height = scaled;
             bar.setLayoutParams(layoutParams);
+            bar.setBackgroundResource(values[i] > 0 && values[i] == max ? R.drawable.bg_primary_button_round : R.drawable.bg_card_brand_22);
         }
+    }
+
+    private void bindBestHistoryRow(View row, TextView valueView, @Nullable com.example.gamehub.data.local.entities.LocalHistory history) {
+        if (history == null) {
+            valueView.setText("Chưa có dữ liệu");
+            row.setAlpha(0.55f);
+            row.setOnClickListener(null);
+            return;
+        }
+        valueView.setText(formatDuration(history.timeSpent));
+        row.setAlpha(1f);
+        row.setOnClickListener(v -> {
+            if (requireActivity() instanceof MainActivity) {
+                ((MainActivity) requireActivity()).showHistoryDetail(history.id);
+            }
+        });
     }
 
     private int dpToPx(int dp) {

@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.gamehub.MainActivity;
 import com.example.gamehub.R;
 import com.example.gamehub.adapter.HistoryAdapter;
+import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.repository.GameRepository;
 
 public class HistoryFragment extends Fragment {
@@ -37,7 +38,7 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         repository = GameRepository.getInstance(requireContext());
-        historyAdapter = new HistoryAdapter();
+        historyAdapter = new HistoryAdapter(this::openHistoryDetail);
 
         queueBannerTitle = view.findViewById(R.id.queue_banner_title);
         queueBannerSubtitle = view.findViewById(R.id.queue_banner_subtitle);
@@ -65,6 +66,15 @@ public class HistoryFragment extends Fragment {
         applyFilter(selectedFilter);
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getView() != null) {
+            renderQueueBanner();
+            applyFilter(selectedFilter);
+        }
+    }
+
     private void renderQueueBanner() {
         int unsyncedCount = repository.getUnsyncedCount();
         if (unsyncedCount > 0) {
@@ -87,5 +97,11 @@ public class HistoryFragment extends Fragment {
         filterQuiz.setBackgroundResource("quiz".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
         filterMemory.setBackgroundResource("memory".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
         filterSudoku.setBackgroundResource("sudoku".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
+    }
+
+    private void openHistoryDetail(LocalHistory item) {
+        if (requireActivity() instanceof MainActivity) {
+            ((MainActivity) requireActivity()).showHistoryDetail(item.id);
+        }
     }
 }

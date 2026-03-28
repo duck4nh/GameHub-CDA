@@ -14,6 +14,7 @@ import androidx.fragment.app.FragmentManager;
 
 import com.example.gamehub.fragments.ChatFragment;
 import com.example.gamehub.fragments.GamesFragment;
+import com.example.gamehub.fragments.HistoryDetailFragment;
 import com.example.gamehub.fragments.HistoryFragment;
 import com.example.gamehub.fragments.LeaderboardFragment;
 import com.example.gamehub.fragments.ShellPlaceholderFragment;
@@ -52,6 +53,16 @@ public class MainActivity extends AppCompatActivity {
 
     public void showHistory() {
         openStatisticsChild(new HistoryFragment());
+    }
+
+    public void showHistoryDetail(int historyId) {
+        Fragment fragment = HistoryDetailFragment.newInstance(historyId);
+        if (bottomNavigationView.getSelectedItemId() != R.id.nav_statistics) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_statistics);
+            findViewById(R.id.fragment_container).post(() -> openStatisticsChild(fragment));
+            return;
+        }
+        openStatisticsChild(fragment);
     }
 
     public void showStatistics() {
