@@ -31,7 +31,7 @@ import com.example.gamehub.data.local.entities.SudokuStats;
                 SudokuGameState.class,
                 SudokuStats.class
         },
-        version = 3,
+        version = 4,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -43,6 +43,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract SudokuGameStateDao sudokuGameStateDao();
     public abstract SudokuStatsDao sudokuStatsDao();
     public abstract HistoryDao historyDao();
+    public abstract FriendDao friendDao();
 
     public static AppDatabase getInstance(Context context) {
         if (instance == null) {

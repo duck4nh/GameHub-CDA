@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 public class PreferenceManager {
+    public static final String KEY_IS_LOGGED_IN = "is_logged_in";
     public static final String KEY_CURRENT_UID = "current_uid";
     public static final String KEY_CACHE_NICKNAME = "cache_nickname";
     public static final String KEY_IS_DARK_MODE = "is_dark_mode";
@@ -44,5 +45,29 @@ public class PreferenceManager {
 
     public void putLong(String key, long value) {
         sharedPreferences.edit().putLong(key, value).apply();
+    }
+
+    public void saveLoginSession(String uid, String nickname) {
+        sharedPreferences.edit()
+                .putBoolean(KEY_IS_LOGGED_IN, true)
+                .putString(KEY_CURRENT_UID, uid)
+                .putString(KEY_CACHE_NICKNAME, nickname)
+                .apply();
+    }
+
+    public void clear() {
+        sharedPreferences.edit().clear().apply();
+    }
+
+    public boolean isLoggedIn() {
+        return sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false);
+    }
+
+    public String getCurrentUid() {
+        return sharedPreferences.getString(KEY_CURRENT_UID, "");
+    }
+
+    public String getCacheNickname() {
+        return sharedPreferences.getString(KEY_CACHE_NICKNAME, "Player");
     }
 }
