@@ -68,7 +68,6 @@ public class MemoryViewModel extends AndroidViewModel {
     private boolean loading;
     private boolean pauseVisible;
     private boolean boardLocked;
-    private boolean initialAutoLaunchPending = true;
     private int selectedLevelIndex;
     private int currentLevelIndex;
     private int firstSelectedPosition = -1;
@@ -78,6 +77,7 @@ public class MemoryViewModel extends AndroidViewModel {
     private int currentStreak;
     private int bestStreak;
     private int score;
+    private int boardStateVersion;
     private long remainingTimeMs;
     private long elapsedTimeMs;
 
@@ -113,7 +113,6 @@ public class MemoryViewModel extends AndroidViewModel {
                     levels.addAll(items);
                     selectedLevelIndex = findHighestUnlockedLevelIndex();
                     currentLevelIndex = selectedLevelIndex;
-                    initialAutoLaunchPending = !items.isEmpty();
                     notifyObservers();
                 });
             } catch (Exception ignored) {
@@ -176,7 +175,6 @@ public class MemoryViewModel extends AndroidViewModel {
         if (!level.isUnlocked) {
             return;
         }
-        initialAutoLaunchPending = false;
         selectedLevelIndex = index;
         currentLevelIndex = index;
         currentScreen = Screen.GAMEPLAY;
@@ -220,6 +218,7 @@ public class MemoryViewModel extends AndroidViewModel {
         }
 
         tappedCard.revealed = true;
+        markBoardChanged();
         if (firstSelectedPosition < 0) {
             firstSelectedPosition = position;
             notifyObservers();
@@ -234,6 +233,7 @@ public class MemoryViewModel extends AndroidViewModel {
         if (firstCard.identifier == secondCard.identifier) {
             firstCard.matched = true;
             secondCard.matched = true;
+            markBoardChanged();
             matchedPairs++;
             currentStreak++;
             bestStreak = Math.max(bestStreak, currentStreak);
@@ -264,6 +264,7 @@ public class MemoryViewModel extends AndroidViewModel {
         }
         cards.get(firstSelectedPosition).revealed = false;
         cards.get(secondSelectedPosition).revealed = false;
+        markBoardChanged();
         resetSelection();
         boardLocked = false;
         notifyObservers();
@@ -290,24 +291,7 @@ public class MemoryViewModel extends AndroidViewModel {
         resetSelection();
         selectedLevelIndex = findHighestUnlockedLevelIndex();
         currentLevelIndex = selectedLevelIndex;
-        initialAutoLaunchPending = false;
         notifyObservers();
-    }
-
-    public boolean shouldAutoLaunchSelectedLevel() {
-        return currentScreen == Screen.SETUP
-                && initialized
-                && !loading
-                && !levels.isEmpty()
-                && initialAutoLaunchPending;
-    }
-
-    public boolean consumeAutoLaunchSelectedLevel() {
-        if (!shouldAutoLaunchSelectedLevel()) {
-            return false;
-        }
-        initialAutoLaunchPending = false;
-        return true;
     }
 
     public MemoryLevel getCurrentLevel() {
@@ -331,6 +315,10 @@ public class MemoryViewModel extends AndroidViewModel {
 
     public int getScore() {
         return score;
+    }
+
+    public int getBoardStateVersion() {
+        return boardStateVersion;
     }
 
     public int getAccuracyPercent() {
@@ -403,9 +391,11 @@ public class MemoryViewModel extends AndroidViewModel {
         cards.clear();
         int pairCount = level.getPairCount();
         List<Integer> bestArrangement = buildSmartArrangement(pairCount, level.rowCount, level.columnCount);
+        long nextCardId = 1L;
         for (Integer identifier : bestArrangement) {
-            cards.add(new MemoryCard(identifier, buildLabel(identifier), identifier % 8));
+            cards.add(new MemoryCard(nextCardId++, identifier, buildLabel(identifier), identifier % 8));
         }
+        markBoardChanged();
     }
 
     private List<Integer> buildSmartArrangement(int pairCount, int rowCount, int columnCount) {
@@ -468,6 +458,10 @@ public class MemoryViewModel extends AndroidViewModel {
     private void resetSelection() {
         firstSelectedPosition = -1;
         secondSelectedPosition = -1;
+    }
+
+    private void markBoardChanged() {
+        boardStateVersion++;
     }
 
     private void notifyObservers() {

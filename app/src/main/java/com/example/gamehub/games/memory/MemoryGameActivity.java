@@ -81,6 +81,7 @@ public class MemoryGameActivity extends AppCompatActivity {
     private View resultCloseButton;
 
     private MemoryBoardAdapter adapter;
+    private int lastRenderedBoardVersion = -1;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -98,6 +99,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         adapter = new MemoryBoardAdapter(this::onCardClicked);
         adapter.setAnimationsEnabled(isAnimationOn());
         boardView.setAdapter(adapter);
+        boardView.setItemAnimator(null);
 
         viewModel.observe(stateObserver);
         viewModel.initialize();
@@ -180,6 +182,9 @@ public class MemoryGameActivity extends AppCompatActivity {
     private void renderSetup() {
         boolean isSetup = viewModel.getCurrentScreen() == MemoryViewModel.Screen.SETUP;
         setupScreen.setVisibility(isSetup ? View.VISIBLE : View.GONE);
+        if (!isSetup) {
+            return;
+        }
         List<MemoryLevel> levels = viewModel.getLevels();
         int selectedLevelIndex = viewModel.getSelectedLevelIndex();
         buildLevelGrid(levels, selectedLevelIndex);
@@ -194,12 +199,7 @@ public class MemoryGameActivity extends AppCompatActivity {
             startButton.setText("Bắt đầu chơi");
         }
 
-        if (isSetup) {
-            scrollLevelListToFocus(selectedLevelIndex);
-        }
-        if (isSetup && viewModel.consumeAutoLaunchSelectedLevel()) {
-            handler.post(viewModel::startSelectedLevel);
-        }
+        scrollLevelListToFocus(selectedLevelIndex);
     }
 
     private void renderGameplay() {
@@ -208,6 +208,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         if (!isGameplay) {
             handler.removeCallbacks(timerRunnable);
             handler.removeCallbacks(mismatchRunnable);
+            lastRenderedBoardVersion = -1;
             return;
         }
 
@@ -229,11 +230,16 @@ public class MemoryGameActivity extends AppCompatActivity {
         progressView.setText(String.format(Locale.getDefault(), "%d lượt", viewModel.getPairAttempts()));
 
         GridLayoutManager layoutManager = (GridLayoutManager) boardView.getLayoutManager();
-        if (layoutManager == null || layoutManager.getSpanCount() != currentLevel.columnCount) {
+        boolean spanCountChanged = layoutManager == null || layoutManager.getSpanCount() != currentLevel.columnCount;
+        if (spanCountChanged) {
             boardView.setLayoutManager(new GridLayoutManager(this, currentLevel.columnCount));
         }
         adapter.setAnimationsEnabled(isAnimationOn());
-        adapter.submitList(viewModel.getCards());
+        int boardStateVersion = viewModel.getBoardStateVersion();
+        if (spanCountChanged || lastRenderedBoardVersion != boardStateVersion) {
+            adapter.submitList(viewModel.getCards());
+            lastRenderedBoardVersion = boardStateVersion;
+        }
 
         if (!viewModel.isPauseVisible() && !viewModel.isBoardLocked()) {
             startTimer();
@@ -326,7 +332,12 @@ public class MemoryGameActivity extends AppCompatActivity {
             tile.addView(subtitle);
 
             final int finalIndex = index;
-            tile.setOnClickListener(v -> viewModel.selectLevel(finalIndex));
+            tile.setOnClickListener(v -> {
+                if (!level.isUnlocked) {
+                    return;
+                }
+                viewModel.startLevel(finalIndex);
+            });
             levelGrid.addView(tile);
         }
     }

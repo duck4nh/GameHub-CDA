@@ -55,7 +55,7 @@ public class QuizViewModel extends AndroidViewModel {
     private long elapsedSessionMs;
     private String selectedAnswerKey = "";
     private String message = "";
-    private String bestHistoryText = "Dang cap nhat lich su...";
+    private String bestHistoryText = "Đang cập nhật lịch sử...";
     private QuizManager quizManager;
     private QuizManager.AnswerOutcome latestOutcome;
 
@@ -97,7 +97,7 @@ public class QuizViewModel extends AndroidViewModel {
             } catch (IOException exception) {
                 mainHandler.post(() -> {
                     loading = false;
-                    message = "Khong the nap ngan hang cau hoi cuc bo.";
+                    message = "Không thể nạp ngân hàng câu hỏi cục bộ.";
                     notifyObservers();
                 });
             }
@@ -134,7 +134,7 @@ public class QuizViewModel extends AndroidViewModel {
 
     public String getSelectedCategoriesLabel() {
         if (selectedCategories.isEmpty() || selectedCategories.size() == availableCategories.size()) {
-            return "Tat ca chu de";
+            return "Tất cả chủ đề";
         }
         if (selectedCategories.size() == 1) {
             return selectedCategories.iterator().next();
@@ -143,17 +143,17 @@ public class QuizViewModel extends AndroidViewModel {
             List<String> labels = new ArrayList<>(selectedCategories);
             return labels.get(0) + ", " + labels.get(1);
         }
-        return String.format(Locale.getDefault(), "%d chu de da chon", selectedCategories.size());
+        return String.format(Locale.getDefault(), "%d chủ đề đã chọn", selectedCategories.size());
     }
 
     public String getSelectedCategoriesHeroLabel() {
         if (selectedCategories.isEmpty() || selectedCategories.size() == availableCategories.size()) {
-            return "Tat ca chu de";
+            return "Tất cả chủ đề";
         }
         if (selectedCategories.size() <= 2) {
             return getSelectedCategoriesLabel();
         }
-        return String.format(Locale.getDefault(), "%d chu de", selectedCategories.size());
+        return String.format(Locale.getDefault(), "%d chủ đề", selectedCategories.size());
     }
 
     public String getSelectedDifficulty() {
@@ -175,15 +175,15 @@ public class QuizViewModel extends AndroidViewModel {
 
     public String getDifficultyHelperLabel() {
         if ("easy".equals(selectedDifficulty)) {
-            return "Uu tien bo cau hoi de de lam nong.";
+            return "Ưu tiên bộ câu hỏi dễ để làm nóng.";
         }
         if ("medium".equals(selectedDifficulty)) {
-            return "Can bang giua toc do va do chinh xac.";
+            return "Cân bằng giữa tốc độ và độ chính xác.";
         }
         if ("hard".equals(selectedDifficulty)) {
-            return "Tap trung vao nhung cau hoi kho hon.";
+            return "Tập trung vào những câu hỏi khó hơn.";
         }
-        return "Moi muc do deu co the xuat hien trong van choi.";
+        return "Mọi mức độ đều có thể xuất hiện trong ván chơi.";
     }
 
     public int getSelectedQuestionCount() {
@@ -193,7 +193,7 @@ public class QuizViewModel extends AndroidViewModel {
     public String getSetupSummary() {
         return String.format(
                 Locale.getDefault(),
-                "%s · %d cau hoi moi van.",
+                "%s · %d câu hỏi mỗi ván.",
                 getSelectedDifficultyLabel(),
                 selectedQuestionCount
         );
@@ -244,7 +244,7 @@ public class QuizViewModel extends AndroidViewModel {
                 selectedAnswerKey = "";
                 remainingQuestionMs = QUESTION_TIME_MS;
                 elapsedSessionMs = 0L;
-                message = emptyState ? "Chua co cau hoi phu hop voi bo loc hien tai." : "";
+                message = emptyState ? "Chưa có câu hỏi phù hợp với bộ lọc hiện tại." : "";
                 notifyObservers();
             });
         });
@@ -395,7 +395,7 @@ public class QuizViewModel extends AndroidViewModel {
         currentScreen = Screen.RESULT;
         pauseVisible = false;
         answerLocked = true;
-        bestHistoryText = "Dang cap nhat lich su...";
+        bestHistoryText = "Đang cập nhật lịch sử...";
         notifyObservers();
 
         if (quizManager == null) {
@@ -422,11 +422,11 @@ public class QuizViewModel extends AndroidViewModel {
 
     private String buildBestHistoryText(@Nullable LocalHistory history) {
         if (history == null) {
-            return "Chua co moc lich su truoc do.";
+            return "Chưa có mốc lịch sử trước đó.";
         }
         return String.format(
                 Locale.getDefault(),
-                "Cao nhat: %d diem trong %s.",
+                "Cao nhất: %d điểm trong %s.",
                 history.score,
                 formatDuration(history.timeSpent)
         );

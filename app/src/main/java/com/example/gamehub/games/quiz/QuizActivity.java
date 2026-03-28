@@ -16,6 +16,7 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.widget.CompoundButtonCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.gamehub.R;
@@ -108,6 +109,7 @@ public class QuizActivity extends AppCompatActivity {
     private TextView resultHistoryView;
     private TextView resultNoteView;
     private TextView pauseMessageView;
+    private String renderedIllustrationUrl = "";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -255,6 +257,8 @@ public class QuizActivity extends AppCompatActivity {
         if (!isGameplay) {
             handler.removeCallbacks(timerRunnable);
             handler.removeCallbacks(advanceRunnable);
+            renderedIllustrationUrl = "";
+            illustrationView.setImageDrawable(null);
             return;
         }
 
@@ -272,6 +276,8 @@ public class QuizActivity extends AppCompatActivity {
             feedbackView.setVisibility(View.GONE);
             imageContainer.setVisibility(View.GONE);
             questionView.setText("");
+            illustrationView.setImageDrawable(null);
+            renderedIllustrationUrl = "";
             return;
         }
 
@@ -327,13 +333,19 @@ public class QuizActivity extends AppCompatActivity {
         if (imageUrl.isEmpty()) {
             imageContainer.setVisibility(View.GONE);
             illustrationView.setImageDrawable(null);
+            renderedIllustrationUrl = "";
             return;
         }
         imageContainer.setVisibility(View.VISIBLE);
         illustrationCaptionView.setText("Minh họa cho chủ đề " + question.category);
+        if (imageUrl.equals(renderedIllustrationUrl)) {
+            return;
+        }
+        renderedIllustrationUrl = imageUrl;
+        illustrationView.setImageDrawable(null);
         ImageLoader.load(imageUrl, illustrationView, success -> {
-            if (!success) {
-                illustrationCaptionView.setText("Không tải được minh họa, vẫn có thể trả lời bình thường.");
+            if (!success && imageUrl.equals(renderedIllustrationUrl)) {
+                illustrationCaptionView.setText("Không tải được minh họa, bạn vẫn có thể trả lời bình thường.");
             }
         });
     }
@@ -423,10 +435,10 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     private void resetOptionState() {
-        optionAButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-        optionBButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-        optionCButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-        optionDButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+        optionAButton.setBackgroundResource(R.drawable.bg_quiz_option_default);
+        optionBButton.setBackgroundResource(R.drawable.bg_quiz_option_default);
+        optionCButton.setBackgroundResource(R.drawable.bg_quiz_option_default);
+        optionDButton.setBackgroundResource(R.drawable.bg_quiz_option_default);
     }
 
     private void highlightSelectedAnswer(String selectedAnswerKey) {
@@ -482,6 +494,7 @@ public class QuizActivity extends AppCompatActivity {
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(category);
             checkBox.setTextColor(getColor(R.color.gh_text_primary));
+            CompoundButtonCompat.setButtonTintList(checkBox, null);
             checkBox.setChecked(selections.contains(category));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -514,6 +527,8 @@ public class QuizActivity extends AppCompatActivity {
         resetButton.setText("Chọn tất cả");
         resetButton.setAllCaps(false);
         resetButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+        resetButton.setBackgroundTintList(null);
+        resetButton.setTextColor(getColor(R.color.gh_button_secondary_text));
         LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(0, dpToPx(44), 1f);
         resetButton.setLayoutParams(resetParams);
         resetButton.setOnClickListener(v -> {
@@ -525,6 +540,7 @@ public class QuizActivity extends AppCompatActivity {
         applyButton.setText("Áp dụng");
         applyButton.setAllCaps(false);
         applyButton.setBackgroundResource(R.drawable.bg_primary_button_round);
+        applyButton.setBackgroundTintList(null);
         applyButton.setTextColor(getColor(R.color.white));
         LinearLayout.LayoutParams applyParams = new LinearLayout.LayoutParams(0, dpToPx(44), 1f);
         applyParams.leftMargin = dpToPx(12);

@@ -42,6 +42,7 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
 
     public MemoryBoardAdapter(OnCardClickListener onCardClickListener) {
         this.onCardClickListener = onCardClickListener;
+        setHasStableIds(true);
     }
 
     public void setAnimationsEnabled(boolean animationsEnabled) {
@@ -54,6 +55,11 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
             items.addAll(cards);
         }
         notifyDataSetChanged();
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return items.get(position).cardId;
     }
 
     @NonNull
@@ -88,11 +94,12 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         MemoryCard card = items.get(position);
         boolean showFront = card.revealed || card.matched;
+        holder.itemView.animate().cancel();
         holder.labelView.setText(card.label);
-        holder.metaView.setText(card.matched ? "matched" : "pair");
+        holder.metaView.setText(card.matched ? "khớp" : "cặp");
         applyFrontTint(holder.frontFace, card);
 
-        if (!holder.bound) {
+        if (!holder.bound || holder.boundCardId != card.cardId) {
             applyStateImmediately(holder, showFront);
             holder.bound = true;
         } else if (holder.isFrontVisible != showFront && animationsEnabled) {
@@ -100,6 +107,7 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         } else {
             applyStateImmediately(holder, showFront);
         }
+        holder.boundCardId = card.cardId;
         holder.isFrontVisible = showFront;
 
         holder.itemView.setOnClickListener(v -> {
@@ -155,6 +163,7 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         final TextView metaView;
         boolean bound;
         boolean isFrontVisible;
+        long boundCardId = RecyclerView.NO_ID;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);

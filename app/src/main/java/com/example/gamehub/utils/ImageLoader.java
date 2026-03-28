@@ -9,6 +9,8 @@ import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
@@ -23,6 +25,9 @@ public final class ImageLoader {
 
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(3);
     private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
+    private static final String USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14; GameHub) AppleWebKit/537.36 "
+                    + "(KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36";
     private static final LruCache<String, Bitmap> CACHE = new LruCache<String, Bitmap>((int) (Runtime.getRuntime().maxMemory() / 16)) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -84,9 +89,24 @@ public final class ImageLoader {
             connection.setConnectTimeout(8000);
             connection.setReadTimeout(8000);
             connection.setInstanceFollowRedirects(true);
+            connection.setDoInput(true);
+            connection.setUseCaches(true);
+            connection.setRequestProperty("User-Agent", USER_AGENT);
+            connection.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
             connection.connect();
-            try (InputStream inputStream = connection.getInputStream()) {
-                return BitmapFactory.decodeStream(inputStream);
+            int responseCode = connection.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                return null;
+            }
+            try (InputStream inputStream = new BufferedInputStream(connection.getInputStream());
+                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, read);
+                }
+                byte[] bytes = outputStream.toByteArray();
+                return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             }
         } catch (Exception ignored) {
             return null;

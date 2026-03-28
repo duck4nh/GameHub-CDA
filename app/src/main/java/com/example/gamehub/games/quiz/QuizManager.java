@@ -51,14 +51,14 @@ public class QuizManager {
         public String buildFeedbackMessage() {
             if (correct) {
                 if (combo > 1) {
-                    return String.format(Locale.getDefault(), "Chinh xac! +%d diem, combo %d.", awardedScore, combo);
+                    return String.format(Locale.getDefault(), "Chính xác! +%d điểm, combo %d.", awardedScore, combo);
                 }
-                return String.format(Locale.getDefault(), "Chinh xac! +%d diem.", awardedScore);
+                return String.format(Locale.getDefault(), "Chính xác! +%d điểm.", awardedScore);
             }
             if (timedOut) {
-                return "Het gio. Dap an dung da duoc hien.";
+                return "Hết giờ. Đáp án đúng đã được hiện.";
             }
-            return "Sai roi. Dap an dung da duoc hien.";
+            return "Sai rồi. Đáp án đúng đã được hiện.";
         }
     }
 
