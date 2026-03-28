@@ -20,15 +20,15 @@ public interface QuizDao {
     @Query("SELECT DISTINCT category FROM Quiz_Questions ORDER BY category ASC")
     List<String> getDistinctCategories();
 
-    @Query("SELECT * FROM Quiz_Questions WHERE difficulty = :difficulty ORDER BY id ASC LIMIT :limit")
-    List<QuizQuestion> getQuestionsByDifficulty(String difficulty, int limit);
+    @Query("SELECT * FROM Quiz_Questions ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestions(int limit);
 
-    @Query("SELECT * FROM Quiz_Questions WHERE category = :category ORDER BY id ASC LIMIT :limit")
-    List<QuizQuestion> getQuestionsByCategory(String category, int limit);
+    @Query("SELECT * FROM Quiz_Questions WHERE difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestionsByDifficulty(String difficulty, int limit);
 
-    @Query("SELECT * FROM Quiz_Questions WHERE category = :category AND difficulty = :difficulty ORDER BY id ASC LIMIT :limit")
-    List<QuizQuestion> getQuestionsByCategoryAndDifficulty(String category, String difficulty, int limit);
+    @Query("SELECT * FROM Quiz_Questions WHERE category IN (:categories) ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestionsByCategories(List<String> categories, int limit);
 
-    @Query("SELECT * FROM Quiz_Questions ORDER BY id ASC LIMIT :limit")
-    List<QuizQuestion> getQuestions(int limit);
+    @Query("SELECT * FROM Quiz_Questions WHERE category IN (:categories) AND difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestionsByCategoriesAndDifficulty(List<String> categories, String difficulty, int limit);
 }

@@ -35,6 +35,9 @@ public interface HistoryDao {
     @Query("SELECT MIN(time_spent) FROM Local_History WHERE lower(game_name) LIKE '%' || lower(:gameName) || '%'")
     Long getBestTimeForGame(String gameName);
 
+    @Query("SELECT * FROM Local_History WHERE lower(game_name) = lower(:gameName) ORDER BY score DESC, time_spent ASC LIMIT 1")
+    LocalHistory getBestHistoryForGame(String gameName);
+
     @Query("SELECT * FROM Local_History WHERE is_synced = 0 AND lower(game_name) = lower(:gameName) ORDER BY play_date ASC")
     List<LocalHistory> getUnsyncedHistoryForGame(String gameName);
 

@@ -5,14 +5,20 @@ import android.content.Context;
 import androidx.annotation.Nullable;
 
 import com.example.gamehub.data.local.AppDatabase;
+import com.example.gamehub.data.local.QuizAssetImporter;
 import com.example.gamehub.data.local.dao.HistoryDao;
+import com.example.gamehub.data.local.dao.MemoryDao;
+import com.example.gamehub.data.local.dao.QuizDao;
 import com.example.gamehub.data.local.entities.LocalHistory;
+import com.example.gamehub.data.local.entities.MemoryLevel;
+import com.example.gamehub.data.local.entities.QuizQuestion;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.models.ChatMessage;
 import com.example.gamehub.models.GameRecord;
 import com.example.gamehub.models.LeaderboardEntry;
 import com.example.gamehub.models.User;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -26,25 +32,33 @@ import java.util.Set;
 
 public class GameRepository {
     private static final String DEFAULT_UID = "uid_duong";
-    private static final String DEFAULT_NICKNAME = "Phạm Hồng Dương";
+    private static final String DEFAULT_NICKNAME = "Pham Hong Duong";
 
     private static GameRepository instance;
 
+    private final Context appContext;
     private final PreferenceManager preferenceManager;
     private final HistoryDao historyDao;
+    private final QuizDao quizDao;
+    private final MemoryDao memoryDao;
     private final List<User> users = new ArrayList<>();
     private final List<GameRecord> gameRecords = new ArrayList<>();
     private final List<ChatMessage> chatMessages = new ArrayList<>();
 
+    private boolean localDataReady;
+
     private GameRepository(Context context) {
-        Context appContext = context.getApplicationContext();
+        appContext = context.getApplicationContext();
+        AppDatabase database = AppDatabase.getInstance(appContext);
         preferenceManager = new PreferenceManager(appContext);
-        historyDao = AppDatabase.getInstance(appContext).historyDao();
+        historyDao = database.historyDao();
+        quizDao = database.quizDao();
+        memoryDao = database.memoryDao();
         ensurePreferences();
         seedUsers();
         seedGameRecords();
         seedChatMessages();
-        seedHistoryIfNeeded();
+        localDataReady = quizDao.getCount() > 0 && memoryDao.getCount() > 0;
     }
 
     public static synchronized GameRepository getInstance(Context context) {
@@ -52,6 +66,82 @@ public class GameRepository {
             instance = new GameRepository(context);
         }
         return instance;
+    }
+
+    public synchronized void ensureLocalDataReady() throws IOException {
+        if (memoryDao.getCount() == 0) {
+            localDataReady = false;
+        }
+        if (quizDao.getCount() == 0) {
+            List<QuizQuestion> questions = QuizAssetImporter.readQuestions(appContext);
+            if (!questions.isEmpty()) {
+                quizDao.insertAll(questions);
+            }
+        }
+        localDataReady = quizDao.getCount() > 0 && memoryDao.getCount() > 0;
+        preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
+    }
+
+    public boolean isLocalDataReady() {
+        return localDataReady;
+    }
+
+    public List<String> getQuizCategories() {
+        return new ArrayList<>(quizDao.getDistinctCategories());
+    }
+
+    public List<QuizQuestion> getRandomQuizQuestions(List<String> categories, @Nullable String difficulty, int limit) {
+        List<String> normalizedCategories = categories == null ? new ArrayList<>() : new ArrayList<>(categories);
+        if (normalizedCategories.isEmpty()) {
+            normalizedCategories.addAll(quizDao.getDistinctCategories());
+        }
+
+        boolean filterAllCategories = normalizedCategories.size() >= quizDao.getDistinctCategories().size();
+        boolean hasDifficulty = difficulty != null && !difficulty.trim().isEmpty() && !"all".equalsIgnoreCase(difficulty);
+
+        if (filterAllCategories) {
+            return hasDifficulty
+                    ? quizDao.getRandomQuestionsByDifficulty(difficulty, limit)
+                    : quizDao.getRandomQuestions(limit);
+        }
+        return hasDifficulty
+                ? quizDao.getRandomQuestionsByCategoriesAndDifficulty(normalizedCategories, difficulty, limit)
+                : quizDao.getRandomQuestionsByCategories(normalizedCategories, limit);
+    }
+
+    public List<MemoryLevel> getMemoryLevels() {
+        return new ArrayList<>(memoryDao.getAllLevels());
+    }
+
+    @Nullable
+    public MemoryLevel getMemoryLevel(int levelId) {
+        return memoryDao.getLevel(levelId);
+    }
+
+    public void completeMemoryLevel(int levelId, long elapsedMs, boolean won) {
+        if (!won) {
+            return;
+        }
+        MemoryLevel currentLevel = memoryDao.getLevel(levelId);
+        if (currentLevel == null) {
+            return;
+        }
+        if (currentLevel.bestTimeMs == 0L || elapsedMs < currentLevel.bestTimeMs) {
+            memoryDao.updateBestTime(levelId, elapsedMs);
+        }
+        MemoryLevel nextLevel = memoryDao.getLevel(levelId + 1);
+        if (nextLevel != null && !nextLevel.isUnlocked) {
+            memoryDao.unlockLevel(nextLevel.levelId);
+        }
+    }
+
+    public long saveHistory(LocalHistory historyItem) {
+        return historyDao.insert(historyItem);
+    }
+
+    @Nullable
+    public LocalHistory getBestHistoryForGame(String gameName) {
+        return historyDao.getBestHistoryForGame(gameName);
     }
 
     public List<LeaderboardEntry> getLeaderboardEntries(boolean weekly) {
@@ -71,16 +161,16 @@ public class GameRepository {
 
     public String getCurrentUserTrendLabel(boolean weekly) {
         if (!weekly) {
-            return "Tổng điểm tích lũy";
+            return "Tong diem tich luy";
         }
         int delta = getCurrentUserWeeklyRankDelta();
         if (delta > 0) {
-            return String.format(Locale.getDefault(), "+%d bậc tuần này", delta);
+            return String.format(Locale.getDefault(), "+%d bac tuan nay", delta);
         }
         if (delta < 0) {
-            return String.format(Locale.getDefault(), "%d bậc tuần này", delta);
+            return String.format(Locale.getDefault(), "%d bac tuan nay", delta);
         }
-        return "Giữ nguyên tuần này";
+        return "Giu nguyen tuan nay";
     }
 
     public void setLeaderboardFilter(boolean weekly) {
@@ -122,16 +212,16 @@ public class GameRepository {
         previousWeekStart.add(Calendar.DAY_OF_YEAR, -7);
         int previous = getScoreForWindow(getCurrentUid(), previousWeekStart.getTimeInMillis(), getStartOfCurrentWeek() - 1);
         if (previous <= 0) {
-            return current > 0 ? "Tuần đầu tiên có điểm" : "Chưa có điểm tuần này";
+            return current > 0 ? "Tuan dau tien co diem" : "Chua co diem tuan nay";
         }
         int percent = Math.round((current - previous) * 100f / previous);
         if (percent > 0) {
-            return String.format(Locale.getDefault(), "+%d%% so với tuần trước", percent);
+            return String.format(Locale.getDefault(), "+%d%% so voi tuan truoc", percent);
         }
         if (percent < 0) {
-            return String.format(Locale.getDefault(), "%d%% so với tuần trước", percent);
+            return String.format(Locale.getDefault(), "%d%% so voi tuan truoc", percent);
         }
-        return "Bằng tuần trước";
+        return "Bang tuan truoc";
     }
 
     public int getCurrentStreakDays() {
@@ -189,13 +279,12 @@ public class GameRepository {
 
     public List<LocalHistory> getHistory(@Nullable String filter) {
         List<LocalHistory> items = new ArrayList<>(historyDao.getAllNewestFirst());
-        if (filter == null || "all".equals(filter)) {
+        if (filter == null || "all".equalsIgnoreCase(filter)) {
             return items;
         }
         List<LocalHistory> filtered = new ArrayList<>();
         for (LocalHistory item : items) {
-            String name = item.gameName.toLowerCase(Locale.getDefault());
-            if (name.contains(filter.toLowerCase(Locale.getDefault()))) {
+            if (item.gameName.equalsIgnoreCase(filter)) {
                 filtered.add(item);
             }
         }
@@ -244,6 +333,15 @@ public class GameRepository {
         if (preferenceManager.getString(PreferenceManager.KEY_LEADERBOARD_FILTER, null) == null) {
             preferenceManager.putString(PreferenceManager.KEY_LEADERBOARD_FILTER, "weekly");
         }
+        if (!preferenceManager.contains(PreferenceManager.KEY_IS_SOUND_ON)) {
+            preferenceManager.putBoolean(PreferenceManager.KEY_IS_SOUND_ON, true);
+        }
+        if (!preferenceManager.contains(PreferenceManager.KEY_IS_ANIMATION_ON)) {
+            preferenceManager.putBoolean(PreferenceManager.KEY_IS_ANIMATION_ON, true);
+        }
+        if (!preferenceManager.contains(PreferenceManager.KEY_LAST_SYNC_TIME)) {
+            preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, 0L);
+        }
     }
 
     private void seedUsers() {
@@ -289,24 +387,9 @@ public class GameRepository {
             return;
         }
         long now = System.currentTimeMillis();
-        chatMessages.add(new ChatMessage("c1", "uid_trang", "Trang", "Ai rảnh đấu Ghi nhớ sau giờ học?", now - 180000));
-        chatMessages.add(new ChatMessage("c2", getCurrentUid(), "Bạn", "Mình vào sau 10 phút nữa.", now - 120000));
-        chatMessages.add(new ChatMessage("c3", "uid_linh", "Linh", "Mình mở phòng ở mục Cộng đồng rồi.", now - 60000));
-    }
-
-    private void seedHistoryIfNeeded() {
-        if (historyDao.getCount() > 0) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        long oneDay = 24L * 60L * 60L * 1000L;
-        List<LocalHistory> samples = new ArrayList<>();
-        samples.add(new LocalHistory("Đố vui · Thủ đô châu Á", "won", 17, 381000, now - oneDay, true));
-        samples.add(new LocalHistory("Ghi nhớ · Lưới trung bình", "completed", 32, 470000, now - 2 * oneDay, false));
-        samples.add(new LocalHistory("Sudoku · Khó", "won", 100, 554000, now - 3 * oneDay, true));
-        samples.add(new LocalHistory("Đố vui · Chủ đề thể thao", "won", 15, 468000, now - 4 * oneDay, true));
-        samples.add(new LocalHistory("Ghi nhớ · 4x4", "lost", 18, 214000, now - 5 * oneDay, true));
-        historyDao.insertAll(samples);
+        chatMessages.add(new ChatMessage("c1", "uid_trang", "Trang", "Ai ranh dau Ghi nho sau gio hoc?", now - 180000));
+        chatMessages.add(new ChatMessage("c2", getCurrentUid(), "Ban", "Minh vao sau 10 phut nua.", now - 120000));
+        chatMessages.add(new ChatMessage("c3", "uid_linh", "Linh", "Minh mo phong o muc Cong dong roi.", now - 60000));
     }
 
     private List<LeaderboardEntry> getAllTimeLeaderboard() {

@@ -6,21 +6,23 @@ import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.activity.OnBackPressedCallback;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.gamehub.R;
-import com.example.gamehub.data.local.AppDatabase;
-import com.example.gamehub.data.local.dao.HistoryDao;
-import com.example.gamehub.data.local.dao.QuizDao;
-import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.local.entities.QuizQuestion;
 import com.example.gamehub.data.pref.PreferenceManager;
+import com.example.gamehub.utils.ImageLoader;
+import com.example.gamehub.utils.SoundManager;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.util.ArrayList;
@@ -28,49 +30,69 @@ import java.util.List;
 import java.util.Locale;
 
 public class QuizActivity extends AppCompatActivity {
-    private interface OnChoiceSelectedListener {
+    private interface ChoiceListener {
         void onSelected(String value);
     }
+
+    private QuizViewModel viewModel;
+    private PreferenceManager preferenceManager;
+    private SoundManager soundManager;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
-            if (gameplayScreen.getVisibility() != View.VISIBLE || sessionFinished) {
+            if (viewModel == null || viewModel.getCurrentScreen() != QuizViewModel.Screen.GAMEPLAY || viewModel.isPauseVisible()) {
                 return;
             }
-            remainingTimeMs = Math.max(0L, remainingTimeMs - 1000L);
-            timerView.setText(formatDuration(remainingTimeMs));
-            if (remainingTimeMs <= 0L) {
-                finishQuiz();
-            } else {
-                handler.postDelayed(this, 1000L);
+            if (viewModel.tickQuestion()) {
+                handleOutcome(viewModel.timeoutCurrentQuestion());
+                return;
             }
+            render();
+            handler.postDelayed(this, 1000L);
         }
     };
-
-    private QuizDao quizDao;
-    private HistoryDao historyDao;
-    private PreferenceManager preferenceManager;
+    private final Runnable advanceRunnable = () -> {
+        if (viewModel == null) {
+            return;
+        }
+        viewModel.advanceAfterFeedback();
+        render();
+        if (viewModel.getCurrentScreen() == QuizViewModel.Screen.GAMEPLAY && !viewModel.isPauseVisible()) {
+            startTimer();
+            animateQuestionCard();
+        } else if (viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT) {
+            animateResultScreen();
+        }
+    };
+    private final QuizViewModel.Observer stateObserver = this::render;
 
     private View setupScreen;
     private View gameplayScreen;
     private View resultScreen;
     private View pauseOverlay;
+    private View questionCard;
+    private View imageContainer;
     private TextView selectedTopicHeroView;
     private TextView selectedSummaryView;
     private TextView selectedTopicView;
     private TextView selectedDifficultyView;
     private TextView selectedDifficultyHelperView;
     private TextView selectedCountView;
+    private Button startButton;
 
     private TextView playTitleView;
     private TextView playProgressView;
     private TextView timerView;
     private View progressTrackView;
     private View progressFillView;
+    private TextView liveScoreView;
+    private TextView liveComboView;
+    private TextView feedbackView;
     private TextView questionView;
     private TextView illustrationCaptionView;
+    private ImageView illustrationView;
     private TextView emptyView;
     private Button optionAButton;
     private Button optionBButton;
@@ -87,33 +109,21 @@ public class QuizActivity extends AppCompatActivity {
     private TextView resultNoteView;
     private TextView pauseMessageView;
 
-    private final List<String> categoryOptions = new ArrayList<>();
-    private String selectedCategory = "Tất cả chủ đề";
-    private String selectedDifficulty = "Tất cả";
-    private int selectedQuestionCount = 20;
-    private String selectedAnswerKey;
-    private QuizManager quizManager;
-    private long remainingTimeMs;
-    private long totalTimeMs;
-    private boolean sessionFinished;
-    private String gameplaySubtitleBeforePause;
-
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.game_quiz);
 
-        AppDatabase database = AppDatabase.getInstance(this);
-        quizDao = database.quizDao();
-        historyDao = database.historyDao();
         preferenceManager = new PreferenceManager(this);
+        soundManager = new SoundManager(this);
+        viewModel = new ViewModelProvider(this).get(QuizViewModel.class);
 
         bindViews();
-        loadCategoryOptions();
-        updateSetupSummary();
-        showSetupScreen();
         bindActions();
         installBackHandler();
+
+        viewModel.observe(stateObserver);
+        viewModel.initialize();
     }
 
     private void bindViews() {
@@ -121,6 +131,8 @@ public class QuizActivity extends AppCompatActivity {
         gameplayScreen = findViewById(R.id.quiz_gameplay_screen);
         resultScreen = findViewById(R.id.quiz_result_screen);
         pauseOverlay = findViewById(R.id.quiz_pause_screen);
+        questionCard = findViewById(R.id.quiz_question_card);
+        imageContainer = findViewById(R.id.quiz_image_container);
 
         selectedTopicHeroView = findViewById(R.id.quiz_selected_topic_hero);
         selectedSummaryView = findViewById(R.id.quiz_selected_summary);
@@ -128,14 +140,19 @@ public class QuizActivity extends AppCompatActivity {
         selectedDifficultyView = findViewById(R.id.quiz_selected_difficulty);
         selectedDifficultyHelperView = findViewById(R.id.quiz_selected_difficulty_helper);
         selectedCountView = findViewById(R.id.quiz_selected_count);
+        startButton = findViewById(R.id.quiz_start_button);
 
         playTitleView = findViewById(R.id.quiz_play_title);
         playProgressView = findViewById(R.id.quiz_play_progress);
         timerView = findViewById(R.id.quiz_timer);
         progressTrackView = findViewById(R.id.quiz_progress_track);
         progressFillView = findViewById(R.id.quiz_progress_fill);
+        liveScoreView = findViewById(R.id.quiz_live_score);
+        liveComboView = findViewById(R.id.quiz_live_combo);
+        feedbackView = findViewById(R.id.quiz_feedback);
         questionView = findViewById(R.id.quiz_question);
         illustrationCaptionView = findViewById(R.id.quiz_illustration_caption);
+        illustrationView = findViewById(R.id.quiz_image);
         emptyView = findViewById(R.id.quiz_empty);
         optionAButton = findViewById(R.id.quiz_option_a);
         optionBButton = findViewById(R.id.quiz_option_b);
@@ -155,34 +172,41 @@ public class QuizActivity extends AppCompatActivity {
 
     private void bindActions() {
         findViewById(R.id.quiz_setup_back).setOnClickListener(v -> finish());
-        findViewById(R.id.quiz_topic_row).setOnClickListener(v ->
-                showChoiceSheet("Chọn chủ đề", categoryOptions, selectedCategory, value -> {
-                    selectedCategory = value;
-                    updateSetupSummary();
-                }));
+        findViewById(R.id.quiz_topic_row).setOnClickListener(v -> showCategorySheet());
         findViewById(R.id.quiz_difficulty_row).setOnClickListener(v ->
-                showChoiceSheet("Chọn độ khó", buildDifficultyOptions(), selectedDifficulty, value -> {
-                    selectedDifficulty = value;
-                    updateSetupSummary();
+                showChoiceSheet("Chọn độ khó", buildDifficultyOptions(), viewModel.getSelectedDifficultyLabel(), value -> {
+                    if ("Dễ".equals(value)) {
+                        viewModel.setSelectedDifficulty("easy");
+                    } else if ("Trung bình".equals(value)) {
+                        viewModel.setSelectedDifficulty("medium");
+                    } else if ("Khó".equals(value)) {
+                        viewModel.setSelectedDifficulty("hard");
+                    } else {
+                        viewModel.setSelectedDifficulty("all");
+                    }
                 }));
         findViewById(R.id.quiz_count_row).setOnClickListener(v ->
-                showChoiceSheet("Số câu hỏi", buildQuestionCountOptions(), formatQuestionCount(selectedQuestionCount), value -> {
-                    selectedQuestionCount = Integer.parseInt(value.replaceAll("[^0-9]", ""));
-                    updateSetupSummary();
+                showChoiceSheet("Số câu hỏi", buildQuestionCountOptions(), formatQuestionCount(viewModel.getSelectedQuestionCount()), value -> {
+                    int count = Integer.parseInt(value.replaceAll("[^0-9]", ""));
+                    viewModel.setSelectedQuestionCount(count);
                 }));
-        findViewById(R.id.quiz_start_button).setOnClickListener(v -> startQuiz());
+        startButton.setOnClickListener(v -> viewModel.startGame());
 
         findViewById(R.id.quiz_play_back).setOnClickListener(v -> showPauseDialog());
         findViewById(R.id.quiz_pause).setOnClickListener(v -> showPauseDialog());
-        optionAButton.setOnClickListener(v -> selectAnswer("A"));
-        optionBButton.setOnClickListener(v -> selectAnswer("B"));
-        optionCButton.setOnClickListener(v -> selectAnswer("C"));
-        optionDButton.setOnClickListener(v -> selectAnswer("D"));
-        submitAnswerButton.setOnClickListener(v -> submitAnswer());
+        optionAButton.setOnClickListener(v -> viewModel.selectAnswer("A"));
+        optionBButton.setOnClickListener(v -> viewModel.selectAnswer("B"));
+        optionCButton.setOnClickListener(v -> viewModel.selectAnswer("C"));
+        optionDButton.setOnClickListener(v -> viewModel.selectAnswer("D"));
+        submitAnswerButton.setOnClickListener(v -> handleOutcome(viewModel.submitAnswer()));
 
-        findViewById(R.id.quiz_result_retry).setOnClickListener(v -> showSetupScreen());
+        findViewById(R.id.quiz_result_retry).setOnClickListener(v -> viewModel.startGame());
         findViewById(R.id.quiz_result_close).setOnClickListener(v -> finish());
-        findViewById(R.id.quiz_pause_resume).setOnClickListener(v -> hidePauseOverlay(true));
+        findViewById(R.id.quiz_pause_resume).setOnClickListener(v -> {
+            viewModel.hidePause();
+            render();
+            startTimer();
+        });
         findViewById(R.id.quiz_pause_exit).setOnClickListener(v -> finish());
     }
 
@@ -190,206 +214,335 @@ public class QuizActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE) {
-                    hidePauseOverlay(true);
+                if (viewModel.isPauseVisible()) {
+                    viewModel.hidePause();
+                    render();
+                    startTimer();
                     return;
                 }
-                if (gameplayScreen != null && gameplayScreen.getVisibility() == View.VISIBLE) {
+                if (viewModel.getCurrentScreen() == QuizViewModel.Screen.GAMEPLAY) {
                     showPauseDialog();
                     return;
                 }
-                setEnabled(false);
-                getOnBackPressedDispatcher().onBackPressed();
-                setEnabled(true);
+                finish();
             }
         });
     }
 
-    private void loadCategoryOptions() {
-        categoryOptions.clear();
-        categoryOptions.add("Tất cả chủ đề");
-        categoryOptions.addAll(quizDao.getDistinctCategories());
+    private void render() {
+        renderSetup();
+        renderGameplay();
+        renderResult();
+        renderPause();
     }
 
-    private void updateSetupSummary() {
-        selectedTopicHeroView.setText(selectedCategory);
-        selectedTopicView.setText(selectedCategory);
-        selectedDifficultyView.setText(selectedDifficulty);
-        selectedDifficultyHelperView.setText("Tất cả".equals(selectedDifficulty)
-                ? "Mọi mức độ đều có thể xuất hiện"
-                : "Ưu tiên câu hỏi mức " + selectedDifficulty.toLowerCase(Locale.getDefault()));
-        selectedCountView.setText(formatQuestionCount(selectedQuestionCount));
-        selectedSummaryView.setText(String.format(
-                Locale.getDefault(),
-                "%s · %d câu hỏi mỗi ván.",
-                "Tất cả".equals(selectedDifficulty) ? "Ngẫu nhiên" : selectedDifficulty,
-                selectedQuestionCount
-        ));
+    private void renderSetup() {
+        selectedTopicHeroView.setText(viewModel.getSelectedCategoriesHeroLabel());
+        selectedSummaryView.setText(viewModel.isLoading() ? "Đang tải ngân hàng câu hỏi cục bộ..." : viewModel.getSetupSummary());
+        selectedTopicView.setText(viewModel.getSelectedCategoriesLabel());
+        selectedDifficultyView.setText(viewModel.getSelectedDifficultyLabel());
+        selectedDifficultyHelperView.setText(viewModel.getDifficultyHelperLabel());
+        selectedCountView.setText(formatQuestionCount(viewModel.getSelectedQuestionCount()));
+        startButton.setEnabled(!viewModel.isLoading() && !viewModel.getAvailableCategories().isEmpty());
+        startButton.setAlpha(startButton.isEnabled() ? 1f : 0.45f);
+        startButton.setText(viewModel.isLoading() ? "Đang chuẩn bị..." : "Bắt đầu chơi");
+        setupScreen.setVisibility(viewModel.getCurrentScreen() == QuizViewModel.Screen.SETUP ? View.VISIBLE : View.GONE);
     }
 
-    private void startQuiz() {
-        List<QuizQuestion> questions = loadQuestionsForSelection();
-        if (questions.isEmpty()) {
-            showGameplayScreen();
-            emptyView.setVisibility(View.VISIBLE);
+    private void renderGameplay() {
+        boolean isGameplay = viewModel.getCurrentScreen() == QuizViewModel.Screen.GAMEPLAY;
+        gameplayScreen.setVisibility(isGameplay ? View.VISIBLE : View.GONE);
+        if (!isGameplay) {
+            handler.removeCallbacks(timerRunnable);
+            handler.removeCallbacks(advanceRunnable);
+            return;
+        }
+
+        QuizQuestion question = viewModel.getCurrentQuestion();
+        liveScoreView.setText(String.valueOf(viewModel.getScore()));
+        liveComboView.setText(String.valueOf(viewModel.getCombo()));
+        timerView.setText(formatDuration(viewModel.getRemainingQuestionMs()));
+        playProgressView.setText(String.format(Locale.getDefault(), "Câu %d / %d", viewModel.getCurrentQuestionNumber(), Math.max(1, viewModel.getTotalQuestions())));
+        playTitleView.setText(question == null ? "Đố vui" : question.category);
+        updateProgressFill(viewModel.getProgressRatio());
+
+        if (viewModel.isEmptyState() || question == null) {
             setQuestionUiVisible(false);
-            playTitleView.setText("Đố vui");
-            playProgressView.setText("0 / 0");
+            emptyView.setVisibility(View.VISIBLE);
+            feedbackView.setVisibility(View.GONE);
+            imageContainer.setVisibility(View.GONE);
             questionView.setText("");
             return;
         }
 
-        quizManager = new QuizManager(questions);
-        selectedAnswerKey = null;
-        sessionFinished = false;
-        totalTimeMs = questions.size() * 20000L;
-        remainingTimeMs = totalTimeMs;
-        showGameplayScreen();
-        hidePauseOverlay(false);
         setQuestionUiVisible(true);
-        renderCurrentQuestion();
-        handler.removeCallbacks(timerRunnable);
-        handler.postDelayed(timerRunnable, 1000L);
-    }
+        emptyView.setVisibility(View.GONE);
+        questionView.setText(question.question);
+        feedbackView.setText(viewModel.getMessage());
+        feedbackView.setVisibility(viewModel.isAnswerLocked() && !viewModel.getMessage().isEmpty() ? View.VISIBLE : View.GONE);
+        renderIllustration(question);
+        renderAnswerButtons(question, viewModel.getLatestOutcome());
 
-    private List<QuizQuestion> loadQuestionsForSelection() {
-        String difficultyKey = mapDifficulty(selectedDifficulty);
-        boolean allCategory = "Tất cả chủ đề".equals(selectedCategory);
-        List<QuizQuestion> questions;
-        if (!allCategory && difficultyKey != null) {
-            questions = quizDao.getQuestionsByCategoryAndDifficulty(selectedCategory, difficultyKey, selectedQuestionCount);
-            if (questions.isEmpty()) {
-                questions = quizDao.getQuestionsByCategory(selectedCategory, selectedQuestionCount);
-            }
-        } else if (!allCategory) {
-            questions = quizDao.getQuestionsByCategory(selectedCategory, selectedQuestionCount);
-        } else if (difficultyKey != null) {
-            questions = quizDao.getQuestionsByDifficulty(difficultyKey, selectedQuestionCount);
-        } else {
-            questions = quizDao.getQuestions(selectedQuestionCount);
+        if (viewModel.isPauseVisible()) {
+            handler.removeCallbacks(timerRunnable);
+            handler.removeCallbacks(advanceRunnable);
+        } else if (!viewModel.isAnswerLocked()) {
+            startTimer();
         }
-        return questions;
     }
 
-    private void renderCurrentQuestion() {
-        QuizQuestion question = quizManager == null ? null : quizManager.getCurrentQuestion();
-        if (question == null) {
-            finishQuiz();
+    private void renderResult() {
+        boolean isResult = viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT;
+        resultScreen.setVisibility(isResult ? View.VISIBLE : View.GONE);
+        if (!isResult) {
             return;
         }
+        int totalQuestions = Math.max(1, viewModel.getTotalQuestions());
+        resultScoreView.setText(String.format(Locale.getDefault(), "%d / %d câu đúng", viewModel.getCorrectCount(), totalQuestions));
+        resultSummaryView.setText(String.format(
+                Locale.getDefault(),
+                "%s · %s · Chính xác %d%%",
+                viewModel.isWin() ? "Chiến thắng" : "Chưa đạt",
+                formatDuration(viewModel.getElapsedSessionMs()),
+                viewModel.getAccuracyPercent()
+        ));
+        resultTimeValueView.setText(formatDuration(viewModel.getElapsedSessionMs()));
+        resultAccuracyValueView.setText(String.format(Locale.getDefault(), "%d%%", viewModel.getAccuracyPercent()));
+        resultRewardValueView.setText(String.valueOf(viewModel.getScore()));
+        resultHistoryView.setText(viewModel.getBestHistoryText());
+        resultNoteView.setText(viewModel.isWin()
+                ? "Đã lưu lịch sử cục bộ. Bạn đạt ngưỡng thắng từ 60% số câu đúng."
+                : "Đã lưu lịch sử cục bộ. Hãy thử lại để cải thiện độ chính xác và điểm số.");
+    }
 
-        selectedAnswerKey = null;
-        resetOptionState();
-        setAnswerButtonsEnabled(true);
-        submitAnswerButton.setEnabled(true);
-        submitAnswerButton.setAlpha(0.5f);
+    private void renderPause() {
+        pauseOverlay.setVisibility(viewModel.isPauseVisible() ? View.VISIBLE : View.GONE);
+        if (viewModel.isPauseVisible()) {
+            pauseMessageView.setText("Phiên đố vui hiện tại đang tạm dừng. Bạn có thể tiếp tục hoặc thoát khỏi phiên.");
+        }
+    }
 
-        playTitleView.setText("Tất cả chủ đề".equals(selectedCategory) ? "Kiến thức tổng hợp" : question.category);
-        gameplaySubtitleBeforePause = String.format(Locale.getDefault(), "Câu %d / %d", quizManager.getAnsweredCount(), quizManager.getTotalQuestions());
-        playProgressView.setText(gameplaySubtitleBeforePause);
-        questionView.setText(question.question);
-        illustrationCaptionView.setText("Chủ đề " + question.category.toLowerCase(Locale.getDefault()) + " và dữ liệu minh họa câu hỏi");
+    private void renderIllustration(QuizQuestion question) {
+        String imageUrl = question.linkImage == null ? "" : question.linkImage.trim();
+        if (imageUrl.isEmpty()) {
+            imageContainer.setVisibility(View.GONE);
+            illustrationView.setImageDrawable(null);
+            return;
+        }
+        imageContainer.setVisibility(View.VISIBLE);
+        illustrationCaptionView.setText("Minh họa cho chủ đề " + question.category);
+        ImageLoader.load(imageUrl, illustrationView, success -> {
+            if (!success) {
+                illustrationCaptionView.setText("Không tải được minh họa, vẫn có thể trả lời bình thường.");
+            }
+        });
+    }
+
+    private void renderAnswerButtons(QuizQuestion question, @Nullable QuizManager.AnswerOutcome outcome) {
         optionAButton.setText(question.optionA);
         optionBButton.setText(question.optionB);
         optionCButton.setText(question.optionC);
         optionDButton.setText(question.optionD);
-        timerView.setText(formatDuration(remainingTimeMs));
-        updateProgressFill();
-    }
 
-    private void selectAnswer(String answerKey) {
-        if (sessionFinished) {
-            return;
-        }
-        selectedAnswerKey = answerKey;
         resetOptionState();
-        Button selectedButton = getButtonForOption(answerKey);
-        if (selectedButton != null) {
-            selectedButton.setBackgroundResource(R.drawable.bg_quiz_option_selected);
-        }
-        submitAnswerButton.setEnabled(true);
-        submitAnswerButton.setAlpha(1f);
-    }
 
-    private void submitAnswer() {
-        if (quizManager == null || sessionFinished) {
+        if (outcome == null) {
+            setAnswerButtonsEnabled(true);
+            highlightSelectedAnswer(viewModel.getSelectedAnswerKey());
+            submitAnswerButton.setEnabled(!viewModel.getSelectedAnswerKey().isEmpty());
+            submitAnswerButton.setAlpha(submitAnswerButton.isEnabled() ? 1f : 0.45f);
             return;
         }
-        if (selectedAnswerKey == null) {
+
+        setAnswerButtonsEnabled(false);
+        submitAnswerButton.setEnabled(false);
+        submitAnswerButton.setAlpha(0.45f);
+        Button correctButton = getButtonForOption(outcome.correctAnswerKey);
+        if (correctButton != null) {
+            correctButton.setBackgroundResource(R.drawable.bg_quiz_option_correct);
+        }
+        if (!outcome.correct && outcome.selectedAnswerKey != null && !outcome.selectedAnswerKey.isEmpty()) {
+            Button selectedWrongButton = getButtonForOption(outcome.selectedAnswerKey);
+            if (selectedWrongButton != null && selectedWrongButton != correctButton) {
+                selectedWrongButton.setBackgroundResource(R.drawable.bg_quiz_option_wrong);
+            }
+        }
+    }
+
+    private void showPauseDialog() {
+        if (viewModel.getCurrentScreen() != QuizViewModel.Screen.GAMEPLAY || viewModel.isEmptyState()) {
+            finish();
+            return;
+        }
+        handler.removeCallbacks(timerRunnable);
+        handler.removeCallbacks(advanceRunnable);
+        viewModel.showPause();
+        render();
+    }
+
+    private void handleOutcome(@Nullable QuizManager.AnswerOutcome outcome) {
+        if (outcome == null) {
             Toast.makeText(this, "Hãy chọn một đáp án trước khi gửi.", Toast.LENGTH_SHORT).show();
             return;
         }
+        handler.removeCallbacks(timerRunnable);
+        render();
+        if (outcome.correct) {
+            soundManager.playCorrect();
+        } else {
+            soundManager.playWrong();
+        }
+        handler.removeCallbacks(advanceRunnable);
+        handler.postDelayed(advanceRunnable, QuizViewModel.FEEDBACK_DELAY_MS);
+    }
 
-        submitAnswerButton.setEnabled(false);
-        setAnswerButtonsEnabled(false);
-        boolean correct = quizManager.answerCurrentQuestion(selectedAnswerKey);
+    private void startTimer() {
+        handler.removeCallbacks(timerRunnable);
+        handler.postDelayed(timerRunnable, 1000L);
+    }
+
+    private void setQuestionUiVisible(boolean visible) {
+        int visibility = visible ? View.VISIBLE : View.GONE;
+        questionCard.setVisibility(visibility);
+        optionAButton.setVisibility(visibility);
+        optionBButton.setVisibility(visibility);
+        optionCButton.setVisibility(visibility);
+        optionDButton.setVisibility(visibility);
+        submitAnswerButton.setVisibility(visibility);
+        progressTrackView.setVisibility(visibility);
+    }
+
+    private void updateProgressFill(float ratio) {
+        progressTrackView.post(() -> {
+            int width = progressTrackView.getWidth();
+            int progressWidth = Math.max(dpToPx(28), Math.round(width * ratio));
+            ViewGroup.LayoutParams params = progressFillView.getLayoutParams();
+            params.width = progressWidth;
+            progressFillView.setLayoutParams(params);
+        });
+    }
+
+    private void resetOptionState() {
+        optionAButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+        optionBButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+        optionCButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+        optionDButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+    }
+
+    private void highlightSelectedAnswer(String selectedAnswerKey) {
         Button selectedButton = getButtonForOption(selectedAnswerKey);
         if (selectedButton != null) {
-            selectedButton.setBackgroundResource(correct ? R.drawable.bg_quiz_option_correct : R.drawable.bg_quiz_option_wrong);
+            selectedButton.setBackgroundResource(R.drawable.bg_quiz_option_selected);
         }
-        if (!correct) {
-            QuizQuestion question = quizManager.getCurrentQuestion();
-            if (question != null) {
-                Button correctButton = getButtonForOption(question.correctAnswer);
-                if (correctButton != null) {
-                    correctButton.setBackgroundResource(R.drawable.bg_quiz_option_correct);
+    }
+
+    private void setAnswerButtonsEnabled(boolean enabled) {
+        optionAButton.setEnabled(enabled);
+        optionBButton.setEnabled(enabled);
+        optionCButton.setEnabled(enabled);
+        optionDButton.setEnabled(enabled);
+    }
+
+    @Nullable
+    private Button getButtonForOption(String optionKey) {
+        if (optionKey == null) {
+            return null;
+        }
+        switch (optionKey.toUpperCase(Locale.getDefault())) {
+            case "A":
+                return optionAButton;
+            case "B":
+                return optionBButton;
+            case "C":
+                return optionCButton;
+            case "D":
+                return optionDButton;
+            default:
+                return null;
+        }
+    }
+
+    private void showCategorySheet() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        ScrollView scrollView = new ScrollView(this);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int padding = dpToPx(24);
+        container.setPadding(padding, padding, padding, padding);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("Chọn chủ đề");
+        titleView.setTextSize(20f);
+        titleView.setTextColor(getColor(R.color.gh_text_primary));
+        titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+        container.addView(titleView);
+
+        List<String> selections = new ArrayList<>(viewModel.getSelectedCategories());
+        for (String category : viewModel.getAvailableCategories()) {
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(category);
+            checkBox.setTextColor(getColor(R.color.gh_text_primary));
+            checkBox.setChecked(selections.contains(category));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            params.topMargin = dpToPx(10);
+            checkBox.setLayoutParams(params);
+            checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    if (!selections.contains(category)) {
+                        selections.add(category);
+                    }
+                } else {
+                    selections.remove(category);
                 }
-            }
+            });
+            container.addView(checkBox);
         }
 
-        handler.postDelayed(() -> {
-            if (quizManager.moveToNextQuestion()) {
-                renderCurrentQuestion();
-            } else {
-                finishQuiz();
-            }
-        }, 650L);
+        LinearLayout actionRow = new LinearLayout(this);
+        actionRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        actionParams.topMargin = dpToPx(18);
+        actionRow.setLayoutParams(actionParams);
+
+        Button resetButton = new Button(this);
+        resetButton.setText("Chọn tất cả");
+        resetButton.setAllCaps(false);
+        resetButton.setBackgroundResource(R.drawable.bg_filter_unselected);
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(0, dpToPx(44), 1f);
+        resetButton.setLayoutParams(resetParams);
+        resetButton.setOnClickListener(v -> {
+            viewModel.setSelectedCategories(viewModel.getAvailableCategories());
+            dialog.dismiss();
+        });
+
+        Button applyButton = new Button(this);
+        applyButton.setText("Áp dụng");
+        applyButton.setAllCaps(false);
+        applyButton.setBackgroundResource(R.drawable.bg_primary_button_round);
+        applyButton.setTextColor(getColor(R.color.white));
+        LinearLayout.LayoutParams applyParams = new LinearLayout.LayoutParams(0, dpToPx(44), 1f);
+        applyParams.leftMargin = dpToPx(12);
+        applyButton.setLayoutParams(applyParams);
+        applyButton.setOnClickListener(v -> {
+            viewModel.setSelectedCategories(selections);
+            dialog.dismiss();
+        });
+
+        actionRow.addView(resetButton);
+        actionRow.addView(applyButton);
+        container.addView(actionRow);
+        scrollView.addView(container);
+        dialog.setContentView(scrollView);
+        dialog.show();
     }
 
-    private void finishQuiz() {
-        if (sessionFinished) {
-            return;
-        }
-        sessionFinished = true;
-        handler.removeCallbacks(timerRunnable);
-
-        int total = quizManager == null ? 0 : quizManager.getTotalQuestions();
-        int correct = quizManager == null ? 0 : quizManager.getCorrectCount();
-        long elapsed = Math.max(0L, totalTimeMs - remainingTimeMs);
-        int accuracy = total == 0 ? 0 : Math.round((correct * 100f) / total);
-        int reward = correct;
-
-        historyDao.insert(new LocalHistory("Đố vui", correct > 0 ? "won" : "lost", reward, elapsed, System.currentTimeMillis(), false));
-
-        resultScoreView.setText(String.format(Locale.getDefault(), "%d / %d câu đúng", correct, total));
-        resultSummaryView.setText(String.format(Locale.getDefault(), "Thời gian %s · Chính xác %d%% · +%d điểm", formatDuration(elapsed), accuracy, reward));
-        resultTimeValueView.setText(formatDuration(elapsed));
-        resultAccuracyValueView.setText(String.format(Locale.getDefault(), "%d%%", accuracy));
-        resultRewardValueView.setText(String.format(Locale.getDefault(), "+%d", reward));
-        resultHistoryView.setText(buildBestHistoryText());
-        resultNoteView.setText("Đã lưu vào lịch sử và sẵn sàng đồng bộ bảng xếp hạng.");
-        showResultScreen();
-    }
-
-    private String buildBestHistoryText() {
-        int bestScore = 0;
-        long bestTime = 0L;
-        for (LocalHistory item : historyDao.getAllNewestFirst()) {
-            if (!"đố vui".equalsIgnoreCase(item.gameName)) {
-                continue;
-            }
-            if (item.score > bestScore) {
-                bestScore = item.score;
-                bestTime = item.timeSpent;
-            }
-        }
-        if (bestScore == 0) {
-            return "Chưa có mốc tốt nhất trước đó trong lịch sử cục bộ.";
-        }
-        return String.format(Locale.getDefault(), "Mốc tốt nhất gần đây: %d câu đúng trong %s.", bestScore, formatDuration(bestTime));
-    }
-
-    private void showChoiceSheet(String title, List<String> options, String selectedValue, OnChoiceSelectedListener listener) {
+    private void showChoiceSheet(String title, List<String> options, String selectedValue, ChoiceListener listener) {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
@@ -445,124 +598,6 @@ public class QuizActivity extends AppCompatActivity {
         return options;
     }
 
-    private void showSetupScreen() {
-        handler.removeCallbacks(timerRunnable);
-        setupScreen.setVisibility(View.VISIBLE);
-        gameplayScreen.setVisibility(View.GONE);
-        resultScreen.setVisibility(View.GONE);
-        hidePauseOverlay(false);
-        updateSetupSummary();
-    }
-
-    private void showGameplayScreen() {
-        setupScreen.setVisibility(View.GONE);
-        gameplayScreen.setVisibility(View.VISIBLE);
-        resultScreen.setVisibility(View.GONE);
-        hidePauseOverlay(false);
-    }
-
-    private void showResultScreen() {
-        setupScreen.setVisibility(View.GONE);
-        gameplayScreen.setVisibility(View.GONE);
-        resultScreen.setVisibility(View.VISIBLE);
-        hidePauseOverlay(false);
-    }
-
-    private void setQuestionUiVisible(boolean visible) {
-        int visibility = visible ? View.VISIBLE : View.GONE;
-        findViewById(R.id.quiz_option_a).setVisibility(visibility);
-        findViewById(R.id.quiz_option_b).setVisibility(visibility);
-        findViewById(R.id.quiz_option_c).setVisibility(visibility);
-        findViewById(R.id.quiz_option_d).setVisibility(visibility);
-        findViewById(R.id.quiz_submit_answer).setVisibility(visibility);
-        findViewById(R.id.quiz_progress_track).setVisibility(visibility);
-        emptyView.setVisibility(visible ? View.GONE : View.VISIBLE);
-    }
-
-    private void updateProgressFill() {
-        if (quizManager == null) {
-            return;
-        }
-        progressTrackView.post(() -> {
-            int width = progressTrackView.getWidth();
-            int progressWidth = Math.max(dpToPx(28), Math.round(width * (quizManager.getAnsweredCount() / (float) quizManager.getTotalQuestions())));
-            ViewGroup.LayoutParams params = progressFillView.getLayoutParams();
-            params.width = progressWidth;
-            progressFillView.setLayoutParams(params);
-        });
-    }
-
-    private void resetOptionState() {
-        optionAButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-        optionBButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-        optionCButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-        optionDButton.setBackgroundResource(R.drawable.bg_filter_unselected);
-    }
-
-    private void setAnswerButtonsEnabled(boolean enabled) {
-        optionAButton.setEnabled(enabled);
-        optionBButton.setEnabled(enabled);
-        optionCButton.setEnabled(enabled);
-        optionDButton.setEnabled(enabled);
-    }
-
-    private Button getButtonForOption(String optionKey) {
-        if (optionKey == null) {
-            return null;
-        }
-        switch (optionKey.toUpperCase(Locale.getDefault())) {
-            case "A":
-                return optionAButton;
-            case "B":
-                return optionBButton;
-            case "C":
-                return optionCButton;
-            case "D":
-                return optionDButton;
-            default:
-                return null;
-        }
-    }
-
-    private void showPauseDialog() {
-        if (gameplayScreen.getVisibility() != View.VISIBLE || sessionFinished) {
-            finish();
-            return;
-        }
-        handler.removeCallbacks(timerRunnable);
-        gameplaySubtitleBeforePause = playProgressView.getText().toString();
-        playProgressView.setText("Tạm dừng");
-        pauseMessageView.setText("Phiên đố vui hiện tại đang được tạm dừng. Bạn có thể tiếp tục để trả lời tiếp hoặc thoát khỏi phiên.");
-        pauseOverlay.setVisibility(View.VISIBLE);
-    }
-
-    private void hidePauseOverlay(boolean resumeTimer) {
-        if (pauseOverlay == null) {
-            return;
-        }
-        pauseOverlay.setVisibility(View.GONE);
-        if (gameplayScreen.getVisibility() == View.VISIBLE && gameplaySubtitleBeforePause != null) {
-            playProgressView.setText(gameplaySubtitleBeforePause);
-        }
-        if (resumeTimer && gameplayScreen.getVisibility() == View.VISIBLE && !sessionFinished) {
-            handler.removeCallbacks(timerRunnable);
-            handler.postDelayed(timerRunnable, 1000L);
-        }
-    }
-
-    private String mapDifficulty(String value) {
-        if ("Dễ".equals(value)) {
-            return "easy";
-        }
-        if ("Trung bình".equals(value)) {
-            return "medium";
-        }
-        if ("Khó".equals(value)) {
-            return "hard";
-        }
-        return null;
-    }
-
     private String formatQuestionCount(int count) {
         return String.format(Locale.getDefault(), "%d câu", count);
     }
@@ -578,24 +613,48 @@ public class QuizActivity extends AppCompatActivity {
         return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
+    private boolean isAnimationOn() {
+        return preferenceManager.getBoolean(PreferenceManager.KEY_IS_ANIMATION_ON, true);
+    }
+
+    private void animateQuestionCard() {
+        if (!isAnimationOn()) {
+            return;
+        }
+        questionCard.setAlpha(0f);
+        questionCard.animate().alpha(1f).setDuration(180L).start();
+        imageContainer.setAlpha(imageContainer.getVisibility() == View.VISIBLE ? 0f : 1f);
+        if (imageContainer.getVisibility() == View.VISIBLE) {
+            imageContainer.animate().alpha(1f).setDuration(180L).start();
+        }
+    }
+
+    private void animateResultScreen() {
+        if (!isAnimationOn()) {
+            return;
+        }
+        resultScreen.setAlpha(0f);
+        resultScreen.setScaleX(0.97f);
+        resultScreen.setScaleY(0.97f);
+        resultScreen.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(220L)
+                .start();
+    }
+
+    @Override
     protected void onPause() {
         handler.removeCallbacks(timerRunnable);
+        handler.removeCallbacks(advanceRunnable);
         super.onPause();
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        if (gameplayScreen != null
-                && gameplayScreen.getVisibility() == View.VISIBLE
-                && (pauseOverlay == null || pauseOverlay.getVisibility() != View.VISIBLE)
-                && !sessionFinished) {
-            handler.postDelayed(timerRunnable, 1000L);
-        }
-    }
-
-    @Override
     protected void onDestroy() {
+        viewModel.removeObserver(stateObserver);
+        soundManager.release();
         handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }

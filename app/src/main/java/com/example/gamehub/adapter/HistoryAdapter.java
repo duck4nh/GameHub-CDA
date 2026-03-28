@@ -34,7 +34,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         LocalHistory item = items.get(position);
-        holder.titleView.setText(item.gameName);
+        holder.titleView.setText(buildTitle(item));
         holder.subtitleView.setText(buildSubtitle(item));
     }
 
@@ -43,19 +43,61 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         return items.size();
     }
 
+    private String buildTitle(LocalHistory history) {
+        String baseTitle = mapGameTitle(history.gameName);
+        if ("memory".equalsIgnoreCase(history.gameName) && history.detail != null && !history.detail.trim().isEmpty()) {
+            return baseTitle + " · " + history.detail.trim();
+        }
+        return baseTitle;
+    }
+
     private String buildSubtitle(LocalHistory history) {
         String syncStatus = history.isSynced ? "đã đồng bộ" : "chỉ cục bộ";
-        String gameName = history.gameName.toLowerCase(Locale.getDefault());
-        if (gameName.contains("đố vui")) {
-            return String.format(Locale.getDefault(), "%d/20 · %s · %s", history.score, formatDuration(history.timeSpent), syncStatus);
+        if ("memory".equalsIgnoreCase(history.gameName)) {
+            return String.format(
+                    Locale.getDefault(),
+                    "%s · %d lượt đoán · %d điểm · %s · %s",
+                    mapStatus(history.status),
+                    history.attemptCount,
+                    history.score,
+                    formatDuration(history.timeSpent),
+                    syncStatus
+            );
         }
-        if (gameName.contains("ghi nhớ")) {
-            return String.format(Locale.getDefault(), "%d lượt · %s", history.score, syncStatus);
+        return String.format(
+                Locale.getDefault(),
+                "%s · %d điểm · %s · %s",
+                mapStatus(history.status),
+                history.score,
+                formatDuration(history.timeSpent),
+                syncStatus
+        );
+    }
+
+    private String mapGameTitle(String gameName) {
+        if ("quiz".equalsIgnoreCase(gameName)) {
+            return "Đố vui";
         }
-        if (gameName.contains("sudoku")) {
-            return String.format(Locale.getDefault(), "%s · %s", formatDuration(history.timeSpent), history.isSynced ? "synced" : "cục bộ");
+        if ("memory".equalsIgnoreCase(gameName)) {
+            return "Ghi nhớ";
         }
-        return String.format(Locale.getDefault(), "%d điểm · %s · %s", history.score, formatDuration(history.timeSpent), syncStatus);
+        if ("sudoku".equalsIgnoreCase(gameName)) {
+            return "Sudoku";
+        }
+        return gameName;
+    }
+
+    private String mapStatus(String status) {
+        if ("won".equalsIgnoreCase(status)) {
+            return "Thắng";
+        }
+        if ("lost".equalsIgnoreCase(status)) {
+            return "Thua";
+        }
+        if ("completed".equalsIgnoreCase(status)) {
+            return "Hoàn thành";
+        }
+        return status;
     }
 
     private String formatDuration(long durationMillis) {

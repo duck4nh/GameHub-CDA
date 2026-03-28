@@ -1,11 +1,18 @@
 package com.example.gamehub.games.memory;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.gamehub.R;
@@ -18,11 +25,27 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         void onCardClicked(int position);
     }
 
+    private static final String[] PALETTE = {
+            "#DDEBFF",
+            "#F7EEDC",
+            "#ECF8EE",
+            "#FFE5D6",
+            "#F0E4FF",
+            "#E2F7F7",
+            "#FFE9F2",
+            "#FFF4CC"
+    };
+
     private final List<MemoryCard> items = new ArrayList<>();
     private final OnCardClickListener onCardClickListener;
+    private boolean animationsEnabled = true;
 
     public MemoryBoardAdapter(OnCardClickListener onCardClickListener) {
         this.onCardClickListener = onCardClickListener;
+    }
+
+    public void setAnimationsEnabled(boolean animationsEnabled) {
+        this.animationsEnabled = animationsEnabled;
     }
 
     public void submitList(List<MemoryCard> cards) {
@@ -39,27 +62,52 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_memory_card, parent, false);
         int spanCount = 4;
         RecyclerView.LayoutManager layoutManager = parent instanceof RecyclerView ? ((RecyclerView) parent).getLayoutManager() : null;
-        if (layoutManager instanceof androidx.recyclerview.widget.GridLayoutManager) {
-            spanCount = ((androidx.recyclerview.widget.GridLayoutManager) layoutManager).getSpanCount();
+        if (layoutManager instanceof GridLayoutManager) {
+            spanCount = ((GridLayoutManager) layoutManager).getSpanCount();
         }
-        int parentWidth = parent.getMeasuredWidth();
-        if (parentWidth > 0) {
-            int size = Math.max(40, (parentWidth / spanCount) - 10);
+        final int finalSpanCount = spanCount;
+        view.post(() -> {
+            int parentWidth = parent.getWidth();
+            if (parentWidth <= 0) {
+                return;
+            }
+            int horizontalPadding = parent.getPaddingStart() + parent.getPaddingEnd();
+            int size = Math.max(56, ((parentWidth - horizontalPadding) / finalSpanCount) - 8);
             RecyclerView.LayoutParams params = (RecyclerView.LayoutParams) view.getLayoutParams();
-            params.height = size;
+            if (params == null) {
+                params = new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, size);
+            } else {
+                params.height = size;
+            }
             view.setLayoutParams(params);
-        }
+        });
         return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         MemoryCard card = items.get(position);
-        boolean visible = card.revealed || card.matched;
-        holder.labelView.setText(visible ? "\u25CF" : "");
-        holder.labelView.setTextSize(visible ? 28f : 18f);
-        holder.labelView.setBackgroundResource(card.matched ? R.drawable.bg_card_success_22 : (visible ? R.drawable.bg_card_brand_22 : R.drawable.bg_card_surface_22));
-        holder.itemView.setOnClickListener(v -> onCardClickListener.onCardClicked(holder.getBindingAdapterPosition()));
+        boolean showFront = card.revealed || card.matched;
+        holder.labelView.setText(card.label);
+        holder.metaView.setText(card.matched ? "matched" : "pair");
+        applyFrontTint(holder.frontFace, card);
+
+        if (!holder.bound) {
+            applyStateImmediately(holder, showFront);
+            holder.bound = true;
+        } else if (holder.isFrontVisible != showFront && animationsEnabled) {
+            animateFlip(holder, showFront);
+        } else {
+            applyStateImmediately(holder, showFront);
+        }
+        holder.isFrontVisible = showFront;
+
+        holder.itemView.setOnClickListener(v -> {
+            int adapterPosition = holder.getBindingAdapterPosition();
+            if (adapterPosition != RecyclerView.NO_POSITION) {
+                onCardClickListener.onCardClicked(adapterPosition);
+            }
+        });
     }
 
     @Override
@@ -67,16 +115,54 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         return items.size();
     }
 
-    public MemoryCard getItem(int position) {
-        return items.get(position);
+    private void applyFrontTint(LinearLayout frontFace, MemoryCard card) {
+        int color = card.matched
+                ? Color.parseColor("#ECF8EE")
+                : Color.parseColor(PALETTE[card.toneIndex % PALETTE.length]);
+        ViewCompat.setBackgroundTintList(frontFace, ColorStateList.valueOf(color));
+    }
+
+    private void applyStateImmediately(ViewHolder holder, boolean showFront) {
+        holder.frontFace.setVisibility(showFront ? View.VISIBLE : View.GONE);
+        holder.backFace.setVisibility(showFront ? View.GONE : View.VISIBLE);
+        holder.itemView.setRotationY(0f);
+        holder.itemView.setAlpha(1f);
+    }
+
+    private void animateFlip(ViewHolder holder, boolean showFront) {
+        holder.itemView.animate()
+                .rotationY(90f)
+                .setDuration(110L)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        applyStateImmediately(holder, showFront);
+                        holder.itemView.setRotationY(-90f);
+                        holder.itemView.animate()
+                                .rotationY(0f)
+                                .setDuration(110L)
+                                .setListener(null)
+                                .start();
+                    }
+                })
+                .start();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
+        final View backFace;
+        final LinearLayout frontFace;
         final TextView labelView;
+        final TextView metaView;
+        boolean bound;
+        boolean isFrontVisible;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
+            backFace = itemView.findViewById(R.id.memory_card_back_face);
+            frontFace = itemView.findViewById(R.id.memory_card_front_face);
             labelView = itemView.findViewById(R.id.memory_card_label);
+            metaView = itemView.findViewById(R.id.memory_card_meta);
+            itemView.setCameraDistance(itemView.getResources().getDisplayMetrics().density * 1400f);
         }
     }
 }

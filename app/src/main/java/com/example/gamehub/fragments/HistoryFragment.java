@@ -53,8 +53,8 @@ public class HistoryFragment extends Fragment {
         view.findViewById(R.id.history_back).setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
 
         filterAll.setOnClickListener(v -> applyFilter("all"));
-        filterQuiz.setOnClickListener(v -> applyFilter("đố vui"));
-        filterMemory.setOnClickListener(v -> applyFilter("ghi nhớ"));
+        filterQuiz.setOnClickListener(v -> applyFilter("quiz"));
+        filterMemory.setOnClickListener(v -> applyFilter("memory"));
         filterSudoku.setOnClickListener(v -> applyFilter("sudoku"));
 
         if (requireActivity() instanceof MainActivity) {
@@ -84,8 +84,8 @@ public class HistoryFragment extends Fragment {
 
     private void setFilterState(String filter) {
         filterAll.setBackgroundResource("all".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
-        filterQuiz.setBackgroundResource("đố vui".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
-        filterMemory.setBackgroundResource("ghi nhớ".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
+        filterQuiz.setBackgroundResource("quiz".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
+        filterMemory.setBackgroundResource("memory".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
         filterSudoku.setBackgroundResource("sudoku".equals(filter) ? R.drawable.bg_filter_selected : R.drawable.bg_filter_unselected);
     }
 }

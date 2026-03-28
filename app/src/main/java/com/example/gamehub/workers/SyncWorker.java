@@ -33,7 +33,7 @@ public class SyncWorker extends Worker {
         }
 
         HistoryDao historyDao = AppDatabase.getInstance(getApplicationContext()).historyDao();
-        List<LocalHistory> pendingItems = historyDao.getUnsyncedHistoryForGame("Sudoku");
+        List<LocalHistory> pendingItems = historyDao.getUnsyncedHistoryForGame("sudoku");
         for (LocalHistory history : pendingItems) {
             if (firebaseManager.syncSudokuResult(history)) {
                 historyDao.markSynced(history.id);

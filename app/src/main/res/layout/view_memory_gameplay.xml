@@ -41,7 +41,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="Ghi nhớ · 4x4"
+                    android:text="Ghi nhớ · 3x4"
                     android:textColor="@color/gh_text_primary"
                     android:textSize="20sp" />
 
@@ -49,9 +49,9 @@
                     android:id="@+id/memory_meta_small"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="Đang thi đấu"
                     android:textColor="@color/gh_text_secondary"
-                    android:textSize="11sp"
-                    android:text="Đang thi đấu" />
+                    android:textSize="11sp" />
             </LinearLayout>
 
             <TextView
@@ -145,7 +145,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="16dp"
-            android:text="Số lượt đã lật"
+            android:text="Số lượt đoán cặp"
             android:textColor="@color/gh_text_secondary"
             android:textSize="12sp" />
 
