@@ -1,5 +1,6 @@
 package com.example.gamehub.fragments;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.gamehub.MainActivity;
 import com.example.gamehub.R;
+import com.example.gamehub.activities.FriendsActivity;
 import com.example.gamehub.adapter.ChatAdapter;
 import com.example.gamehub.data.repository.GameRepository;
 import com.example.gamehub.models.ChatMessage;
@@ -76,6 +78,15 @@ public class ChatFragment extends Fragment {
         view.findViewById(R.id.room_sudoku).setOnClickListener(v -> openRoom(ROOM_SUDOKU, "Câu lạc bộ Sudoku", "xếp hạng tuần"));
         view.findViewById(R.id.chat_back).setOnClickListener(v -> showRooms());
         view.findViewById(R.id.send_button).setOnClickListener(v -> sendMessage());
+
+        // Thiết lập sự kiện click cho icon kết bạn
+        View ivAddFriend = view.findViewById(R.id.ivAddFriend);
+        if (ivAddFriend != null) {
+            ivAddFriend.setOnClickListener(v -> {
+                Intent intent = new Intent(getActivity(), FriendsActivity.class);
+                startActivity(intent);
+            });
+        }
 
         backPressedCallback = new OnBackPressedCallback(false) {
             @Override

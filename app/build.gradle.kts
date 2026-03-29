@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.gamehub"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.gamehub"
@@ -49,6 +47,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.guava:guava:31.1-android")
+
+    // Glide for image loading
+    implementation(libs.glide)
+    annotationProcessor(libs.glide.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
