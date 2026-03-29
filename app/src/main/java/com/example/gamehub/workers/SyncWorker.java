@@ -27,20 +27,30 @@ public class SyncWorker extends Worker {
             return Result.retry();
         }
 
+        PreferenceManager preferenceManager = new PreferenceManager(getApplicationContext());
+        String currentUid = preferenceManager.getCurrentUid();
+        String cachedNickname = preferenceManager.getCacheNickname();
         FirebaseManager firebaseManager = new FirebaseManager();
-        if (!firebaseManager.canSyncSudokuResults()) {
+        if (!firebaseManager.canSyncHistoryResults(currentUid)) {
             return Result.success();
         }
 
         HistoryDao historyDao = AppDatabase.getInstance(getApplicationContext()).historyDao();
-        List<LocalHistory> pendingItems = historyDao.getUnsyncedHistoryForGame("sudoku");
+        List<LocalHistory> pendingItems = historyDao.getUnsyncedHistory();
+        int syncedCount = 0;
+        boolean hasFailure = false;
         for (LocalHistory history : pendingItems) {
-            if (firebaseManager.syncSudokuResult(history)) {
+            if (firebaseManager.syncHistoryRecord(history, currentUid, cachedNickname)) {
                 historyDao.markSynced(history.id);
+                syncedCount++;
+            } else {
+                hasFailure = true;
             }
         }
 
-        new PreferenceManager(getApplicationContext()).putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
-        return Result.success();
+        if (syncedCount > 0) {
+            preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
+        }
+        return hasFailure ? Result.retry() : Result.success();
     }
 }

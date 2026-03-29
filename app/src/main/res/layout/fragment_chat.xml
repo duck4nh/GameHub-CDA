@@ -154,9 +154,10 @@
                         android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/room_general_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="214 thành viên · có kiểm duyệt"
+                        android:text="Đang tải thành viên · có kiểm duyệt"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="11sp" />
                 </LinearLayout>
@@ -200,9 +201,10 @@
                         android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/room_quiz_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="91 thành viên · trao đổi chủ đề"
+                        android:text="Đang tải thành viên · trao đổi chủ đề"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="11sp" />
                 </LinearLayout>
@@ -246,9 +248,10 @@
                         android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/room_sudoku_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="76 thành viên · xếp hạng tuần"
+                        android:text="Đang tải thành viên · xếp hạng tuần"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="11sp" />
                 </LinearLayout>
@@ -300,7 +303,7 @@
             android:id="@+id/chat_subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="214 thành viên · đang hoạt động"
+            android:text="Đang tải cuộc trò chuyện"
             android:textColor="@color/gh_text_secondary"
             android:textSize="11sp"
             app:layout_constraintStart_toStartOf="@id/chat_title"
