@@ -25,6 +25,7 @@ import com.example.gamehub.activities.ProfileActivity;
 import com.example.gamehub.data.local.AppDatabase;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.data.repository.AuthRepository;
+import com.example.gamehub.utils.SoundManager;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -85,7 +86,13 @@ public class ProfileFragment extends Fragment {
             swSound.setChecked(preferenceManager.getBoolean(PreferenceManager.KEY_IS_SOUND_ON, true));
             swSound.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 preferenceManager.putBoolean(PreferenceManager.KEY_IS_SOUND_ON, isChecked);
-                Toast.makeText(getContext(), isChecked ? "Đã bật âm thanh" : "Đã tắt âm thanh", Toast.LENGTH_SHORT).show();
+                if (isChecked) {
+                    SoundManager.getInstance(requireContext()).startBGM(R.raw.game_bgm);
+                    Toast.makeText(getContext(), "Đã bật âm thanh", Toast.LENGTH_SHORT).show();
+                } else {
+                    SoundManager.getInstance(requireContext()).stopBGM();
+                    Toast.makeText(getContext(), "Đã tắt âm thanh", Toast.LENGTH_SHORT).show();
+                }
             });
         }
     }
@@ -193,6 +200,13 @@ public class ProfileFragment extends Fragment {
             llFriends.setOnClickListener(v -> {
                 Intent intent = new Intent(getActivity(), FriendsActivity.class);
                 startActivity(intent);
+            });
+        }
+
+        View llCommunity = view.findViewById(R.id.llCommunity);
+        if (llCommunity != null) {
+            llCommunity.setOnClickListener(v -> {
+                if (activity != null) activity.showCommunity();
             });
         }
 

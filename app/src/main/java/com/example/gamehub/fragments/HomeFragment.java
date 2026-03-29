@@ -9,8 +9,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
-import android.widget.GridLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -21,6 +21,8 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.gamehub.MainActivity;
 import com.example.gamehub.R;
+import com.example.gamehub.data.local.AppDatabase;
+import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.games.memory.MemoryGameActivity;
 import com.example.gamehub.games.quiz.QuizActivity;
@@ -30,19 +32,30 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class HomeFragment extends Fragment {
 
     private PreferenceManager preferenceManager;
     private FirebaseFirestore firestore;
     private String currentUid;
+    private AppDatabase db;
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     
-    private View cardSudoku, cardMemory, cardQuiz;
-    private ImageView ivSudokuIcon, ivMemoryIcon, ivQuizIcon;
     private View tvRecentLabel, hsvRecent;
-    private TextView tvGamesLabel;
     private EditText etSearchGame;
     private TextView tvRank;
     private ImageView ivProfile;
+    private LinearLayout llActivityList, llRecentGamesContainer;
+    private TextView tvNoActivity;
 
     @Nullable
     @Override
@@ -57,6 +70,7 @@ public class HomeFragment extends Fragment {
         preferenceManager = new PreferenceManager(requireContext());
         firestore = FirebaseFirestore.getInstance();
         currentUid = FirebaseAuth.getInstance().getUid();
+        db = AppDatabase.getInstance(requireContext());
 
         initViews(view);
         setupUserInfo(view);
@@ -64,37 +78,19 @@ public class HomeFragment extends Fragment {
         setupSearchLogic();
         fetchUserInfo();
         fetchRank();
-        
-        disableClipping(view);
+        fetchRecentData();
     }
 
     private void initViews(View view) {
-        cardSudoku = view.findViewById(R.id.cardSudoku);
-        cardMemory = view.findViewById(R.id.cardMemory);
-        cardQuiz = view.findViewById(R.id.cardQuiz);
-        
-        ivSudokuIcon = view.findViewById(R.id.ivSudokuIcon);
-        ivMemoryIcon = view.findViewById(R.id.ivMemoryIcon);
-        ivQuizIcon = view.findViewById(R.id.ivQuizIcon);
-        
         tvRecentLabel = view.findViewById(R.id.tvRecentLabel);
         hsvRecent = view.findViewById(R.id.hsvRecent);
-        tvGamesLabel = view.findViewById(R.id.tvGamesLabel);
         
         etSearchGame = view.findViewById(R.id.etSearchGame);
         tvRank = view.findViewById(R.id.tvHomeRank);
         ivProfile = view.findViewById(R.id.ivHomeProfile);
-    }
-
-    private void disableClipping(View view) {
-        GridLayout glGames = view.findViewById(R.id.glGames);
-        if (glGames != null) {
-            glGames.setClipChildren(false);
-            glGames.setClipToPadding(false);
-        }
-        if (cardSudoku instanceof ViewGroup) ((ViewGroup) cardSudoku).setClipChildren(false);
-        if (cardMemory instanceof ViewGroup) ((ViewGroup) cardMemory).setClipChildren(false);
-        if (cardQuiz instanceof ViewGroup) ((ViewGroup) cardQuiz).setClipChildren(false);
+        llActivityList = view.findViewById(R.id.llActivityList);
+        llRecentGamesContainer = view.findViewById(R.id.llRecentGamesContainer);
+        tvNoActivity = view.findViewById(R.id.tvNoActivity);
     }
 
     private void setupUserInfo(View view) {
@@ -103,7 +99,6 @@ public class HomeFragment extends Fragment {
             tvUsername.setText(preferenceManager.getCacheNickname());
         }
 
-        // Load avatar from cache immediately
         String avatarUrl = preferenceManager.getCacheAvatar();
         loadAvatar(avatarUrl);
 
@@ -114,50 +109,31 @@ public class HomeFragment extends Fragment {
 
     private void fetchUserInfo() {
         if (currentUid == null) return;
-        
         firestore.collection("Users").document(currentUid).get()
                 .addOnSuccessListener(document -> {
-                    // Kiểm tra Fragment còn gắn vào Activity không trước khi xử lý UI/Glide
                     if (!isAdded() || getContext() == null) return;
-
                     if (document.exists()) {
                         String nickname = document.getString("nickname");
                         String avatarUrl = document.getString("avatar_url");
-                        
-                        Log.d("HomeFragment", "Fetched Avatar URL: " + avatarUrl);
-                        
                         if (nickname != null) {
                             preferenceManager.putString(PreferenceManager.KEY_CACHE_NICKNAME, nickname);
                             TextView tvUsername = getView() != null ? getView().findViewById(R.id.tvHomeUsername) : null;
                             if (tvUsername != null) tvUsername.setText(nickname);
                         }
-                        
                         if (avatarUrl != null && !avatarUrl.isEmpty()) {
                             preferenceManager.putString(PreferenceManager.KEY_CACHE_AVATAR, avatarUrl);
                             loadAvatar(avatarUrl);
                         }
                     }
-                })
-                .addOnFailureListener(e -> Log.e("HomeFragment", "Error fetching user info", e));
+                });
     }
 
     private void loadAvatar(String url) {
-        // Kiểm tra Fragment còn tồn tại không
-        if (ivProfile == null || url == null || url.isEmpty() || !isAdded() || getContext() == null) {
-            Log.d("HomeFragment", "Cannot load avatar: View or Fragment not ready");
-            return;
-        }
-        
-        // Cố gắng chuyển đổi sang định dạng PNG để Glide hiển thị tốt nhất
+        if (ivProfile == null || url == null || url.isEmpty() || !isAdded() || getContext() == null) return;
         String optimizedUrl = url;
-        if (url.contains("/svg")) {
-            optimizedUrl = url.replace("/svg", "/png");
-        } else if (url.endsWith(".svg")) {
-            optimizedUrl = url.replace(".svg", ".png");
-        }
+        if (url.contains("/svg")) optimizedUrl = url.replace("/svg", "/png");
+        else if (url.endsWith(".svg")) optimizedUrl = url.replace(".svg", ".png");
 
-        Log.d("HomeFragment", "Final Optimized URL: " + optimizedUrl);
-        
         Glide.with(this)
                 .load(optimizedUrl)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -172,18 +148,15 @@ public class HomeFragment extends Fragment {
             if (tvRank != null) tvRank.setText("No Rank");
             return;
         }
-
         firestore.collection("Users")
                 .orderBy("total_score", Query.Direction.DESCENDING)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!isAdded()) return;
-
                     if (queryDocumentSnapshots == null || queryDocumentSnapshots.isEmpty()) {
                         tvRank.setText("No Rank");
                         return;
                     }
-
                     int rank = 1;
                     boolean found = false;
                     for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots) {
@@ -193,95 +166,138 @@ public class HomeFragment extends Fragment {
                         }
                         rank++;
                     }
-
-                    if (found) {
-                        tvRank.setText("Hạng: " + rank);
-                    } else {
-                        tvRank.setText("No Rank");
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    if (isAdded()) tvRank.setText("No Rank");
+                    if (found) tvRank.setText("Hạng: " + rank);
+                    else tvRank.setText("No Rank");
                 });
     }
 
-    private void setupClickListeners(View view) {
-        View.OnClickListener goToProfile = v -> {
-            if (getActivity() instanceof MainActivity) {
-                MainActivity mainActivity = (MainActivity) getActivity();
-                BottomNavigationView bottomNav = mainActivity.findViewById(R.id.bottom_nav);
-                if (bottomNav != null) {
-                    bottomNav.setSelectedItemId(R.id.nav_profile);
-                }
+    private void fetchRecentData() {
+        executorService.execute(() -> {
+            List<LocalHistory> historyList = db.historyDao().getAllNewestFirst();
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    renderRecentActivity(historyList);
+                    renderRecentGames(historyList);
+                });
             }
-        };
-        
-        if (ivProfile != null) ivProfile.setOnClickListener(goToProfile);
-        TextView tvUsername = view.findViewById(R.id.tvHomeUsername);
-        if (tvUsername != null) tvUsername.setOnClickListener(goToProfile);
-        if (tvRank != null) tvRank.setOnClickListener(goToProfile);
+        });
+    }
 
-        if (cardSudoku != null) cardSudoku.setOnClickListener(v -> startActivity(new Intent(getActivity(), SudokuActivity.class)));
-        if (cardMemory != null) cardMemory.setOnClickListener(v -> startActivity(new Intent(getActivity(), MemoryGameActivity.class)));
-        if (cardQuiz != null) cardQuiz.setOnClickListener(v -> startActivity(new Intent(getActivity(), QuizActivity.class)));
+    private void renderRecentGames(List<LocalHistory> historyList) {
+        if (!isAdded() || llRecentGamesContainer == null) return;
+        llRecentGamesContainer.removeAllViews();
 
-        View llRecentSudoku = view.findViewById(R.id.llRecentSudoku);
-        if (llRecentSudoku != null) llRecentSudoku.setOnClickListener(v -> startActivity(new Intent(getActivity(), SudokuActivity.class)));
-        
-        View llRecentMemory = view.findViewById(R.id.llRecentMemory);
-        if (llRecentMemory != null) llRecentMemory.setOnClickListener(v -> startActivity(new Intent(getActivity(), MemoryGameActivity.class)));
-        
-        View llRecentQuiz = view.findViewById(R.id.llRecentQuiz);
-        if (llRecentQuiz != null) llRecentQuiz.setOnClickListener(v -> startActivity(new Intent(getActivity(), QuizActivity.class)));
+        if (historyList == null || historyList.isEmpty()) {
+            tvRecentLabel.setVisibility(View.GONE);
+            hsvRecent.setVisibility(View.GONE);
+            return;
+        }
+
+        tvRecentLabel.setVisibility(View.VISIBLE);
+        hsvRecent.setVisibility(View.VISIBLE);
+
+        Set<String> addedGames = new HashSet<>();
+        List<String> orderedGames = new ArrayList<>();
+
+        for (LocalHistory h : historyList) {
+            String name = h.gameName;
+            if (!addedGames.contains(name)) {
+                addedGames.add(name);
+                orderedGames.add(name);
+            }
+        }
+
+        for (String gameName : orderedGames) {
+            View gameItem = getLayoutInflater().inflate(R.layout.item_recent_game_home, llRecentGamesContainer, false);
+            TextView tvName = gameItem.findViewById(R.id.tvRecentGameName);
+            ImageView ivIcon = gameItem.findViewById(R.id.ivRecentGameIcon);
+            
+            tvName.setText(gameName);
+            int iconRes = R.drawable.img_home_sudoku;
+            int bgRes = R.drawable.bg_profile_row_orange;
+            Class<?> activityClass = SudokuActivity.class;
+
+            if (gameName.equalsIgnoreCase("Sudoku")) {
+                iconRes = R.drawable.img_home_sudoku;
+                bgRes = R.drawable.bg_profile_row_orange;
+                activityClass = SudokuActivity.class;
+            } else if (gameName.contains("Lật hình") || gameName.equalsIgnoreCase("Memory")) {
+                iconRes = R.drawable.img_home_memory;
+                bgRes = R.drawable.bg_profile_row_green;
+                activityClass = MemoryGameActivity.class;
+                tvName.setText("Lật hình");
+            } else if (gameName.contains("Quiz") || gameName.contains("Đố vui")) {
+                iconRes = R.drawable.img_home_quiz;
+                bgRes = R.drawable.bg_profile_row_blue;
+                activityClass = QuizActivity.class;
+                tvName.setText("Quiz Game");
+            }
+
+            gameItem.setBackgroundResource(bgRes);
+            ivIcon.setImageResource(iconRes);
+            final Class<?> finalActivity = activityClass;
+            gameItem.setOnClickListener(v -> startActivity(new Intent(getActivity(), finalActivity)));
+            llRecentGamesContainer.addView(gameItem);
+        }
+    }
+
+    private void renderRecentActivity(List<LocalHistory> historyList) {
+        if (!isAdded() || llActivityList == null) return;
+        llActivityList.removeAllViews();
+
+        if (historyList == null || historyList.isEmpty()) {
+            tvNoActivity.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        tvNoActivity.setVisibility(View.GONE);
+        int count = Math.min(historyList.size(), 3);
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm · dd/MM", Locale.getDefault());
+
+        for (int i = 0; i < count; i++) {
+            LocalHistory history = historyList.get(i);
+            View itemView = getLayoutInflater().inflate(R.layout.item_recent_activity_home, llActivityList, false);
+            TextView tvTitle = itemView.findViewById(R.id.tvActivityTitle);
+            TextView tvSubtitle = itemView.findViewById(R.id.tvActivityTime);
+            View glowView = itemView.findViewById(R.id.vActivityGlow);
+
+            String statusText = history.status.toLowerCase();
+            String action = statusText.contains("won") || statusText.contains("completed") ? "Bạn đã hoàn thành " : "Bạn đã chơi ";
+            tvTitle.setText(action + history.gameName);
+            tvSubtitle.setText(sdf.format(new Date(history.playDate)) + " · " + (history.isSynced ? "synced" : "local"));
+
+            int bgRes = R.drawable.bg_profile_row_blue;
+            if (history.gameName.equalsIgnoreCase("Sudoku")) {
+                glowView.setBackgroundResource(R.drawable.bg_screen_glow_light_blue);
+                bgRes = R.drawable.bg_profile_row_orange;
+            } else if (history.gameName.contains("Lật hình") || history.gameName.equalsIgnoreCase("Memory")) {
+                glowView.setBackgroundResource(R.drawable.bg_screen_glow_warm);
+                bgRes = R.drawable.bg_profile_row_green;
+            } else {
+                glowView.setBackgroundResource(R.drawable.bg_screen_glow_blue);
+                bgRes = R.drawable.bg_profile_row_blue;
+            }
+            
+            itemView.setBackgroundResource(bgRes);
+
+            llActivityList.addView(itemView);
+        }
+    }
+
+    private void setupClickListeners(View view) {
+        ivProfile.setOnClickListener(v -> ((MainActivity)getActivity()).findViewById(R.id.bottom_nav).performClick());
     }
 
     private void setupSearchLogic() {
         etSearchGame.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterGames(s.toString().toLowerCase().trim());
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s.toString().toLowerCase().trim();
+                tvRecentLabel.setVisibility(query.isEmpty() ? View.VISIBLE : View.GONE);
+                hsvRecent.setVisibility(query.isEmpty() ? View.VISIBLE : View.GONE);
+                getView().findViewById(R.id.llRecentActivityContainer).setVisibility(query.isEmpty() ? View.VISIBLE : View.GONE);
             }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
+            @Override public void afterTextChanged(Editable s) {}
         });
-    }
-
-    private void filterGames(String query) {
-        if (query.isEmpty()) {
-            tvRecentLabel.setVisibility(View.VISIBLE);
-            hsvRecent.setVisibility(View.VISIBLE);
-            tvGamesLabel.setVisibility(View.VISIBLE);
-            tvGamesLabel.setText("Trò chơi");
-            
-            updateCard(cardSudoku, ivSudokuIcon, true);
-            updateCard(cardMemory, ivMemoryIcon, true);
-            updateCard(cardQuiz, ivQuizIcon, true);
-        } else {
-            tvRecentLabel.setVisibility(View.GONE);
-            hsvRecent.setVisibility(View.GONE);
-            tvGamesLabel.setText("Kết quả tìm kiếm");
-
-            boolean matchSudoku = "sudoku".contains(query);
-            boolean matchMemory = "lật hình".contains(query) || "memory".contains(query) || "lat hinh".contains(query);
-            boolean matchQuiz = "quiz game".contains(query) || "đố vui".contains(query) || "do vui".contains(query) || "quiz".contains(query);
-
-            updateCard(cardSudoku, ivSudokuIcon, matchSudoku);
-            updateCard(cardMemory, ivMemoryIcon, matchMemory);
-            updateCard(cardQuiz, ivQuizIcon, matchQuiz);
-        }
-    }
-
-    private void updateCard(View card, ImageView icon, boolean isVisible) {
-        if (card == null) return;
-        card.setVisibility(isVisible ? View.VISIBLE : View.GONE);
-        if (isVisible && icon != null) {
-            icon.setVisibility(View.VISIBLE);
-            icon.bringToFront();
-            icon.requestLayout();
-        }
     }
 }

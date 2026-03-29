@@ -21,6 +21,7 @@ import com.example.gamehub.fragments.LeaderboardFragment;
 import com.example.gamehub.fragments.ProfileFragment;
 import com.example.gamehub.fragments.ShellPlaceholderFragment;
 import com.example.gamehub.fragments.StatisticsFragment;
+import com.example.gamehub.utils.SoundManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
@@ -47,10 +48,28 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState == null) {
             bottomNavigationView.setSelectedItemId(R.id.nav_home);
         }
+
+        // Tự động phát nhạc nền khi vào ứng dụng nếu cài đặt đang bật
+        SoundManager.getInstance(this).startBGM(R.raw.game_bgm);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Tiếp tục phát nhạc khi quay lại ứng dụng
+        SoundManager.getInstance(this).startBGM(R.raw.game_bgm);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Tạm dừng nhạc khi rời ứng dụng để tiết kiệm pin/tài nguyên
+        SoundManager.getInstance(this).stopBGM();
     }
 
     public void showLeaderboard() {
-        openStatisticsChild(new LeaderboardFragment());
+        setBottomNavVisible(true);
+        replaceFragment(new LeaderboardFragment(), true);
     }
 
     public void showHistory() {
@@ -72,7 +91,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showCommunity() {
-        bottomNavigationView.setSelectedItemId(R.id.nav_friends);
+        // Since nav_friends is removed from BottomNav, we just replace the fragment directly
+        replaceFragment(new ChatFragment(), true);
     }
 
     public void setBottomNavVisible(boolean visible) {
@@ -92,10 +112,6 @@ public class MainActivity extends AppCompatActivity {
         }
         if (itemId == R.id.nav_games) {
             replaceFragment(new GamesFragment(), false);
-            return;
-        }
-        if (itemId == R.id.nav_friends) {
-            replaceFragment(new ChatFragment(), false);
             return;
         }
         if (itemId == R.id.nav_statistics) {
