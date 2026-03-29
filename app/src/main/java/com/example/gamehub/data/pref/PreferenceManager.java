@@ -47,6 +47,10 @@ public class PreferenceManager {
         sharedPreferences.edit().putLong(key, value).apply();
     }
 
+    public boolean contains(String key) {
+        return sharedPreferences.contains(key);
+    }
+
     public void saveLoginSession(String uid, String nickname) {
         sharedPreferences.edit()
                 .putBoolean(KEY_IS_LOGGED_IN, true)

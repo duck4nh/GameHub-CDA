@@ -26,8 +26,11 @@ public interface MemoryDao {
     @Query("SELECT * FROM Memory_Levels WHERE is_unlocked = 1 ORDER BY level_id ASC LIMIT 1")
     MemoryLevel getFirstUnlockedLevel();
 
-    @Query("UPDATE Memory_Levels SET best_time = :bestTime WHERE level_id = :levelId")
-    void updateBestTime(int levelId, long bestTime);
+    @Query("DELETE FROM Memory_Levels")
+    void clearAll();
+
+    @Query("UPDATE Memory_Levels SET best_time_ms = :bestTimeMs WHERE level_id = :levelId")
+    void updateBestTime(int levelId, long bestTimeMs);
 
     @Query("UPDATE Memory_Levels SET is_unlocked = 1 WHERE level_id = :levelId")
     void unlockLevel(int levelId);

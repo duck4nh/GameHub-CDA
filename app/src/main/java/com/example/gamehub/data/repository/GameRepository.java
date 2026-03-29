@@ -8,8 +8,13 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
 import com.example.gamehub.data.local.AppDatabase;
+import com.example.gamehub.data.local.QuizAssetImporter;
 import com.example.gamehub.data.local.dao.HistoryDao;
+import com.example.gamehub.data.local.dao.MemoryDao;
+import com.example.gamehub.data.local.dao.QuizDao;
 import com.example.gamehub.data.local.entities.LocalHistory;
+import com.example.gamehub.data.local.entities.MemoryLevel;
+import com.example.gamehub.data.local.entities.QuizQuestion;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.models.ChatMessage;
 import com.example.gamehub.models.GameRecord;
@@ -24,6 +29,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -77,21 +83,28 @@ public class GameRepository {
     private final Context appContext;
     private final PreferenceManager preferenceManager;
     private final HistoryDao historyDao;
+    private final QuizDao quizDao;
+    private final MemoryDao memoryDao;
     private final FirebaseAuth auth;
     private final FirebaseFirestore firestore;
 
     private ListenerRegistration chatListenerRegistration;
+    private boolean localDataReady;
 
     private GameRepository(Context context) {
         appContext = context.getApplicationContext();
+        AppDatabase database = AppDatabase.getInstance(appContext);
         preferenceManager = new PreferenceManager(appContext);
-        historyDao = AppDatabase.getInstance(appContext).historyDao();
+        historyDao = database.historyDao();
+        quizDao = database.quizDao();
+        memoryDao = database.memoryDao();
         auth = FirebaseAuth.getInstance();
         firestore = FirebaseFirestore.getInstance();
         ensurePreferences();
         removeLegacyMockHistory();
         syncSessionFromFirebase();
         triggerHistorySyncIfNeeded();
+        localDataReady = quizDao.getCount() > 0 && memoryDao.getCount() > 0;
     }
 
     public static synchronized GameRepository getInstance(Context context) {
@@ -99,6 +112,79 @@ public class GameRepository {
             instance = new GameRepository(context);
         }
         return instance;
+    }
+
+    public synchronized void ensureLocalDataReady() throws IOException {
+        if (memoryDao.getCount() == 0) {
+            localDataReady = false;
+        }
+        if (quizDao.getCount() == 0) {
+            List<QuizQuestion> questions = QuizAssetImporter.readQuestions(appContext);
+            if (!questions.isEmpty()) {
+                quizDao.insertAll(questions);
+            }
+        }
+        localDataReady = quizDao.getCount() > 0 && memoryDao.getCount() > 0;
+        preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
+    }
+
+    public boolean isLocalDataReady() {
+        return localDataReady;
+    }
+
+    public List<String> getQuizCategories() {
+        return new ArrayList<>(quizDao.getDistinctCategories());
+    }
+
+    public List<QuizQuestion> getRandomQuizQuestions(List<String> categories, @Nullable String difficulty, int limit) {
+        List<String> normalizedCategories = categories == null ? new ArrayList<>() : new ArrayList<>(categories);
+        if (normalizedCategories.isEmpty()) {
+            normalizedCategories.addAll(quizDao.getDistinctCategories());
+        }
+
+        boolean filterAllCategories = normalizedCategories.size() >= quizDao.getDistinctCategories().size();
+        boolean hasDifficulty = difficulty != null && !difficulty.trim().isEmpty() && !"all".equalsIgnoreCase(difficulty);
+
+        if (filterAllCategories) {
+            return hasDifficulty
+                    ? quizDao.getRandomQuestionsByDifficulty(difficulty, limit)
+                    : quizDao.getRandomQuestions(limit);
+        }
+        return hasDifficulty
+                ? quizDao.getRandomQuestionsByCategoriesAndDifficulty(normalizedCategories, difficulty, limit)
+                : quizDao.getRandomQuestionsByCategories(normalizedCategories, limit);
+    }
+
+    public List<MemoryLevel> getMemoryLevels() {
+        return new ArrayList<>(memoryDao.getAllLevels());
+    }
+
+    @Nullable
+    public MemoryLevel getMemoryLevel(int levelId) {
+        return memoryDao.getLevel(levelId);
+    }
+
+    public void completeMemoryLevel(int levelId, long elapsedMs, boolean won) {
+        if (!won) {
+            return;
+        }
+        MemoryLevel currentLevel = memoryDao.getLevel(levelId);
+        if (currentLevel == null) {
+            return;
+        }
+        if (currentLevel.bestTimeMs == 0L || elapsedMs < currentLevel.bestTimeMs) {
+            memoryDao.updateBestTime(levelId, elapsedMs);
+        }
+        MemoryLevel nextLevel = memoryDao.getLevel(levelId + 1);
+        if (nextLevel != null && !nextLevel.isUnlocked) {
+            memoryDao.unlockLevel(nextLevel.levelId);
+        }
+    }
+
+    public long saveHistory(LocalHistory historyItem) {
+        long insertedId = historyDao.insert(historyItem);
+        triggerHistorySyncIfNeeded();
+        return insertedId;
     }
 
     public void fetchLeaderboard(boolean weekly, LeaderboardCallback callback) {
@@ -301,12 +387,12 @@ public class GameRepository {
     }
 
     public long getBestQuizTime() {
-        Long best = historyDao.getBestTimeForGame("đố vui");
+        Long best = historyDao.getBestTimeForGame("quiz");
         return best == null ? 0L : best;
     }
 
     public long getBestMemoryTime() {
-        Long best = historyDao.getBestTimeForGame("ghi nhớ");
+        Long best = historyDao.getBestTimeForGame("memory");
         return best == null ? 0L : best;
     }
 
@@ -517,6 +603,15 @@ public class GameRepository {
     private void ensurePreferences() {
         if (preferenceManager.getString(PreferenceManager.KEY_LEADERBOARD_FILTER, null) == null) {
             preferenceManager.putString(PreferenceManager.KEY_LEADERBOARD_FILTER, "weekly");
+        }
+        if (!preferenceManager.contains(PreferenceManager.KEY_IS_SOUND_ON)) {
+            preferenceManager.putBoolean(PreferenceManager.KEY_IS_SOUND_ON, true);
+        }
+        if (!preferenceManager.contains(PreferenceManager.KEY_IS_ANIMATION_ON)) {
+            preferenceManager.putBoolean(PreferenceManager.KEY_IS_ANIMATION_ON, true);
+        }
+        if (!preferenceManager.contains(PreferenceManager.KEY_LAST_SYNC_TIME)) {
+            preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, 0L);
         }
     }
 
