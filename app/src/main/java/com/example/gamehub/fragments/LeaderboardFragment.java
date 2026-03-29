@@ -19,6 +19,7 @@ import com.example.gamehub.models.LeaderboardEntry;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -70,51 +71,80 @@ public class LeaderboardFragment extends Fragment {
         renderLeaderboard(repository.isWeeklyLeaderboardSelected());
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getView() != null) {
+            renderLeaderboard(repository.isWeeklyLeaderboardSelected());
+        }
+    }
+
     private void renderLeaderboard(boolean weekly) {
         repository.setLeaderboardFilter(weekly);
         setToggleState(weekly);
+        currentUserRank.setText("Đang tải thứ hạng...");
+        currentUserTrend.setText("");
+        adapter.submitList(Collections.emptyList());
+        bindPodium(Collections.emptyList());
 
-        List<LeaderboardEntry> entries = repository.getLeaderboardEntries(weekly);
-        bindPodium(entries);
+        repository.fetchLeaderboard(weekly, new GameRepository.LeaderboardCallback() {
+            @Override
+            public void onLoaded(List<LeaderboardEntry> entries, @Nullable LeaderboardEntry currentUserEntry, String trendLabel) {
+                if (!isAdded()) {
+                    return;
+                }
+                bindPodium(entries);
 
-        LeaderboardEntry currentUser = repository.getCurrentUserEntry(weekly);
-        if (currentUser != null) {
-            currentUserRank.setText(
-                    String.format(
-                            Locale.getDefault(),
-                            "#%d · %s điểm",
-                            currentUser.getRank(),
-                            numberFormat.format(currentUser.getScore())
-                    )
-            );
-        } else {
-            currentUserRank.setText("Chưa có thứ hạng");
-        }
-        currentUserTrend.setText(repository.getCurrentUserTrendLabel(weekly));
+                if (currentUserEntry != null) {
+                    currentUserRank.setText(
+                            String.format(
+                                    Locale.getDefault(),
+                                    "#%d · %s điểm",
+                                    currentUserEntry.getRank(),
+                                    numberFormat.format(currentUserEntry.getScore())
+                            )
+                    );
+                } else {
+                    currentUserRank.setText("Chưa có thứ hạng");
+                }
+                currentUserTrend.setText(trendLabel);
 
-        List<LeaderboardEntry> remaining = new ArrayList<>();
-        for (LeaderboardEntry entry : entries) {
-            if (entry.getRank() > 3 && !entry.isCurrentUser()) {
-                remaining.add(entry);
+                List<LeaderboardEntry> remaining = new ArrayList<>();
+                for (LeaderboardEntry entry : entries) {
+                    if (entry.getRank() > 3 && !entry.isCurrentUser()) {
+                        remaining.add(entry);
+                    }
+                }
+                adapter.submitList(remaining);
             }
-        }
-        adapter.submitList(remaining);
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) {
+                    return;
+                }
+                bindPodium(Collections.emptyList());
+                adapter.submitList(Collections.emptyList());
+                currentUserRank.setText("Không tải được bảng xếp hạng");
+                currentUserTrend.setText(message);
+            }
+        });
     }
 
     private void bindPodium(List<LeaderboardEntry> entries) {
-        bindPodiumEntry(entries, 0, podiumRankFirst, podiumNameFirst, "#1", "Linh");
-        bindPodiumEntry(entries, 1, podiumRankSecond, podiumNameSecond, "#2", "Minh");
-        bindPodiumEntry(entries, 2, podiumRankThird, podiumNameThird, "#3", "Trang");
+        bindPodiumEntry(entries, 0, podiumRankFirst, podiumNameFirst);
+        bindPodiumEntry(entries, 1, podiumRankSecond, podiumNameSecond);
+        bindPodiumEntry(entries, 2, podiumRankThird, podiumNameThird);
     }
 
-    private void bindPodiumEntry(List<LeaderboardEntry> entries, int index, TextView rankView, TextView nameView, String fallbackRank, String fallbackName) {
+    private void bindPodiumEntry(List<LeaderboardEntry> entries, int index, TextView rankView, TextView nameView) {
         if (entries.size() > index) {
             LeaderboardEntry entry = entries.get(index);
             rankView.setText("#" + entry.getRank());
             nameView.setText(entry.getNickname());
         } else {
-            rankView.setText(fallbackRank);
-            nameView.setText(fallbackName);
+            rankView.setText("#" + (index + 1));
+            nameView.setText("Chưa có dữ liệu");
         }
     }
 

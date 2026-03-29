@@ -14,8 +14,6 @@ import androidx.fragment.app.Fragment;
 import com.example.gamehub.MainActivity;
 import com.example.gamehub.R;
 import com.example.gamehub.data.repository.GameRepository;
-import com.example.gamehub.models.LeaderboardEntry;
-
 import java.text.NumberFormat;
 import java.util.Locale;
 
@@ -104,20 +102,35 @@ public class StatisticsFragment extends Fragment {
         metricWeeklyDelta.setText(repository.getWeeklyScoreChangeLabel());
         metricStreak.setText(String.format(Locale.getDefault(), "%d ngày", repository.getCurrentStreakDays()));
         metricStreakCaption.setText("Duy trì từ Local_History");
+        leaderboardSummaryCaption.setText("Đang tải từ leaderboard trực tuyến...");
+        repository.fetchWeeklyLeaderboardSummary(new GameRepository.LeaderboardSummaryCallback() {
+            @Override
+            public void onLoaded(@Nullable com.example.gamehub.models.LeaderboardEntry currentUserEntry, String trendLabel) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (currentUserEntry != null) {
+                    leaderboardSummaryCaption.setText(
+                            String.format(
+                                    Locale.getDefault(),
+                                    "#%d tuần này · %s",
+                                    currentUserEntry.getRank(),
+                                    trendLabel
+                            )
+                    );
+                } else {
+                    leaderboardSummaryCaption.setText(trendLabel);
+                }
+            }
 
-        LeaderboardEntry weeklyEntry = repository.getCurrentUserEntry(true);
-        if (weeklyEntry != null) {
-            leaderboardSummaryCaption.setText(
-                    String.format(
-                            Locale.getDefault(),
-                            "#%d tuần này · %s",
-                            weeklyEntry.getRank(),
-                            repository.getCurrentUserTrendLabel(true)
-                    )
-            );
-        } else {
-            leaderboardSummaryCaption.setText(repository.getCurrentUserTrendLabel(true));
-        }
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) {
+                    return;
+                }
+                leaderboardSummaryCaption.setText("Chưa tải được leaderboard");
+            }
+        });
 
         bindBestHistoryRow(bestQuizRow, bestQuizTime, repository.getBestHistoryForGame("đố vui"));
         bindBestHistoryRow(bestMemoryRow, bestMemoryTime, repository.getBestHistoryForGame("ghi nhớ"));

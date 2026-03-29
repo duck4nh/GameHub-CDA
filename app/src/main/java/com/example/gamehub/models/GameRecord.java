@@ -1,26 +1,32 @@
 package com.example.gamehub.models;
 
+import com.google.firebase.firestore.IgnoreExtraProperties;
+
+@IgnoreExtraProperties
 public class GameRecord {
-    private final String recordId;
-    private final String uid;
-    private final String gameType;
-    private final int score;
-    private final long timePlayed;
-    private final String status;
-    private final long date;
+    public String record_id;
+    public String uid;
+    public String game_type;
+    public int score;
+    public long time_played;
+    public String status;
+    public long date;
+
+    public GameRecord() {
+    }
 
     public GameRecord(String recordId, String uid, String gameType, int score, long timePlayed, String status, long date) {
-        this.recordId = recordId;
+        this.record_id = recordId;
         this.uid = uid;
-        this.gameType = gameType;
+        this.game_type = gameType;
         this.score = score;
-        this.timePlayed = timePlayed;
+        this.time_played = timePlayed;
         this.status = status;
         this.date = date;
     }
 
     public String getRecordId() {
-        return recordId;
+        return record_id;
     }
 
     public String getUid() {
@@ -28,7 +34,7 @@ public class GameRecord {
     }
 
     public String getGameType() {
-        return gameType;
+        return game_type;
     }
 
     public int getScore() {
@@ -36,7 +42,7 @@ public class GameRecord {
     }
 
     public long getTimePlayed() {
-        return timePlayed;
+        return time_played;
     }
 
     public String getStatus() {

@@ -3,6 +3,9 @@ package com.example.gamehub.data.repository;
 import android.content.Context;
 
 import androidx.annotation.Nullable;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
 
 import com.example.gamehub.data.local.AppDatabase;
 import com.example.gamehub.data.local.dao.HistoryDao;
@@ -12,11 +15,21 @@ import com.example.gamehub.models.ChatMessage;
 import com.example.gamehub.models.GameRecord;
 import com.example.gamehub.models.LeaderboardEntry;
 import com.example.gamehub.models.User;
+import com.example.gamehub.workers.SyncWorker;
+import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,26 +38,60 @@ import java.util.Map;
 import java.util.Set;
 
 public class GameRepository {
-    private static final String DEFAULT_UID = "uid_duong";
-    private static final String DEFAULT_NICKNAME = "Phạm Hồng Dương";
+    public interface LeaderboardCallback {
+        void onLoaded(List<LeaderboardEntry> entries, @Nullable LeaderboardEntry currentUserEntry, String trendLabel);
+
+        void onError(String message);
+    }
+
+    public interface LeaderboardSummaryCallback {
+        void onLoaded(@Nullable LeaderboardEntry currentUserEntry, String trendLabel);
+
+        void onError(String message);
+    }
+
+    public interface ChatMessagesListener {
+        void onMessagesChanged(List<ChatMessage> messages);
+
+        void onError(String message);
+    }
+
+    public interface ChatRoomCountsCallback {
+        void onLoaded(Map<String, Integer> participantCounts);
+
+        void onError(String message);
+    }
+
+    public interface ActionCallback {
+        void onSuccess();
+
+        void onError(String message);
+    }
+
+    private static final String DEFAULT_NICKNAME = "Player";
+    private static final String HISTORY_SYNC_WORK_NAME = "history_sync";
+    private static final String GENERAL_CHAT_ROOM_ID = "general";
 
     private static GameRepository instance;
 
+    private final Context appContext;
     private final PreferenceManager preferenceManager;
     private final HistoryDao historyDao;
-    private final List<User> users = new ArrayList<>();
-    private final List<GameRecord> gameRecords = new ArrayList<>();
-    private final List<ChatMessage> chatMessages = new ArrayList<>();
+    private final FirebaseAuth auth;
+    private final FirebaseFirestore firestore;
+
+    private ListenerRegistration chatListenerRegistration;
 
     private GameRepository(Context context) {
-        Context appContext = context.getApplicationContext();
+        appContext = context.getApplicationContext();
         preferenceManager = new PreferenceManager(appContext);
         historyDao = AppDatabase.getInstance(appContext).historyDao();
+        auth = FirebaseAuth.getInstance();
+        firestore = FirebaseFirestore.getInstance();
         ensurePreferences();
-        seedUsers();
-        seedGameRecords();
-        seedChatMessages();
-        seedHistoryIfNeeded();
+        removeLegacyMockHistory();
+        syncSessionFromFirebase();
+        triggerHistorySyncIfNeeded();
     }
 
     public static synchronized GameRepository getInstance(Context context) {
@@ -54,33 +101,121 @@ public class GameRepository {
         return instance;
     }
 
-    public List<LeaderboardEntry> getLeaderboardEntries(boolean weekly) {
-        return weekly ? getWeeklyLeaderboard() : getAllTimeLeaderboard();
+    public void fetchLeaderboard(boolean weekly, LeaderboardCallback callback) {
+        syncSessionFromFirebase();
+        triggerHistorySyncIfNeeded();
+        if (weekly) {
+            fetchWeeklyLeaderboard(callback);
+            return;
+        }
+        fetchAllTimeLeaderboard(callback);
     }
 
-    @Nullable
-    public LeaderboardEntry getCurrentUserEntry(boolean weekly) {
-        String currentUid = getCurrentUid();
-        for (LeaderboardEntry entry : getLeaderboardEntries(weekly)) {
-            if (entry.getUid().equals(currentUid)) {
-                return entry;
+    public void fetchWeeklyLeaderboardSummary(LeaderboardSummaryCallback callback) {
+        fetchWeeklyLeaderboard(new LeaderboardCallback() {
+            @Override
+            public void onLoaded(List<LeaderboardEntry> entries, @Nullable LeaderboardEntry currentUserEntry, String trendLabel) {
+                callback.onLoaded(currentUserEntry, trendLabel);
             }
-        }
-        return null;
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
     }
 
-    public String getCurrentUserTrendLabel(boolean weekly) {
-        if (!weekly) {
-            return "Tổng điểm tích lũy";
+    public void startChatMessagesListener(String roomId, ChatMessagesListener listener) {
+        syncSessionFromFirebase();
+        stopChatMessagesListener();
+        chatListenerRegistration = firestore.collection("Chat_Messages")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .addSnapshotListener((value, error) -> {
+                    if (error != null) {
+                        listener.onError(error.getMessage() == null ? "Không thể tải chat cộng đồng." : error.getMessage());
+                        return;
+                    }
+                    List<ChatMessage> messages = new ArrayList<>();
+                    if (value != null) {
+                        for (DocumentSnapshot document : value.getDocuments()) {
+                            ChatMessage message = toChatMessage(document);
+                            if (belongsToRoom(message, roomId)) {
+                                messages.add(message);
+                            }
+                        }
+                    }
+                    messages.sort(Comparator.comparingLong(ChatMessage::getTimestamp));
+                    listener.onMessagesChanged(messages);
+                });
+    }
+
+    public void fetchChatRoomParticipantCounts(ChatRoomCountsCallback callback) {
+        firestore.collection("Chat_Messages")
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    Map<String, Set<String>> participantsByRoom = new HashMap<>();
+                    for (DocumentSnapshot document : querySnapshot.getDocuments()) {
+                        ChatMessage message = toChatMessage(document);
+                        String roomId = normalizeRoomId(message.getRoomId());
+                        String participantKey = buildParticipantKey(message);
+                        if (participantKey.isEmpty()) {
+                            continue;
+                        }
+                        if (!participantsByRoom.containsKey(roomId)) {
+                            participantsByRoom.put(roomId, new HashSet<>());
+                        }
+                        participantsByRoom.get(roomId).add(participantKey);
+                    }
+
+                    Map<String, Integer> counts = new HashMap<>();
+                    for (Map.Entry<String, Set<String>> entry : participantsByRoom.entrySet()) {
+                        counts.put(entry.getKey(), entry.getValue().size());
+                    }
+                    callback.onLoaded(counts);
+                })
+                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không thể tải số người tham gia." : error.getMessage()));
+    }
+
+    public void stopChatMessagesListener() {
+        if (chatListenerRegistration != null) {
+            chatListenerRegistration.remove();
+            chatListenerRegistration = null;
         }
-        int delta = getCurrentUserWeeklyRankDelta();
-        if (delta > 0) {
-            return String.format(Locale.getDefault(), "+%d bậc tuần này", delta);
+    }
+
+    public void sendChatMessage(String roomId, String content, ActionCallback callback) {
+        syncSessionFromFirebase();
+        String trimmed = content == null ? "" : content.trim();
+        if (trimmed.isEmpty()) {
+            callback.onError("Tin nhắn đang trống.");
+            return;
         }
-        if (delta < 0) {
-            return String.format(Locale.getDefault(), "%d bậc tuần này", delta);
+
+        String currentUid = getCurrentUid();
+        if (currentUid.isEmpty()) {
+            callback.onError("Chưa xác định được tài khoản hiện tại.");
+            return;
         }
-        return "Giữ nguyên tuần này";
+
+        String nickname = getCurrentNickname();
+        if (nickname.trim().isEmpty()) {
+            nickname = DEFAULT_NICKNAME;
+        }
+
+        String messageId = firestore.collection("Chat_Messages").document().getId();
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("message_id", messageId);
+        payload.put("room_id", normalizeRoomId(roomId));
+        payload.put("sender_uid", currentUid);
+        payload.put("sender_nickname", nickname);
+        payload.put("content", trimmed);
+        payload.put("timestamp", System.currentTimeMillis());
+
+        firestore.collection("Chat_Messages")
+                .document(messageId)
+                .set(payload)
+                .addOnSuccessListener(unused -> callback.onSuccess())
+                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không gửi được tin nhắn." : error.getMessage()));
     }
 
     public void setLeaderboardFilter(boolean weekly) {
@@ -112,7 +247,7 @@ public class GameRepository {
     }
 
     public int getWeeklyScore() {
-        return getScoreForWindow(getCurrentUid(), getStartOfCurrentWeek(), Long.MAX_VALUE);
+        return getLocalScoreForWindow(getStartOfCurrentWeek(), Long.MAX_VALUE);
     }
 
     public String getWeeklyScoreChangeLabel() {
@@ -120,7 +255,7 @@ public class GameRepository {
         Calendar previousWeekStart = Calendar.getInstance();
         previousWeekStart.setTimeInMillis(getStartOfCurrentWeek());
         previousWeekStart.add(Calendar.DAY_OF_YEAR, -7);
-        int previous = getScoreForWindow(getCurrentUid(), previousWeekStart.getTimeInMillis(), getStartOfCurrentWeek() - 1);
+        int previous = getLocalScoreForWindow(previousWeekStart.getTimeInMillis(), getStartOfCurrentWeek() - 1);
         if (previous <= 0) {
             return current > 0 ? "Tuần đầu tiên có điểm" : "Chưa có điểm tuần này";
         }
@@ -158,24 +293,6 @@ public class GameRepository {
             }
         }
         return streak;
-    }
-
-    public int[] getPlayTimeMinutesByDay() {
-        int[] values = new int[7];
-        Calendar start = Calendar.getInstance();
-        start.setTimeInMillis(getStartOfCurrentWeek());
-
-        List<LocalHistory> historyItems = historyDao.getAllNewestFirst();
-        for (LocalHistory item : historyItems) {
-            if (item.playDate < start.getTimeInMillis()) {
-                continue;
-            }
-            int index = getDayBucketIndex(start.getTimeInMillis(), item.playDate);
-            if (index >= 0 && index < values.length) {
-                values[index] += Math.max(1, Math.round(item.timeSpent / 60000f));
-            }
-        }
-        return values;
     }
 
     public long getBestSudokuTime() {
@@ -224,6 +341,7 @@ public class GameRepository {
     }
 
     public List<LocalHistory> getHistory(@Nullable String filter) {
+        triggerHistorySyncIfNeeded();
         List<LocalHistory> items = new ArrayList<>(historyDao.getAllNewestFirst());
         if (filter == null || "all".equals(filter)) {
             return items;
@@ -238,150 +356,104 @@ public class GameRepository {
         return filtered;
     }
 
-    public List<ChatMessage> getChatMessages() {
-        List<ChatMessage> items = new ArrayList<>(chatMessages);
-        items.sort(Comparator.comparingLong(ChatMessage::getTimestamp));
-        return items;
-    }
-
-    @Nullable
-    public ChatMessage sendChatMessage(String content) {
-        String trimmed = content == null ? "" : content.trim();
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        ChatMessage message = new ChatMessage(
-                "msg_" + System.currentTimeMillis(),
-                getCurrentUid(),
-                getCurrentNickname(),
-                trimmed,
-                System.currentTimeMillis()
-        );
-        chatMessages.add(message);
-        chatMessages.sort(Comparator.comparingLong(ChatMessage::getTimestamp));
-        return message;
-    }
-
     public String getCurrentUid() {
-        return preferenceManager.getString(PreferenceManager.KEY_CURRENT_UID, DEFAULT_UID);
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null && currentUser.getUid() != null) {
+            String uid = currentUser.getUid();
+            preferenceManager.putString(PreferenceManager.KEY_CURRENT_UID, uid);
+            return uid;
+        }
+        return preferenceManager.getString(PreferenceManager.KEY_CURRENT_UID, "");
     }
 
     public String getCurrentNickname() {
-        return preferenceManager.getString(PreferenceManager.KEY_CACHE_NICKNAME, DEFAULT_NICKNAME);
+        String nickname = preferenceManager.getString(PreferenceManager.KEY_CACHE_NICKNAME, "");
+        if (!nickname.trim().isEmpty()) {
+            return nickname;
+        }
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null && currentUser.getDisplayName() != null && !currentUser.getDisplayName().trim().isEmpty()) {
+            return currentUser.getDisplayName();
+        }
+        return DEFAULT_NICKNAME;
     }
 
-    private void ensurePreferences() {
-        if (preferenceManager.getString(PreferenceManager.KEY_CURRENT_UID, null) == null) {
-            preferenceManager.putString(PreferenceManager.KEY_CURRENT_UID, DEFAULT_UID);
-        }
-        if (preferenceManager.getString(PreferenceManager.KEY_CACHE_NICKNAME, null) == null) {
-            preferenceManager.putString(PreferenceManager.KEY_CACHE_NICKNAME, DEFAULT_NICKNAME);
-        }
-        if (preferenceManager.getString(PreferenceManager.KEY_LEADERBOARD_FILTER, null) == null) {
-            preferenceManager.putString(PreferenceManager.KEY_LEADERBOARD_FILTER, "weekly");
-        }
+    private void fetchAllTimeLeaderboard(LeaderboardCallback callback) {
+        firestore.collection("Users")
+                .orderBy("total_score", Query.Direction.DESCENDING)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<LeaderboardEntry> entries = new ArrayList<>();
+                    String currentUid = getCurrentUid();
+                    int rank = 1;
+                    for (DocumentSnapshot document : querySnapshot.getDocuments()) {
+                        User user = toUser(document);
+                        entries.add(new LeaderboardEntry(
+                                user.getUid(),
+                                user.getNickname(),
+                                user.getTotalScore(),
+                                rank++,
+                                user.getUid().equals(currentUid)
+                        ));
+                    }
+                    callback.onLoaded(entries, findCurrentUserEntry(entries), "Tổng điểm tích lũy");
+                })
+                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không thể tải bảng xếp hạng." : error.getMessage()));
     }
 
-    private void seedUsers() {
-        if (!users.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        users.add(new User("uid_linh", "linh@ptit.edu.vn", "Linh", "", 1860, now));
-        users.add(new User("uid_minh", "minh@ptit.edu.vn", "Minh", "", 1730, now));
-        users.add(new User("uid_trang", "trang@ptit.edu.vn", "Trang", "", 1680, now));
-        users.add(new User("uid_quoc", "anh@ptit.edu.vn", "Quoc Anh", "", 1410, now));
-        users.add(new User(getCurrentUid(), "duong@ptit.edu.vn", getCurrentNickname(), "", 1042, now));
-        users.add(new User("uid_an", "an@ptit.edu.vn", "An Nguyen", "", 992, now));
-        users.add(new User("uid_tuan", "tuan@ptit.edu.vn", "Tuan Le", "", 964, now));
-        users.add(new User("uid_mai", "mai@ptit.edu.vn", "Mai Ho", "", 932, now));
+    private void fetchWeeklyLeaderboard(LeaderboardCallback callback) {
+        long currentWeekStart = getStartOfCurrentWeek();
+        long previousWeekStart = currentWeekStart - 7L * 24L * 60L * 60L * 1000L;
+
+        firestore.collection("Users")
+                .get()
+                .addOnSuccessListener(userSnapshot -> {
+                    Map<String, User> usersByUid = new HashMap<>();
+                    for (DocumentSnapshot document : userSnapshot.getDocuments()) {
+                        User user = toUser(document);
+                        usersByUid.put(user.getUid(), user);
+                    }
+
+                    firestore.collection("Game_Records")
+                            .whereGreaterThanOrEqualTo("date", previousWeekStart)
+                            .get()
+                            .addOnSuccessListener(recordSnapshot -> {
+                                Map<String, Integer> currentWeekScores = new HashMap<>();
+                                Map<String, Integer> previousWeekScores = new HashMap<>();
+                                for (DocumentSnapshot document : recordSnapshot.getDocuments()) {
+                                    GameRecord record = toGameRecord(document);
+                                    long playDate = record.getDate();
+                                    if (playDate >= currentWeekStart) {
+                                        currentWeekScores.put(record.getUid(), currentWeekScores.getOrDefault(record.getUid(), 0) + record.getScore());
+                                    } else if (playDate >= previousWeekStart) {
+                                        previousWeekScores.put(record.getUid(), previousWeekScores.getOrDefault(record.getUid(), 0) + record.getScore());
+                                    }
+                                }
+
+                                List<LeaderboardEntry> entries = buildWeeklyEntries(currentWeekScores, usersByUid);
+                                LeaderboardEntry currentUserEntry = findCurrentUserEntry(entries);
+                                callback.onLoaded(entries, currentUserEntry, buildWeeklyTrendLabel(currentWeekScores, previousWeekScores));
+                            })
+                            .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không thể tải bảng xếp hạng tuần." : error.getMessage()));
+                })
+                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không thể tải dữ liệu người dùng." : error.getMessage()));
     }
 
-    private void seedGameRecords() {
-        if (!gameRecords.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        long oneDay = 24L * 60L * 60L * 1000L;
-        gameRecords.add(new GameRecord("r1", "uid_linh", "quiz", 620, 380000, "won", now - oneDay));
-        gameRecords.add(new GameRecord("r2", "uid_linh", "sudoku", 520, 420000, "won", now - 2 * oneDay));
-        gameRecords.add(new GameRecord("r3", "uid_minh", "memory", 740, 510000, "won", now - oneDay));
-        gameRecords.add(new GameRecord("r4", "uid_minh", "quiz", 480, 350000, "won", now - 3 * oneDay));
-        gameRecords.add(new GameRecord("r5", "uid_trang", "quiz", 540, 370000, "won", now - 2 * oneDay));
-        gameRecords.add(new GameRecord("r6", "uid_trang", "memory", 410, 290000, "won", now - 4 * oneDay));
-        gameRecords.add(new GameRecord("r7", getCurrentUid(), "quiz", 380, 381000, "won", now - oneDay));
-        gameRecords.add(new GameRecord("r8", getCurrentUid(), "sudoku", 332, 554000, "won", now - 2 * oneDay));
-        gameRecords.add(new GameRecord("r9", getCurrentUid(), "memory", 330, 414000, "won", now - 3 * oneDay));
-        gameRecords.add(new GameRecord("r10", "uid_an", "quiz", 300, 410000, "won", now - oneDay));
-        gameRecords.add(new GameRecord("r11", "uid_tuan", "memory", 272, 450000, "won", now - 2 * oneDay));
-        gameRecords.add(new GameRecord("r12", "uid_mai", "sudoku", 240, 620000, "won", now - oneDay));
-        gameRecords.add(new GameRecord("r13", getCurrentUid(), "quiz", 210, 420000, "won", now - 8 * oneDay));
-        gameRecords.add(new GameRecord("r14", "uid_an", "quiz", 420, 400000, "won", now - 8 * oneDay));
-        gameRecords.add(new GameRecord("r15", "uid_tuan", "memory", 510, 430000, "won", now - 9 * oneDay));
-    }
-
-    private void seedChatMessages() {
-        if (!chatMessages.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        chatMessages.add(new ChatMessage("c1", "uid_trang", "Trang", "Ai rảnh đấu Ghi nhớ sau giờ học?", now - 180000));
-        chatMessages.add(new ChatMessage("c2", getCurrentUid(), "Bạn", "Mình vào sau 10 phút nữa.", now - 120000));
-        chatMessages.add(new ChatMessage("c3", "uid_linh", "Linh", "Mình mở phòng ở mục Cộng đồng rồi.", now - 60000));
-    }
-
-    private void seedHistoryIfNeeded() {
-        if (historyDao.getCount() > 0) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        long oneDay = 24L * 60L * 60L * 1000L;
-        List<LocalHistory> samples = new ArrayList<>();
-        samples.add(new LocalHistory("Đố vui · Thủ đô châu Á", "won", 17, 381000, now - oneDay, true));
-        samples.add(new LocalHistory("Ghi nhớ · Lưới trung bình", "completed", 32, 470000, now - 2 * oneDay, false));
-        samples.add(new LocalHistory("Sudoku · Khó", "won", 100, 554000, now - 3 * oneDay, true));
-        samples.add(new LocalHistory("Đố vui · Chủ đề thể thao", "won", 15, 468000, now - 4 * oneDay, true));
-        samples.add(new LocalHistory("Ghi nhớ · 4x4", "lost", 18, 214000, now - 5 * oneDay, true));
-        historyDao.insertAll(samples);
-    }
-
-    private List<LeaderboardEntry> getAllTimeLeaderboard() {
-        List<User> sortedUsers = new ArrayList<>(users);
-        sortedUsers.sort((first, second) -> Integer.compare(second.getTotalScore(), first.getTotalScore()));
+    private List<LeaderboardEntry> buildWeeklyEntries(Map<String, Integer> scoresByUid, Map<String, User> usersByUid) {
         List<LeaderboardEntry> entries = new ArrayList<>();
-        for (int i = 0; i < sortedUsers.size(); i++) {
-            User user = sortedUsers.get(i);
+        String currentUid = getCurrentUid();
+        for (Map.Entry<String, Integer> entry : scoresByUid.entrySet()) {
+            User user = usersByUid.get(entry.getKey());
+            String nickname = user != null && user.getNickname() != null && !user.getNickname().trim().isEmpty()
+                    ? user.getNickname()
+                    : entry.getKey();
             entries.add(new LeaderboardEntry(
-                    user.getUid(),
-                    user.getNickname(),
-                    user.getTotalScore(),
-                    i + 1,
-                    user.getUid().equals(getCurrentUid())
+                    entry.getKey(),
+                    nickname,
+                    entry.getValue(),
+                    0,
+                    entry.getKey().equals(currentUid)
             ));
-        }
-        return entries;
-    }
-
-    private List<LeaderboardEntry> getWeeklyLeaderboard() {
-        long startOfWeek = getStartOfCurrentWeek();
-        Map<String, Integer> scoreByUid = new HashMap<>();
-        for (GameRecord record : gameRecords) {
-            if (record.getDate() >= startOfWeek) {
-                scoreByUid.put(record.getUid(), scoreByUid.getOrDefault(record.getUid(), 0) + record.getScore());
-            }
-        }
-        List<LeaderboardEntry> entries = new ArrayList<>();
-        for (User user : users) {
-            Integer score = scoreByUid.get(user.getUid());
-            if (score != null) {
-                entries.add(new LeaderboardEntry(
-                        user.getUid(),
-                        user.getNickname(),
-                        score,
-                        0,
-                        user.getUid().equals(getCurrentUid())
-                ));
-            }
         }
         entries.sort((first, second) -> Integer.compare(second.getScore(), first.getScore()));
         for (int i = 0; i < entries.size(); i++) {
@@ -397,28 +469,38 @@ public class GameRepository {
         return entries;
     }
 
-    private int getCurrentUserWeeklyRankDelta() {
-        int currentRank = getRankForWindow(getStartOfCurrentWeek(), Long.MAX_VALUE, getCurrentUid());
+    private String buildWeeklyTrendLabel(Map<String, Integer> currentWeekScores, Map<String, Integer> previousWeekScores) {
+        String currentUid = getCurrentUid();
+        int currentRank = getRankFromScoreMap(currentWeekScores, currentUid);
         if (currentRank <= 0) {
-            return 0;
+            return "Chưa có điểm tuần này";
         }
-        Calendar previousWeekStart = Calendar.getInstance();
-        previousWeekStart.setTimeInMillis(getStartOfCurrentWeek());
-        previousWeekStart.add(Calendar.DAY_OF_YEAR, -7);
-        int previousRank = getRankForWindow(previousWeekStart.getTimeInMillis(), getStartOfCurrentWeek() - 1, getCurrentUid());
+        int previousRank = getRankFromScoreMap(previousWeekScores, currentUid);
         if (previousRank <= 0) {
-            return 0;
+            return "Tuần đầu tiên có điểm";
         }
-        return previousRank - currentRank;
+        int delta = previousRank - currentRank;
+        if (delta > 0) {
+            return String.format(Locale.getDefault(), "+%d bậc tuần này", delta);
+        }
+        if (delta < 0) {
+            return String.format(Locale.getDefault(), "%d bậc tuần này", delta);
+        }
+        return "Giữ nguyên tuần này";
     }
 
-    private int getRankForWindow(long start, long end, String uid) {
-        Map<String, Integer> scoreByUid = new HashMap<>();
-        for (GameRecord record : gameRecords) {
-            if (record.getDate() >= start && record.getDate() <= end) {
-                scoreByUid.put(record.getUid(), scoreByUid.getOrDefault(record.getUid(), 0) + record.getScore());
+    @Nullable
+    private LeaderboardEntry findCurrentUserEntry(List<LeaderboardEntry> entries) {
+        String currentUid = getCurrentUid();
+        for (LeaderboardEntry entry : entries) {
+            if (entry.getUid().equals(currentUid)) {
+                return entry;
             }
         }
+        return null;
+    }
+
+    private int getRankFromScoreMap(Map<String, Integer> scoreByUid, String uid) {
         if (!scoreByUid.containsKey(uid)) {
             return -1;
         }
@@ -430,6 +512,67 @@ public class GameRepository {
             }
         }
         return -1;
+    }
+
+    private void ensurePreferences() {
+        if (preferenceManager.getString(PreferenceManager.KEY_LEADERBOARD_FILTER, null) == null) {
+            preferenceManager.putString(PreferenceManager.KEY_LEADERBOARD_FILTER, "weekly");
+        }
+    }
+
+    private void removeLegacyMockHistory() {
+        historyDao.deleteByExactGameNames(Arrays.asList(
+                "Đố vui · Thủ đô châu Á",
+                "Ghi nhớ · Lưới trung bình",
+                "Sudoku · Khó",
+                "Đố vui · Chủ đề thể thao",
+                "Ghi nhớ · 4x4"
+        ));
+    }
+
+    private void syncSessionFromFirebase() {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser == null) {
+            return;
+        }
+
+        preferenceManager.putString(PreferenceManager.KEY_CURRENT_UID, currentUser.getUid());
+
+        String cachedNickname = preferenceManager.getString(PreferenceManager.KEY_CACHE_NICKNAME, "");
+        if (cachedNickname != null && !cachedNickname.trim().isEmpty()) {
+            return;
+        }
+
+        firestore.collection("Users")
+                .document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(document -> {
+                    String nickname = document.getString("nickname");
+                    if (nickname != null && !nickname.trim().isEmpty()) {
+                        preferenceManager.putString(PreferenceManager.KEY_CACHE_NICKNAME, nickname);
+                    }
+                });
+    }
+
+    private void triggerHistorySyncIfNeeded() {
+        if (historyDao.getUnsyncedCount() <= 0) {
+            return;
+        }
+        WorkManager.getInstance(appContext).enqueueUniqueWork(
+                HISTORY_SYNC_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                new OneTimeWorkRequest.Builder(SyncWorker.class).build()
+        );
+    }
+
+    private int getLocalScoreForWindow(long start, long end) {
+        int score = 0;
+        for (LocalHistory history : historyDao.getAllNewestFirst()) {
+            if (history.playDate >= start && history.playDate <= end) {
+                score += history.score;
+            }
+        }
+        return score;
     }
 
     private long getStartOfCurrentWeek() {
@@ -445,16 +588,6 @@ public class GameRepository {
         return (int) (diff / (24L * 60L * 60L * 1000L));
     }
 
-    private int getScoreForWindow(String uid, long start, long end) {
-        int score = 0;
-        for (GameRecord record : gameRecords) {
-            if (record.getUid().equals(uid) && record.getDate() >= start && record.getDate() <= end) {
-                score += record.getScore();
-            }
-        }
-        return score;
-    }
-
     private long getStartOfDay(long timeMillis) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(timeMillis);
@@ -467,6 +600,101 @@ public class GameRepository {
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
+    }
+
+    private User toUser(DocumentSnapshot document) {
+        String uid = readString(document, "uid");
+        if (uid.isEmpty()) {
+            uid = document.getId();
+        }
+        return new User(
+                uid,
+                readString(document, "email"),
+                readString(document, "nickname", uid),
+                readString(document, "avatar_url"),
+                readInt(document, "total_score"),
+                readLong(document, "created_at")
+        );
+    }
+
+    private GameRecord toGameRecord(DocumentSnapshot document) {
+        String recordId = readString(document, "record_id");
+        if (recordId.isEmpty()) {
+            recordId = document.getId();
+        }
+        return new GameRecord(
+                recordId,
+                readString(document, "uid"),
+                readString(document, "game_type"),
+                readInt(document, "score"),
+                readLong(document, "time_played"),
+                readString(document, "status"),
+                readLong(document, "date")
+        );
+    }
+
+    private ChatMessage toChatMessage(DocumentSnapshot document) {
+        String messageId = readString(document, "message_id");
+        if (messageId.isEmpty()) {
+            messageId = document.getId();
+        }
+        return new ChatMessage(
+                messageId,
+                readString(document, "room_id"),
+                readString(document, "sender_uid"),
+                readString(document, "sender_nickname", "Người chơi"),
+                readString(document, "content"),
+                readLong(document, "timestamp")
+        );
+    }
+
+    private boolean belongsToRoom(ChatMessage message, String roomId) {
+        return normalizeRoomId(message.getRoomId()).equals(normalizeRoomId(roomId));
+    }
+
+    private String normalizeRoomId(String roomId) {
+        if (roomId == null || roomId.trim().isEmpty()) {
+            return GENERAL_CHAT_ROOM_ID;
+        }
+        return roomId.trim();
+    }
+
+    private String buildParticipantKey(ChatMessage message) {
+        if (!message.getSenderUid().isEmpty()) {
+            return message.getSenderUid();
+        }
+        return message.getSenderNickname().trim().toLowerCase(Locale.getDefault());
+    }
+
+    private String readString(DocumentSnapshot document, String field) {
+        return readString(document, field, "");
+    }
+
+    private String readString(DocumentSnapshot document, String field, String fallback) {
+        String value = document.getString(field);
+        return value == null ? fallback : value;
+    }
+
+    private int readInt(DocumentSnapshot document, String field) {
+        Long value = document.getLong(field);
+        return value == null ? 0 : value.intValue();
+    }
+
+    private long readLong(DocumentSnapshot document, String field) {
+        Object value = document.get(field);
+        if (value instanceof Long) {
+            return (Long) value;
+        }
+        if (value instanceof Integer) {
+            return ((Integer) value).longValue();
+        }
+        if (value instanceof Timestamp) {
+            return ((Timestamp) value).toDate().getTime();
+        }
+        if (value instanceof Date) {
+            return ((Date) value).getTime();
+        }
+        return 0L;
     }
 
     public static String formatDuration(long durationMillis) {
