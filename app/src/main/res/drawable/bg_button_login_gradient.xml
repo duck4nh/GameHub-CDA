@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#20FFFFFF">
+    <item>
+        <shape android:shape="rectangle">
+            <!-- Nền: Linear Gradient xanh lá -->
+            <gradient
+                android:angle="0"
+                android:startColor="#7DE7A0"
+                android:endColor="#23A141"
+                android:type="linear" />
+
+            <!-- Độ bo tròn: 40dp -->
+            <corners android:radius="40dp" />
+
+            <!-- Viền của button: Cập nhật thành màu 135A24 theo yêu cầu -->
+            <stroke
+                android:width="2dp"
+                android:color="#135A24" />
+        </shape>
+    </item>
+</ripple>

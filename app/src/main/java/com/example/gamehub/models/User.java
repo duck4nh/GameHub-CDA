@@ -1,15 +1,16 @@
 package com.example.gamehub.models;
 
 import com.google.firebase.firestore.IgnoreExtraProperties;
+import com.google.firebase.firestore.PropertyName;
 
 @IgnoreExtraProperties
 public class User {
-    public String uid;
-    public String email;
-    public String nickname;
-    public String avatar_url;
-    public int total_score;
-    public long created_at;
+    private String uid;
+    private String email;
+    private String nickname;
+    private String avatar_url;
+    private int total_score;
+    private long created_at;
 
     public User() {
     }
@@ -27,27 +28,63 @@ public class User {
         this.created_at = createdAt;
     }
 
+    @PropertyName("uid")
     public String getUid() {
         return uid;
     }
 
+    @PropertyName("uid")
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+
+    @PropertyName("email")
     public String getEmail() {
         return email;
     }
 
+    @PropertyName("email")
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    @PropertyName("nickname")
     public String getNickname() {
         return nickname;
     }
 
+    @PropertyName("nickname")
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    @PropertyName("avatar_url")
     public String getAvatarUrl() {
         return avatar_url;
     }
 
+    @PropertyName("avatar_url")
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatar_url = avatarUrl;
+    }
+
+    @PropertyName("total_score")
     public int getTotalScore() {
         return total_score;
     }
 
+    @PropertyName("total_score")
+    public void setTotalScore(int totalScore) {
+        this.total_score = totalScore;
+    }
+
+    @PropertyName("created_at")
     public long getCreatedAt() {
         return created_at;
+    }
+
+    @PropertyName("created_at")
+    public void setCreatedAt(long createdAt) {
+        this.created_at = createdAt;
     }
 }

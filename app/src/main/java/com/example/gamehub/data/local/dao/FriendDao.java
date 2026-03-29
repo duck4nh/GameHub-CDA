@@ -9,14 +9,21 @@ import java.util.List;
 
 @Dao
 public interface FriendDao {
-    // Lệnh chèn danh sách bạn bè (Nếu trùng UID thì ghi đè cái mới nhất)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertAll(List<LocalFriend> friends);
 
-    // Lệnh xóa sạch danh sách (Dùng khi Logout hoặc Sync lại)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void insert(LocalFriend friend);
+
     @Query("DELETE FROM Local_Friends")
     void deleteAllFriends();
 
     @Query("SELECT * FROM Local_Friends")
     List<LocalFriend> getAllFriends();
+
+    @Query("UPDATE Local_Friends SET status = :status WHERE friend_uid = :uid")
+    void updateStatus(String uid, String status);
+
+    @Query("DELETE FROM Local_Friends WHERE friend_uid = :uid")
+    void deleteFriend(String uid);
 }

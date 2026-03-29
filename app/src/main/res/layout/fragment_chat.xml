@@ -71,10 +71,14 @@
                         android:textSize="11sp" />
                 </LinearLayout>
 
-                <View
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                <ImageView
+                    android:id="@+id/ivAddFriend"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_add_friend"
+                    app:tint="@color/gh_text_primary"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
             <LinearLayout

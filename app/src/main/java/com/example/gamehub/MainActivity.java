@@ -16,7 +16,9 @@ import com.example.gamehub.fragments.ChatFragment;
 import com.example.gamehub.fragments.GamesFragment;
 import com.example.gamehub.fragments.HistoryDetailFragment;
 import com.example.gamehub.fragments.HistoryFragment;
+import com.example.gamehub.fragments.HomeFragment;
 import com.example.gamehub.fragments.LeaderboardFragment;
+import com.example.gamehub.fragments.ProfileFragment;
 import com.example.gamehub.fragments.ShellPlaceholderFragment;
 import com.example.gamehub.fragments.StatisticsFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -69,6 +71,10 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigationView.setSelectedItemId(R.id.nav_statistics);
     }
 
+    public void showCommunity() {
+        bottomNavigationView.setSelectedItemId(R.id.nav_friends);
+    }
+
     public void setBottomNavVisible(boolean visible) {
         bottomNavigationView.setVisibility(visible ? View.VISIBLE : View.GONE);
         View fragmentContainer = findViewById(R.id.fragment_container);
@@ -81,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
         clearBackStack();
         setBottomNavVisible(true);
         if (itemId == R.id.nav_home) {
-            replaceFragment(ShellPlaceholderFragment.newInstance(getString(R.string.nav_home), getString(R.string.placeholder_home_subtitle)), false);
+            replaceFragment(new HomeFragment(), false);
             return;
         }
         if (itemId == R.id.nav_games) {
@@ -97,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         if (itemId == R.id.nav_profile) {
-            replaceFragment(ShellPlaceholderFragment.newInstance(getString(R.string.nav_profile), getString(R.string.placeholder_profile_subtitle)), false);
+            replaceFragment(new ProfileFragment(), false);
         }
     }
 
@@ -115,12 +121,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void replaceFragment(Fragment fragment, boolean addToBackStack) {
-        androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager()
+        getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.fragment_container, fragment);
-        if (addToBackStack) {
-            transaction.addToBackStack(fragment.getClass().getSimpleName());
-        }
-        transaction.commit();
+                .replace(R.id.fragment_container, fragment)
+                .commit();
     }
 }
