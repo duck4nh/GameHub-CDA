@@ -8,6 +8,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.OnBackPressedCallback;
 import androidx.work.OneTimeWorkRequest;
@@ -27,7 +28,10 @@ import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.data.remote.FirebaseManager;
 import com.example.gamehub.workers.SyncWorker;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 
 public class SudokuActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -70,6 +74,10 @@ public class SudokuActivity extends AppCompatActivity {
     private TextView resultNoteView;
     private TextView resultSyncBadgeView;
 
+    private TextView heart1, heart2, heart3;
+    private TextView hintButtonText;
+    private View[] numberButtons = new View[9];
+
     private SudokuGridView boardView;
 
     private String selectedLevel = "easy";
@@ -83,6 +91,7 @@ public class SudokuActivity extends AppCompatActivity {
     private long elapsedTimeMs;
     private boolean sessionFinished;
     private int currentErrorCount;
+    private int remainingHints = 3;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -129,6 +138,22 @@ public class SudokuActivity extends AppCompatActivity {
         resultNoteView = findViewById(R.id.sudoku_result_note);
         resultSyncBadgeView = findViewById(R.id.sudoku_result_sync_badge);
 
+        heart1 = findViewById(R.id.sudoku_heart_1);
+        heart2 = findViewById(R.id.sudoku_heart_2);
+        heart3 = findViewById(R.id.sudoku_heart_3);
+
+        hintButtonText = findViewById(R.id.sudoku_hint_button_text);
+
+        numberButtons[0] = findViewById(R.id.sudoku_number_1);
+        numberButtons[1] = findViewById(R.id.sudoku_number_2);
+        numberButtons[2] = findViewById(R.id.sudoku_number_3);
+        numberButtons[3] = findViewById(R.id.sudoku_number_4);
+        numberButtons[4] = findViewById(R.id.sudoku_number_5);
+        numberButtons[5] = findViewById(R.id.sudoku_number_6);
+        numberButtons[6] = findViewById(R.id.sudoku_number_7);
+        numberButtons[7] = findViewById(R.id.sudoku_number_8);
+        numberButtons[8] = findViewById(R.id.sudoku_number_9);
+
         boardView = findViewById(R.id.sudoku_board);
     }
 
@@ -144,21 +169,25 @@ public class SudokuActivity extends AppCompatActivity {
         findViewById(R.id.sudoku_back).setOnClickListener(v -> showPauseOverlay());
         findViewById(R.id.sudoku_tool_card).setOnClickListener(v -> showPauseOverlay());
 
-        int[] numberButtonIds = {
-                R.id.sudoku_number_1,
-                R.id.sudoku_number_2,
-                R.id.sudoku_number_3,
-                R.id.sudoku_number_4,
-                R.id.sudoku_number_5,
-                R.id.sudoku_number_6,
-                R.id.sudoku_number_7,
-                R.id.sudoku_number_8,
-                R.id.sudoku_number_9
-        };
-        for (int index = 0; index < numberButtonIds.length; index++) {
+        for (int index = 0; index < 9; index++) {
             final int value = index + 1;
-            findViewById(numberButtonIds[index]).setOnClickListener(v -> boardView.setSelectedValue(value));
+            numberButtons[index].setOnClickListener(v -> boardView.setSelectedValue(value));
         }
+
+        findViewById(R.id.sudoku_action_reset).setOnClickListener(v -> {
+            if (currentBoardEntity != null) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Làm mới trò chơi?")
+                        .setMessage("Tất cả tiến trình của bàn này sẽ bị xóa. Bạn có chắc chắn muốn bắt đầu lại không?")
+                        .setPositiveButton("Bắt đầu lại", (dialog, which) -> startBoard(currentBoardEntity, null))
+                        .setNegativeButton("Hủy", null)
+                        .show();
+            }
+        });
+
+        findViewById(R.id.sudoku_action_hint).setOnClickListener(v -> useHint());
+
+        findViewById(R.id.sudoku_action_delete).setOnClickListener(v -> boardView.clearSelectedCell());
 
         findViewById(R.id.sudoku_pause_resume).setOnClickListener(v -> hidePauseOverlay(true));
         findViewById(R.id.sudoku_pause_exit).setOnClickListener(v -> finish());
@@ -178,13 +207,88 @@ public class SudokuActivity extends AppCompatActivity {
             @Override
             public void onBoardChanged(int[][] board) {
                 currentBoard = SudokuLogic.copyMatrix(board);
+                int oldErrors = currentErrorCount;
                 currentErrorCount = SudokuLogic.countIncorrectFilledCells(currentBoard, solutionBoard);
+                
+                if (currentErrorCount > oldErrors) {
+                    updateHearts();
+                    if (currentErrorCount >= 3) {
+                        showGameOverDialog();
+                        return;
+                    }
+                }
+                
+                updateNumberButtonsVisibility();
                 renderGameplayMeta();
                 if (SudokuLogic.isSolved(currentBoard, solutionBoard)) {
                     finishSession(true);
                 }
             }
         });
+    }
+
+    private void useHint() {
+        if (remainingHints <= 0 || sessionFinished) return;
+
+        List<int[]> emptyCells = new ArrayList<>();
+        for (int r = 0; r < 9; r++) {
+            for (int c = 0; c < 9; c++) {
+                if (currentBoard[r][c] == 0) {
+                    emptyCells.add(new int[]{r, c});
+                }
+            }
+        }
+
+        if (emptyCells.isEmpty()) return;
+
+        int[] randomCell = emptyCells.get(new Random().nextInt(emptyCells.size()));
+        int row = randomCell[0];
+        int col = randomCell[1];
+        int correctValue = solutionBoard[row][row]; // Wait, logic bug here, should be [row][col]
+
+        // Fixing the logic bug:
+        correctValue = solutionBoard[row][col];
+
+        boardView.setCellValue(row, col, correctValue);
+        remainingHints--;
+        updateHintButtonUI();
+    }
+
+    private void updateHintButtonUI() {
+        hintButtonText.setText(String.format(Locale.getDefault(), "Gợi ý (%d)", remainingHints));
+        findViewById(R.id.sudoku_action_hint).setAlpha(remainingHints > 0 ? 1f : 0.5f);
+        findViewById(R.id.sudoku_action_hint).setEnabled(remainingHints > 0);
+    }
+
+    private void updateNumberButtonsVisibility() {
+        if (currentBoard == null || solutionBoard == null) return;
+        for (int i = 1; i <= 9; i++) {
+            int count = SudokuLogic.countCorrectOccurrences(currentBoard, solutionBoard, i);
+            numberButtons[i - 1].setVisibility(count >= 9 ? View.INVISIBLE : View.VISIBLE);
+        }
+    }
+
+    private void updateHearts() {
+        if (currentErrorCount >= 1) heart3.setText("🖤");
+        if (currentErrorCount >= 2) heart2.setText("🖤");
+        if (currentErrorCount >= 3) heart1.setText("🖤");
+    }
+
+    private void resetHearts() {
+        heart1.setText("❤️");
+        heart2.setText("❤️");
+        heart3.setText("❤️");
+    }
+
+    private void showGameOverDialog() {
+        sessionFinished = true;
+        handler.removeCallbacks(timerRunnable);
+        new AlertDialog.Builder(this)
+                .setTitle("Bạn đã thua!")
+                .setMessage("Bạn đã mắc 3 lỗi. Trò chơi kết thúc.")
+                .setPositiveButton("Thoát", (dialog, which) -> finish())
+                .setCancelable(false)
+                .show();
     }
 
     private void installBackHandler() {
@@ -339,6 +443,7 @@ public class SudokuActivity extends AppCompatActivity {
         elapsedTimeMs = 0L;
         sessionFinished = false;
         currentErrorCount = 0;
+        remainingHints = 3;
 
         if (savedState != null && savedState.currentMatrix != null && !savedState.currentMatrix.isEmpty()) {
             int[][] restored = SudokuLogic.parseMatrix(savedState.currentMatrix);
@@ -353,6 +458,10 @@ public class SudokuActivity extends AppCompatActivity {
 
         boardView.setBoard(initialBoard, currentBoard);
         showGameplayScreen();
+        resetHearts();
+        updateHearts();
+        updateHintButtonUI();
+        updateNumberButtonsVisibility();
         renderGameplayMeta();
         startTimer();
     }
@@ -366,7 +475,7 @@ public class SudokuActivity extends AppCompatActivity {
         if (pauseOverlay.getVisibility() != View.VISIBLE) {
             subtitleView.setText(gameplaySubtitleBeforePause);
         }
-        toolTextView.setText("Ghi chú tắt · 0 gợi ý · Tạm dừng");
+        toolTextView.setText(String.format(Locale.getDefault(), "Ghi chú tắt · %d gợi ý · Tạm dừng", remainingHints));
     }
 
     private void showPauseOverlay() {
@@ -413,9 +522,10 @@ public class SudokuActivity extends AppCompatActivity {
         resultTitleView.setText(String.format(Locale.getDefault(), "Hoàn thành trong %s", formatDuration(elapsedTimeMs)));
         resultSubtitleView.setText(String.format(
                 Locale.getDefault(),
-                "Chế độ %s · %d lỗi · 0 gợi ý · +%d điểm",
+                "Chế độ %s · %d lỗi · %d gợi ý · +%d điểm",
                 getLevelLabel(currentBoardEntity.level).toLowerCase(Locale.getDefault()),
                 currentErrorCount,
+                (3 - remainingHints),
                 reward
         ));
         resultLevelValueView.setText(getLevelLabel(currentBoardEntity.level));
@@ -463,64 +573,64 @@ public class SudokuActivity extends AppCompatActivity {
                 SudokuLogic.serializeMatrix(currentBoard),
                 elapsedTimeMs,
                 System.currentTimeMillis()
-        ));
-    }
-
-    private boolean isBoardChanged() {
-        for (int row = 0; row < 9; row++) {
-            for (int col = 0; col < 9; col++) {
-                if (initialBoard[row][col] != currentBoard[row][col]) {
-                    return true;
+            ));
+        }
+    
+        private boolean isBoardChanged() {
+            for (int row = 0; row < 9; row++) {
+                for (int col = 0; col < 9; col++) {
+                    if (initialBoard[row][col] != currentBoard[row][col]) {
+                        return true;
+                    }
                 }
             }
+            return false;
         }
-        return false;
-    }
-
-    private void startTimer() {
-        handler.removeCallbacks(timerRunnable);
-        if (gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null && !sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
-            handler.postDelayed(timerRunnable, 1000L);
+    
+        private void startTimer() {
+            handler.removeCallbacks(timerRunnable);
+            if (gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null && !sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
+                handler.postDelayed(timerRunnable, 1000L);
+            }
+        }
+    
+        private String getLevelLabel(String level) {
+            if ("medium".equals(level)) {
+                return "Trung bình";
+            }
+            if ("hard".equals(level)) {
+                return "Khó";
+            }
+            if ("expert".equals(level)) {
+                return "Chuyên gia";
+            }
+            return "Dễ";
+        }
+    
+        private String formatDuration(long durationMillis) {
+            long totalSeconds = Math.max(0L, durationMillis / 1000L);
+            long minutes = totalSeconds / 60L;
+            long seconds = totalSeconds % 60L;
+            return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+        }
+    
+        protected void onPause() {
+            saveInProgressState();
+            handler.removeCallbacks(timerRunnable);
+            super.onPause();
+        }
+    
+        @Override
+        protected void onResume() {
+            super.onResume();
+            if (gameplayScreen.getVisibility() == View.VISIBLE && pauseOverlay.getVisibility() != View.VISIBLE && currentBoardEntity != null && !sessionFinished) {
+                startTimer();
+            }
+        }
+    
+        @Override
+        protected void onDestroy() {
+            handler.removeCallbacksAndMessages(null);
+            super.onDestroy();
         }
     }
-
-    private String getLevelLabel(String level) {
-        if ("medium".equals(level)) {
-            return "Trung bình";
-        }
-        if ("hard".equals(level)) {
-            return "Khó";
-        }
-        if ("expert".equals(level)) {
-            return "Chuyên gia";
-        }
-        return "Dễ";
-    }
-
-    private String formatDuration(long durationMillis) {
-        long totalSeconds = Math.max(0L, durationMillis / 1000L);
-        long minutes = totalSeconds / 60L;
-        long seconds = totalSeconds % 60L;
-        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
-    }
-
-    protected void onPause() {
-        saveInProgressState();
-        handler.removeCallbacks(timerRunnable);
-        super.onPause();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (gameplayScreen.getVisibility() == View.VISIBLE && pauseOverlay.getVisibility() != View.VISIBLE && currentBoardEntity != null && !sessionFinished) {
-            startTimer();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        handler.removeCallbacksAndMessages(null);
-        super.onDestroy();
-    }
-}
