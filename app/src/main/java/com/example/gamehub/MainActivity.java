@@ -71,6 +71,10 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigationView.setSelectedItemId(R.id.nav_statistics);
     }
 
+    public void showCommunity() {
+        bottomNavigationView.setSelectedItemId(R.id.nav_friends);
+    }
+
     public void setBottomNavVisible(boolean visible) {
         bottomNavigationView.setVisibility(visible ? View.VISIBLE : View.GONE);
         View fragmentContainer = findViewById(R.id.fragment_container);

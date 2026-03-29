@@ -19,6 +19,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.gamehub.MainActivity;
 import com.example.gamehub.R;
 import com.example.gamehub.activities.ChangePasswordActivity;
+import com.example.gamehub.activities.FriendsActivity;
 import com.example.gamehub.activities.LoginActivity;
 import com.example.gamehub.activities.ProfileActivity;
 import com.example.gamehub.data.local.AppDatabase;
@@ -190,7 +191,8 @@ public class ProfileFragment extends Fragment {
         View llFriends = view.findViewById(R.id.llFriends);
         if (llFriends != null) {
             llFriends.setOnClickListener(v -> {
-                if (activity != null) activity.showStatistics();
+                Intent intent = new Intent(getActivity(), FriendsActivity.class);
+                startActivity(intent);
             });
         }
 
