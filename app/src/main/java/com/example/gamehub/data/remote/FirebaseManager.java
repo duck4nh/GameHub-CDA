@@ -85,10 +85,10 @@ public class FirebaseManager {
 
     private String mapGameType(String gameName) {
         String normalized = gameName == null ? "" : gameName.toLowerCase(Locale.getDefault());
-        if (normalized.contains("đố vui")) {
+        if (normalized.contains("quiz") || normalized.contains("đố vui")) {
             return "Quiz";
         }
-        if (normalized.contains("ghi nhớ")) {
+        if (normalized.contains("memory") || normalized.contains("ghi nhớ")) {
             return "Memory";
         }
         return "Sudoku";

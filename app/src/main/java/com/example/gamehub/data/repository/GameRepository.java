@@ -125,7 +125,6 @@ public class GameRepository {
             }
         }
         localDataReady = quizDao.getCount() > 0 && memoryDao.getCount() > 0;
-        preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
     }
 
     public boolean isLocalDataReady() {
@@ -382,23 +381,38 @@ public class GameRepository {
     }
 
     public long getBestSudokuTime() {
-        Long best = historyDao.getBestTimeForGame("sudoku");
-        return best == null ? 0L : best;
+        LocalHistory best = getBestHistoryForGame("sudoku");
+        return best == null ? 0L : best.timeSpent;
     }
 
     public long getBestQuizTime() {
-        Long best = historyDao.getBestTimeForGame("quiz");
-        return best == null ? 0L : best;
+        LocalHistory best = getBestHistoryForGame("quiz");
+        return best == null ? 0L : best.timeSpent;
     }
 
     public long getBestMemoryTime() {
-        Long best = historyDao.getBestTimeForGame("memory");
-        return best == null ? 0L : best;
+        LocalHistory best = getBestHistoryForGame("memory");
+        return best == null ? 0L : best.timeSpent;
     }
 
     @Nullable
     public LocalHistory getBestHistoryForGame(String gameName) {
-        return historyDao.getBestRecordForGame(gameName);
+        String normalizedGameKey = normalizeGameKey(gameName);
+        LocalHistory best = null;
+        for (LocalHistory item : historyDao.getAllNewestFirst()) {
+            if (!matchesGameKey(item.gameName, normalizedGameKey)) {
+                continue;
+            }
+            if (!isSuccessfulStatus(item.status) || item.timeSpent <= 0L) {
+                continue;
+            }
+            if (best == null
+                    || item.timeSpent < best.timeSpent
+                    || (item.timeSpent == best.timeSpent && item.playDate > best.playDate)) {
+                best = item;
+            }
+        }
+        return best;
     }
 
     @Nullable
@@ -429,13 +443,13 @@ public class GameRepository {
     public List<LocalHistory> getHistory(@Nullable String filter) {
         triggerHistorySyncIfNeeded();
         List<LocalHistory> items = new ArrayList<>(historyDao.getAllNewestFirst());
-        if (filter == null || "all".equals(filter)) {
+        String normalizedFilter = normalizeGameKey(filter);
+        if (filter == null || "all".equalsIgnoreCase(normalizedFilter)) {
             return items;
         }
         List<LocalHistory> filtered = new ArrayList<>();
         for (LocalHistory item : items) {
-            String name = item.gameName.toLowerCase(Locale.getDefault());
-            if (name.contains(filter.toLowerCase(Locale.getDefault()))) {
+            if (matchesGameKey(item.gameName, normalizedFilter)) {
                 filtered.add(item);
             }
         }
@@ -790,6 +804,34 @@ public class GameRepository {
             return ((Date) value).getTime();
         }
         return 0L;
+    }
+
+    private boolean matchesGameKey(String gameName, String expectedKey) {
+        return normalizeGameKey(gameName).equals(normalizeGameKey(expectedKey));
+    }
+
+    private String normalizeGameKey(@Nullable String gameName) {
+        if (gameName == null || gameName.trim().isEmpty()) {
+            return "";
+        }
+        String normalized = gameName.trim().toLowerCase(Locale.getDefault());
+        if (normalized.contains("quiz") || normalized.contains("đố vui")) {
+            return "quiz";
+        }
+        if (normalized.contains("memory") || normalized.contains("ghi nhớ")) {
+            return "memory";
+        }
+        if (normalized.contains("sudoku")) {
+            return "sudoku";
+        }
+        if ("all".equals(normalized)) {
+            return "all";
+        }
+        return normalized;
+    }
+
+    private boolean isSuccessfulStatus(String status) {
+        return "won".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status);
     }
 
     public static String formatDuration(long durationMillis) {
