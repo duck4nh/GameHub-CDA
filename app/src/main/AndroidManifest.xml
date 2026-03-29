@@ -25,12 +25,16 @@
             </intent-filter>
         </activity>
 
-        <!-- Màn hình chính: Bỏ intent-filter khởi chạy -->
+        <!-- Màn hình chính -->
         <activity
             android:name=".MainActivity"
             android:exported="false" />
 
         <activity android:name=".activities.RegisterActivity" android:exported="false" />
+        <activity android:name=".activities.ProfileActivity" android:exported="false" />
+        <activity android:name=".activities.ChangePasswordActivity" android:exported="false" />
+        <activity android:name=".activities.FriendsActivity" android:exported="false" />
+
         <activity android:name=".games.sudoku.SudokuActivity" android:exported="false" />
         <activity android:name=".games.memory.MemoryGameActivity" android:exported="false" />
         <activity android:name=".games.quiz.QuizActivity" android:exported="false" />

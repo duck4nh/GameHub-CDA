@@ -7,6 +7,7 @@ public class PreferenceManager {
     public static final String KEY_IS_LOGGED_IN = "is_logged_in";
     public static final String KEY_CURRENT_UID = "current_uid";
     public static final String KEY_CACHE_NICKNAME = "cache_nickname";
+    public static final String KEY_CACHE_AVATAR = "cache_avatar";
     public static final String KEY_IS_DARK_MODE = "is_dark_mode";
     public static final String KEY_LEADERBOARD_FILTER = "leaderboard_filter";
     public static final String KEY_LAST_SYNC_TIME = "LAST_SYNC_TIME";
@@ -51,11 +52,12 @@ public class PreferenceManager {
         return sharedPreferences.contains(key);
     }
 
-    public void saveLoginSession(String uid, String nickname) {
+    public void saveLoginSession(String uid, String nickname, String avatarUrl) {
         sharedPreferences.edit()
                 .putBoolean(KEY_IS_LOGGED_IN, true)
                 .putString(KEY_CURRENT_UID, uid)
                 .putString(KEY_CACHE_NICKNAME, nickname)
+                .putString(KEY_CACHE_AVATAR, avatarUrl)
                 .apply();
     }
 
@@ -73,5 +75,9 @@ public class PreferenceManager {
 
     public String getCacheNickname() {
         return sharedPreferences.getString(KEY_CACHE_NICKNAME, "Player");
+    }
+
+    public String getCacheAvatar() {
+        return sharedPreferences.getString(KEY_CACHE_AVATAR, "");
     }
 }

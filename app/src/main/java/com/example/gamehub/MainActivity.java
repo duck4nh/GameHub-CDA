@@ -16,6 +16,7 @@ import com.example.gamehub.fragments.ChatFragment;
 import com.example.gamehub.fragments.GamesFragment;
 import com.example.gamehub.fragments.HistoryDetailFragment;
 import com.example.gamehub.fragments.HistoryFragment;
+import com.example.gamehub.fragments.HomeFragment;
 import com.example.gamehub.fragments.LeaderboardFragment;
 import com.example.gamehub.fragments.ProfileFragment;
 import com.example.gamehub.fragments.ShellPlaceholderFragment;
@@ -82,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
         clearBackStack();
         setBottomNavVisible(true);
         if (itemId == R.id.nav_home) {
-            replaceFragment(ShellPlaceholderFragment.newInstance(getString(R.string.nav_home), getString(R.string.placeholder_home_subtitle)), false);
+            replaceFragment(new HomeFragment(), false);
             return;
         }
         if (itemId == R.id.nav_games) {

@@ -13,13 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AuthRepository {
-    // --- PHẦN QUỲNH THIẾU: KHAI BÁO BIẾN ---
     private final FirebaseAuth auth;
     private final FirebaseFirestore firestore;
     private final AppDatabase database;
     private final PreferenceManager prefManager;
 
-    // --- PHẦN QUỲNH THIẾU: HÀM KHỞI TẠO (CONSTRUCTOR) ---
     public AuthRepository(AppDatabase database, PreferenceManager prefManager) {
         this.auth = FirebaseAuth.getInstance();
         this.firestore = FirebaseFirestore.getInstance();
@@ -32,12 +30,13 @@ public class AuthRepository {
         auth.createUserWithEmailAndPassword(email, password)
                 .addOnSuccessListener(authResult -> {
                     String uid = authResult.getUser().getUid();
-                    String avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + nickname;
+                    // Chuyển sang định dạng PNG để Glide hiển thị dễ dàng hơn (SVG cần thư viện bổ sung)
+                    String avatarUrl = "https://api.dicebear.com/7.x/avataaars/png?seed=" + nickname;
                     User newUser = new User(uid, email, nickname, avatarUrl);
 
                     firestore.collection("Users").document(uid).set(newUser)
                             .addOnSuccessListener(aVoid -> {
-                                prefManager.saveLoginSession(uid, nickname);
+                                prefManager.saveLoginSession(uid, nickname, avatarUrl);
                                 callback.onSuccess("Đăng ký thành công!");
                             })
                             .addOnFailureListener(e -> callback.onError("Lỗi lưu hồ sơ: " + e.getMessage()));
@@ -54,10 +53,16 @@ public class AuthRepository {
                             .addOnSuccessListener(document -> {
                                 if (document.exists()) {
                                     String nickname = document.getString("nickname");
-                                    prefManager.saveLoginSession(uid, nickname);
+                                    String avatarUrl = document.getString("avatar_url");
+                                    
+                                    // Đảm bảo lấy được avatar_url từ Firestore và lưu vào local
+                                    prefManager.saveLoginSession(uid, nickname, avatarUrl);
                                     callback.onSuccess("Đăng nhập thành công!");
+                                } else {
+                                    callback.onError("Không tìm thấy thông tin người dùng");
                                 }
-                            });
+                            })
+                            .addOnFailureListener(e -> callback.onError("Lỗi lấy dữ liệu: " + e.getMessage()));
                 })
                 .addOnFailureListener(e -> callback.onError("Sai tài khoản hoặc mật khẩu"));
     }
