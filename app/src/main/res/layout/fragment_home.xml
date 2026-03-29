@@ -176,13 +176,46 @@
             </LinearLayout>
 
             <!-- Hidden Views for original logic -->
-            <View android:id="@+id/llRecentSudoku" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-            <View android:id="@+id/llRecentMemory" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-            <View android:id="@+id/llRecentQuiz" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-            <GridLayout android:id="@+id/glGames" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+            <View
+                android:id="@+id/llRecentSudoku"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/llRecentActivityContainer" />
+
+            <View
+                android:id="@+id/llRecentMemory"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/llRecentSudoku" />
+
+            <View
+                android:id="@+id/llRecentQuiz"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/llRecentMemory" />
+
+            <GridLayout
+                android:id="@+id/glGames"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/llRecentQuiz" />
 
             <!-- Dummy view to avoid crashes if Java code still looks for etSearchGame -->
-            <EditText android:id="@+id/etSearchGame" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" tools:ignore="MissingConstraints" />
+            <EditText
+                android:id="@+id/etSearchGame"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/glGames" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </ScrollView>
