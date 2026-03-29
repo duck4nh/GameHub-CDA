@@ -17,7 +17,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Mock Status Bar (Giả lập thanh trạng thái cho giống thiết kế) -->
+    <!-- Mock Status Bar -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/statusBarMock"
         android:layout_width="match_parent"
@@ -48,7 +48,7 @@
             android:paddingHorizontal="32dp"
             android:paddingBottom="32dp">
 
-            <!-- Logo: Đẩy lùi xuống thêm một chút -->
+            <!-- Logo -->
             <ImageView
                 android:id="@+id/ivIllustration"
                 android:layout_width="381dp"
@@ -60,20 +60,16 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Tiêu đề Đăng nhập với màu 23A141 và hiệu ứng viền màu A1FFB7 -->
+            <!-- Title -->
             <TextView
                 android:id="@+id/tvTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
                 android:text="Đăng nhập"
-                android:textColor="#23A141"
+                android:textColor="#165DFF"
                 android:textSize="36sp"
                 android:textStyle="bold"
-                android:shadowColor="#A1FFB7"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="8"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/ivIllustration" />
@@ -143,20 +139,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
                 android:layout_marginTop="40dp"
-                android:background="@drawable/bg_button_login_gradient"
-                android:elevation="4dp"
+                android:background="@drawable/bg_button_primary_blue"
                 android:text="Đăng nhập"
                 android:textAllCaps="false"
                 android:textColor="@color/white"
                 android:textSize="24sp"
                 android:textStyle="bold"
-                android:shadowColor="#135A24"
+                android:shadowColor="#16A34A"
                 android:shadowDx="0"
                 android:shadowDy="0"
                 android:shadowRadius="6"
                 app:layout_constraintTop_toBottomOf="@+id/tilPassword" />
 
-            <!-- Register Link: Sát nút bấm hơn, màu xanh 135A24 -->
+            <!-- Register Link -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -177,7 +172,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Đăng ký"
-                    android:textColor="#135A24"
+                    android:textColor="#165DFF"
                     android:textStyle="bold" />
             </LinearLayout>
 

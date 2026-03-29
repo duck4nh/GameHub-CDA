@@ -83,4 +83,16 @@ public final class SudokuLogic {
         }
         return count;
     }
+
+    public static int countCorrectOccurrences(int[][] current, int[][] solution, int value) {
+        int count = 0;
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                if (current[row][col] == value && current[row][col] == solution[row][col]) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 }

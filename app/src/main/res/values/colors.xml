@@ -39,4 +39,5 @@
     <color name="gh_quiz_option_wrong_bg">#FDECEC</color>
     <color name="gh_quiz_option_wrong_border">#D56A6A</color>
     <color name="gh_glow_light_blue">#E9F6FF</color>
+    <color name="gh_purple">#5B4FCF</color>
 </resources>

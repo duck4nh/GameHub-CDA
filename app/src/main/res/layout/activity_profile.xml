@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="100dp"
         android:text="Chỉnh sửa thông tin"
-        android:textColor="#000000"
+        android:textColor="#165DFF"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -86,12 +86,16 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="40dp"
-            android:background="@drawable/bg_button_login_gradient"
+            android:background="@drawable/bg_button_primary_blue"
             android:text="Xác nhận"
             android:textAllCaps="false"
             android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:shadowColor="#16A34A"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="2" />
 
     </LinearLayout>
 
