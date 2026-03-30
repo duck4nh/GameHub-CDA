@@ -116,11 +116,8 @@ public class FirebaseManager {
     }
 
     private long readLong(Object value) {
-        if (value instanceof Long) {
-            return (Long) value;
-        }
-        if (value instanceof Integer) {
-            return ((Integer) value).longValue();
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
         }
         return 0L;
     }

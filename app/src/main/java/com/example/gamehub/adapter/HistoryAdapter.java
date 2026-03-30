@@ -62,7 +62,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     }
 
     private String buildSubtitle(LocalHistory history) {
-        String syncStatus = history.isSynced ? "đã đồng bộ" : "chỉ cục bộ";
+        String recordState = history.isSynced ? "đã lưu" : "vừa chơi";
         if ("memory".equalsIgnoreCase(history.gameName)) {
             return String.format(
                     Locale.getDefault(),
@@ -71,7 +71,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
                     history.attemptCount,
                     history.score,
                     formatDuration(history.timeSpent),
-                    syncStatus
+                    recordState
             );
         }
         return String.format(
@@ -80,7 +80,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
                 mapStatus(history.status),
                 history.score,
                 formatDuration(history.timeSpent),
-                syncStatus
+                recordState
         );
     }
 

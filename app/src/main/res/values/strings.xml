@@ -14,11 +14,11 @@
     <string name="history_filter_memory">Ghi nhớ</string>
     <string name="history_filter_sudoku">Sudoku</string>
     <string name="history_title">Lịch sử</string>
-    <string name="history_subtitle">Các phiên gần đây được lưu cục bộ và trên đám mây</string>
-    <string name="history_queue_pending_title">Hàng chờ đồng bộ · %1$d mục đang chờ</string>
-    <string name="history_queue_pending_subtitle">Kết quả sẽ được tải lên khi có mạng.</string>
-    <string name="history_queue_empty_title">Hàng chờ đồng bộ trống</string>
-    <string name="history_queue_empty_subtitle">Không có mục nào cần đồng bộ thêm.</string>
+    <string name="history_subtitle">Xem lại các trận bạn đã chơi gần đây</string>
+    <string name="history_queue_pending_title">Kết quả mới</string>
+    <string name="history_queue_pending_subtitle">Mở lại để xem chi tiết từng trận.</string>
+    <string name="history_queue_empty_title">Lịch sử gần đây</string>
+    <string name="history_queue_empty_subtitle">Mọi trận gần đây đều ở đây.</string>
     <string name="placeholder_home_subtitle">Phần Trang chủ thuộc scope khác. Mục này chỉ được giữ để navigation đúng với shell của app.</string>
     <string name="placeholder_games_subtitle">Phần Trò chơi thuộc teammate khác. Flow này được giữ ở mức tối thiểu để không làm lệch bottom navigation.</string>
     <string name="placeholder_profile_subtitle">Phần Hồ sơ không nằm trong scope hiện tại. Tab này được giữ làm integration placeholder.</string>

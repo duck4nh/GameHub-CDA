@@ -200,7 +200,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Đã lưu vào lịch sử, cập nhật thống kê và sẵn sàng cho lần đồng bộ tiếp theo."
+                android:text="Kết quả của bạn đã được lưu. Điểm số sẽ sớm xuất hiện trên bảng xếp hạng."
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
 
@@ -214,7 +214,7 @@
                 android:minWidth="132dp"
                 android:paddingStart="18dp"
                 android:paddingEnd="18dp"
-                android:text="Sẵn sàng đồng bộ"
+                android:text="Sắp lên bảng xếp hạng"
                 android:textColor="@color/gh_text_primary"
                 android:textSize="12sp" />
         </LinearLayout>

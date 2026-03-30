@@ -376,7 +376,7 @@ public class SudokuActivity extends AppCompatActivity {
         continueCard.setAlpha(canContinue ? 1f : 0.75f);
         if (!canContinue) {
             continueTitleView.setText("Chưa có bàn đang chơi dở");
-            continueSummaryView.setText("Dữ liệu cục bộ sẽ xuất hiện ở đây khi bạn tạm dừng ván.");
+            continueSummaryView.setText("Ván gần nhất sẽ hiện ở đây để bạn quay lại nhanh hơn.");
             return;
         }
 
@@ -385,7 +385,7 @@ public class SudokuActivity extends AppCompatActivity {
         continueTitleView.setText("Tiếp tục · " + getLevelLabel(continueBoard.level));
         continueSummaryView.setText(String.format(
                 Locale.getDefault(),
-                "%s đã lưu cục bộ · %d/81 ô đúng",
+                "%s đã chơi · %d/81 ô đúng",
                 formatDuration(continueState.elapsedTime),
                 correctCells
         ));
@@ -419,7 +419,7 @@ public class SudokuActivity extends AppCompatActivity {
     private void startSelectedLevel() {
         SudokuBoard board = sudokuDao.getBoardByLevel(selectedLevel);
         if (board == null) {
-            Toast.makeText(this, "Chưa có bàn Sudoku cục bộ cho level này.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Chưa có bàn Sudoku cho cấp độ này.", Toast.LENGTH_SHORT).show();
             return;
         }
         sudokuGameStateDao.clearStateForBoard(board.id);
@@ -485,7 +485,7 @@ public class SudokuActivity extends AppCompatActivity {
         handler.removeCallbacks(timerRunnable);
         saveInProgressState();
         subtitleView.setText("Tạm dừng");
-        pauseMessageView.setText("Bàn hiện tại đã được lưu cục bộ, nên bạn có thể tiếp tục ngay hoặc quay lại sau.");
+        pauseMessageView.setText("Bạn có thể tiếp tục ngay hoặc quay lại sau.");
         pauseOverlay.setVisibility(View.VISIBLE);
     }
 
@@ -531,11 +531,11 @@ public class SudokuActivity extends AppCompatActivity {
         resultLevelValueView.setText(getLevelLabel(currentBoardEntity.level));
         resultErrorsValueView.setText(String.valueOf(currentErrorCount));
         resultRewardValueView.setText(String.format(Locale.getDefault(), "+%d", reward));
-        resultSyncBadgeView.setText(canSync ? "Sẵn sàng đồng bộ" : "Chờ cấu hình đồng bộ");
+        resultSyncBadgeView.setText(canSync ? "Sắp lên bảng xếp hạng" : "Đã lưu");
         resultSyncBadgeView.setBackgroundResource(canSync ? R.drawable.bg_chip_success : R.drawable.bg_chip_warning);
         resultNoteView.setText(canSync
-                ? "Đã lưu vào lịch sử, cập nhật vào thống kê và sẵn sàng cho lần đồng bộ trực tuyến tiếp theo."
-                : "Đã lưu vào lịch sử, cập nhật vào thống kê và chờ cấu hình đồng bộ trực tuyến của dự án.");
+                ? "Kết quả của bạn đã được lưu. Điểm số sẽ sớm xuất hiện trên bảng xếp hạng."
+                : "Kết quả của bạn đã được lưu trong lịch sử.");
         showResultScreen();
     }
 

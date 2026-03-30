@@ -12,6 +12,8 @@ import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.data.remote.FirebaseManager;
 import com.example.gamehub.utils.NetworkUtils;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.util.List;
 
@@ -28,7 +30,13 @@ public class SyncWorker extends Worker {
         }
 
         PreferenceManager preferenceManager = new PreferenceManager(getApplicationContext());
-        String currentUid = preferenceManager.getCurrentUid();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        String currentUid = currentUser != null && currentUser.getUid() != null
+                ? currentUser.getUid()
+                : preferenceManager.getCurrentUid();
+        if (currentUser != null && currentUser.getUid() != null) {
+            preferenceManager.putString(PreferenceManager.KEY_CURRENT_UID, currentUser.getUid());
+        }
         String cachedNickname = preferenceManager.getCacheNickname();
         FirebaseManager firebaseManager = new FirebaseManager();
         if (!firebaseManager.canSyncHistoryResults(currentUid)) {
