@@ -79,9 +79,8 @@ public class HistoryDetailFragment extends Fragment {
         notesView = view.findViewById(R.id.history_detail_notes);
         playSimilarView = view.findViewById(R.id.history_detail_play_similar);
 
-        view.findViewById(R.id.history_detail_back).setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
-        view.findViewById(R.id.history_detail_view_statistics).setOnClickListener(v ->
-                requireActivity().getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE));
+        view.findViewById(R.id.history_detail_back).setOnClickListener(v -> navigateBack());
+        view.findViewById(R.id.history_detail_view_statistics).setOnClickListener(v -> openStatisticsRoot());
         playSimilarView.setOnClickListener(v -> openSimilarGame());
 
         if (requireActivity() instanceof MainActivity) {
@@ -89,7 +88,7 @@ public class HistoryDetailFragment extends Fragment {
         }
 
         if (history == null) {
-            Toast.makeText(requireContext(), "Không tìm thấy chi tiết trận trong lịch sử cục bộ.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Không tìm thấy chi tiết trận này.", Toast.LENGTH_SHORT).show();
             requireActivity().getSupportFragmentManager().popBackStack();
             return;
         }
@@ -108,8 +107,8 @@ public class HistoryDetailFragment extends Fragment {
     private void renderHistory() {
         boolean success = isSuccessful(history.status);
         subtitleView.setText(history.isSynced
-                ? "Lưu cục bộ và đã đồng bộ vào hồ sơ"
-                : "Đang lưu cục bộ và chờ đồng bộ hồ sơ");
+                ? "Trận này đã được ghi lại trong lịch sử của bạn"
+                : "Trận này vừa được thêm vào lịch sử");
         overviewGameView.setText(getDisplayGameName(history));
         overviewTitleView.setText(String.format(
                 Locale.getDefault(),
@@ -118,7 +117,7 @@ public class HistoryDetailFragment extends Fragment {
                 GameRepository.formatDuration(history.timeSpent)
         ));
         overviewMetaView.setText(buildOverviewMeta(history));
-        syncChipView.setText(history.isSynced ? "Đã đồng bộ" : "Chỉ cục bộ");
+        syncChipView.setText(history.isSynced ? "Đã lưu" : "Vừa chơi");
         syncChipView.setBackgroundResource(history.isSynced ? R.drawable.bg_chip_success : R.drawable.bg_chip_warning);
 
         primaryLabelView.setText(getPrimaryLabel(history));
@@ -148,6 +147,23 @@ public class HistoryDetailFragment extends Fragment {
         if (intent != null) {
             startActivity(intent);
         }
+    }
+
+    private void navigateBack() {
+        FragmentManager fragmentManager = requireActivity().getSupportFragmentManager();
+        if (fragmentManager.getBackStackEntryCount() > 0) {
+            fragmentManager.popBackStack();
+            return;
+        }
+        openStatisticsRoot();
+    }
+
+    private void openStatisticsRoot() {
+        if (requireActivity() instanceof MainActivity) {
+            ((MainActivity) requireActivity()).showStatisticsRoot();
+            return;
+        }
+        requireActivity().getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
     }
 
     private String buildOverviewMeta(LocalHistory item) {
@@ -191,7 +207,7 @@ public class HistoryDetailFragment extends Fragment {
         if (item.detail != null && !item.detail.trim().isEmpty()) {
             return item.detail.trim();
         }
-        return item.isSynced ? "Đã đồng bộ vào hồ sơ" : "Đang chờ mạng và luồng sync";
+        return item.isSynced ? "Đã có trong lịch sử của bạn" : "Điểm số sẽ sớm xuất hiện trên bảng xếp hạng";
     }
 
     private String getStatusLabel(String status) {
@@ -206,15 +222,12 @@ public class HistoryDetailFragment extends Fragment {
 
     private String buildNotes(LocalHistory item) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Phiên này đang hiển thị đúng theo dữ liệu thật trong Local_History: điểm, thời gian, trạng thái và tiến độ đồng bộ.");
+        builder.append("Bạn có thể xem lại thời gian, điểm số và kết quả của trận này tại đây.");
         if (isMemoryGame(item) && item.attemptCount > 0) {
-            builder.append(" Memory có thêm số lượt đoán để bạn so sánh hiệu quả giữa các level.");
+            builder.append(" Với Ghi nhớ, số lượt đoán cũng được giữ lại để bạn dễ so sánh giữa các màn.");
         }
         if (item.detail != null && !item.detail.trim().isEmpty()) {
-            builder.append(" Ghi chú level: ").append(item.detail.trim()).append(".");
-        }
-        if (!item.isSynced) {
-            builder.append(" Bản ghi hiện vẫn ở hàng chờ cục bộ.");
+            builder.append(" Ghi chú: ").append(item.detail.trim()).append(".");
         }
         return builder.toString();
     }

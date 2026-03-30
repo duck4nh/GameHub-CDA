@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -41,14 +42,17 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
+                <ImageView
                     android:id="@+id/history_detail_back"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="‹"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="22sp" />
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_back_button"
+                    android:clickable="true"
+                    android:contentDescription="Quay lại"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_back"
+                    app:tint="@color/gh_text_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -71,7 +75,7 @@
                         android:layout_height="wrap_content"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="11sp"
-                        tools:text="Lưu cục bộ và đã đồng bộ vào hồ sơ" />
+                        tools:text="Trận này đã được ghi lại trong lịch sử của bạn" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -122,7 +126,7 @@
                     android:paddingBottom="8dp"
                     android:textColor="@color/gh_text_primary"
                     android:textSize="12sp"
-                    tools:text="Đã đồng bộ" />
+                    tools:text="Đã lưu" />
             </LinearLayout>
 
             <LinearLayout
@@ -231,7 +235,7 @@
                     android:layout_marginTop="12dp"
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="14sp"
-                    tools:text="Mẫu thẻ này cũng hỗ trợ chủ đề Đố vui, độ khó Ghi nhớ và chẩn đoán đồng bộ đám mây." />
+                    tools:text="Bạn có thể xem lại thời gian, điểm số và kết quả của trận này tại đây." />
             </LinearLayout>
 
             <TextView

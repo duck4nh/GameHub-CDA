@@ -76,6 +76,16 @@ public class MainActivity extends AppCompatActivity {
         openStatisticsChild(new HistoryFragment());
     }
 
+    public void showStatisticsRoot() {
+        clearBackStack();
+        if (bottomNavigationView.getSelectedItemId() != R.id.nav_statistics) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_statistics);
+            return;
+        }
+        setBottomNavVisible(true);
+        replaceFragment(new StatisticsFragment(), false);
+    }
+
     public void showHistoryDetail(int historyId) {
         Fragment fragment = HistoryDetailFragment.newInstance(historyId);
         if (bottomNavigationView.getSelectedItemId() != R.id.nav_statistics) {
@@ -137,9 +147,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void replaceFragment(Fragment fragment, boolean addToBackStack) {
-        getSupportFragmentManager()
+        androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.fragment_container, fragment)
-                .commit();
+                .replace(R.id.fragment_container, fragment);
+        if (addToBackStack) {
+            transaction.addToBackStack(fragment.getClass().getSimpleName());
+        }
+        transaction.commit();
     }
 }

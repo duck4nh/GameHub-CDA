@@ -97,7 +97,7 @@ public class QuizViewModel extends AndroidViewModel {
             } catch (IOException exception) {
                 mainHandler.post(() -> {
                     loading = false;
-                    message = "Không thể nạp ngân hàng câu hỏi cục bộ.";
+                    message = "Không thể tải bộ câu hỏi lúc này.";
                     notifyObservers();
                 });
             }

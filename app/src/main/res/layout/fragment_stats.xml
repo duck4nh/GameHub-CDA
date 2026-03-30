@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -41,10 +42,14 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <View
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/stats_header_avatar"
                     android:layout_width="34dp"
                     android:layout_height="34dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                    android:src="@drawable/img_avatar_cat"
+                    app:shapeAppearanceOverlay="@style/CircleImageView"
+                    app:strokeColor="@color/gh_text_primary"
+                    app:strokeWidth="1dp" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -149,9 +154,10 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
+                        android:text="Số ngày chơi liên tiếp"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="14sp"
-                        tools:text="Duy trì từ Local_History" />
+                        tools:text="Số ngày chơi liên tiếp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -164,17 +170,55 @@
                 android:orientation="vertical"
                 android:padding="18dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="Thời gian chơi"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="18sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="Nhịp chơi trong tuần"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="18sp" />
+
+                        <TextView
+                            android:id="@+id/chart_overview_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Chưa có trận nào trong tuần này"
+                            android:textColor="@color/gh_text_secondary"
+                            android:textSize="12sp"
+                            tools:text="Cao nhất vào T7" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/chart_week_total_chip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_stats_value_chip"
+                        android:paddingStart="10dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="6dp"
+                        android:text="0 trận"
+                        android:textColor="@color/gh_text_primary"
+                        android:textSize="11sp"
+                        tools:text="12 trận" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="130dp"
+                    android:layout_height="172dp"
                     android:layout_marginTop="18dp"
                     android:baselineAligned="false"
                     android:gravity="bottom|center_horizontal"
@@ -187,16 +231,39 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_1"
-                            android:layout_width="26dp"
-                            android:layout_height="74dp"
-                            android:background="@drawable/bg_card_brand_22" />
-
                         <TextView
+                            android:id="@+id/bar_value_1"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="2" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_1"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="T2"
                             android:textColor="@color/gh_text_secondary"
                             android:textSize="11sp" />
@@ -209,16 +276,39 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_2"
-                            android:layout_width="26dp"
-                            android:layout_height="96dp"
-                            android:background="@drawable/bg_card_brand_22" />
-
                         <TextView
+                            android:id="@+id/bar_value_2"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="3" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_2"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="T3"
                             android:textColor="@color/gh_text_secondary"
                             android:textSize="11sp" />
@@ -231,16 +321,39 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_3"
-                            android:layout_width="26dp"
-                            android:layout_height="88dp"
-                            android:background="@drawable/bg_card_brand_22" />
-
                         <TextView
+                            android:id="@+id/bar_value_3"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="1" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_3"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="T4"
                             android:textColor="@color/gh_text_secondary"
                             android:textSize="11sp" />
@@ -253,16 +366,39 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_4"
-                            android:layout_width="26dp"
-                            android:layout_height="112dp"
-                            android:background="@drawable/bg_card_brand_22" />
-
                         <TextView
+                            android:id="@+id/bar_value_4"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="4" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_4"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="T5"
                             android:textColor="@color/gh_text_secondary"
                             android:textSize="11sp" />
@@ -275,16 +411,39 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_5"
-                            android:layout_width="26dp"
-                            android:layout_height="80dp"
-                            android:background="@drawable/bg_card_brand_22" />
-
                         <TextView
+                            android:id="@+id/bar_value_5"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="2" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_5"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="T6"
                             android:textColor="@color/gh_text_secondary"
                             android:textSize="11sp" />
@@ -297,18 +456,42 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_6"
-                            android:layout_width="26dp"
-                            android:layout_height="126dp"
-                            android:background="@drawable/bg_primary_button_round" />
-
                         <TextView
+                            android:id="@+id/bar_value_6"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip_active"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="5" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_6"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill_active" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="T7"
-                            android:textColor="@color/gh_text_secondary"
+                            android:textColor="@color/gh_text_primary"
+                            android:textStyle="bold"
                             android:textSize="11sp" />
                     </LinearLayout>
 
@@ -319,21 +502,45 @@
                         android:gravity="bottom|center_horizontal"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/bar_day_7"
-                            android:layout_width="26dp"
-                            android:layout_height="102dp"
-                            android:background="@drawable/bg_card_brand_22" />
-
                         <TextView
+                            android:id="@+id/bar_value_7"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stats_value_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:textColor="@color/gh_text_primary"
+                            android:textSize="11sp"
+                            tools:text="3" />
+
+                        <FrameLayout
+                            android:layout_width="34dp"
+                            android:layout_height="116dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stats_bar_track"
+                            android:padding="4dp">
+
+                            <View
+                                android:id="@+id/bar_day_7"
+                                android:layout_width="match_parent"
+                                android:layout_height="18dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_stats_bar_fill" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/bar_label_7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:text="CN"
                             android:textColor="@color/gh_text_secondary"
                             android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
+
             </LinearLayout>
 
             <LinearLayout
@@ -343,7 +550,9 @@
                 android:layout_marginTop="18dp"
                 android:background="@drawable/bg_card_success_20"
                 android:orientation="vertical"
-                android:padding="18dp">
+                android:padding="18dp"
+                android:visibility="gone"
+                tools:visibility="gone">
 
                 <TextView
                     android:id="@+id/offline_banner_title"
@@ -352,7 +561,7 @@
                     android:fontFamily="sans-serif-medium"
                     android:textColor="@color/gh_text_primary"
                     android:textSize="14sp"
-                    tools:text="3 trận đã lưu ngoại tuyến" />
+                    tools:text="Kết quả mới" />
 
                 <TextView
                     android:id="@+id/offline_banner_subtitle"
@@ -361,7 +570,7 @@
                     android:layout_marginTop="4dp"
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="14sp"
-                    tools:text="Sẽ đồng bộ khi kết nối ổn định." />
+                    tools:text="Mở lại để xem chi tiết từng trận." />
             </LinearLayout>
 
             <LinearLayout

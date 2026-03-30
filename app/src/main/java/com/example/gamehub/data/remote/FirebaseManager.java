@@ -99,10 +99,10 @@ public class FirebaseManager {
 
     private String mapGameType(String gameName) {
         String normalized = gameName == null ? "" : gameName.toLowerCase(Locale.getDefault());
-        if (normalized.contains("đố vui")) {
+        if (normalized.contains("quiz") || normalized.contains("đố vui")) {
             return "Quiz";
         }
-        if (normalized.contains("ghi nhớ")) {
+        if (normalized.contains("memory") || normalized.contains("ghi nhớ")) {
             return "Memory";
         }
         return "Sudoku";
@@ -116,11 +116,8 @@ public class FirebaseManager {
     }
 
     private long readLong(Object value) {
-        if (value instanceof Long) {
-            return (Long) value;
-        }
-        if (value instanceof Integer) {
-            return ((Integer) value).longValue();
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
         }
         return 0L;
     }
