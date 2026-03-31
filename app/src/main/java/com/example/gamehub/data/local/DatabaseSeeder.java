@@ -72,7 +72,7 @@ public final class DatabaseSeeder {
     private static List<MemoryLevel> buildMemoryLevels() {
         Map<Integer, LevelSpec> specsByPairCount = new LinkedHashMap<>();
         for (int rowCount = 3; rowCount <= 40; rowCount++) {
-            for (int columnCount = 4; columnCount <= 6; columnCount++) {
+            for (int columnCount = 4; columnCount <= 5; columnCount++) {
                 if ((rowCount * columnCount) % 2 != 0) {
                     continue;
                 }
@@ -82,7 +82,7 @@ public final class DatabaseSeeder {
                 }
                 LevelSpec current = new LevelSpec(rowCount, columnCount, pairCount);
                 LevelSpec existing = specsByPairCount.get(pairCount);
-                if (existing == null || current.balanceScore() < existing.balanceScore()) {
+                if (existing == null || current.layoutScore() < existing.layoutScore()) {
                     specsByPairCount.put(pairCount, current);
                 }
             }
@@ -150,8 +150,8 @@ public final class DatabaseSeeder {
             this.pairCount = pairCount;
         }
 
-        int balanceScore() {
-            return Math.abs(rowCount - columnCount);
+        int layoutScore() {
+            return columnCount * 10 + Math.abs(rowCount - columnCount);
         }
     }
 }

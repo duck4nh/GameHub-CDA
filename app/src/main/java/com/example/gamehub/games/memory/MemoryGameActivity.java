@@ -3,8 +3,11 @@ package com.example.gamehub.games.memory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
+import android.widget.ImageView;
+import android.widget.FrameLayout;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -17,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 
+import com.bumptech.glide.Glide;
 import com.example.gamehub.R;
 import com.example.gamehub.data.local.entities.MemoryLevel;
 import com.example.gamehub.data.pref.PreferenceManager;
@@ -26,25 +30,30 @@ import java.util.List;
 import java.util.Locale;
 
 public class MemoryGameActivity extends AppCompatActivity {
+    private static final int LEVEL_GRID_COLUMNS = 2;
+
     private MemoryViewModel viewModel;
     private PreferenceManager preferenceManager;
     private SoundManager soundManager;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean timerScheduled;
+
     private final Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
+            timerScheduled = false;
             if (viewModel == null || viewModel.getCurrentScreen() != MemoryViewModel.Screen.GAMEPLAY || viewModel.isPauseVisible()) {
                 return;
             }
-            if (!viewModel.tick()) {
-                render();
-                handler.postDelayed(this, 1000L);
-            } else {
+            if (viewModel.tick()) {
                 render();
                 soundManager.playLose();
                 animateResultScreen();
+                return;
             }
+            render();
+            scheduleTimerTick();
         }
     };
     private final Runnable mismatchRunnable = () -> {
@@ -53,7 +62,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         }
         viewModel.resolveMismatch();
         render();
-        startTimer();
+        scheduleTimerTick();
     };
     private final MemoryViewModel.Observer stateObserver = this::render;
 
@@ -63,7 +72,6 @@ public class MemoryGameActivity extends AppCompatActivity {
     private View resultScreen;
     private View pauseOverlay;
     private GridLayout levelGrid;
-    private Button startButton;
     private TextView levelLabelView;
     private TextView metaSmallView;
     private TextView bestStreakView;
@@ -77,8 +85,8 @@ public class MemoryGameActivity extends AppCompatActivity {
     private TextView resultStreakValueView;
     private TextView resultNoteView;
     private TextView pauseMessageView;
-    private Button resultBackButton;
-    private Button nextLevelButton;
+    private View resultBackButton;
+    private TextView nextLevelButton;
     private View resultCloseButton;
 
     private MemoryBoardAdapter adapter;
@@ -113,7 +121,6 @@ public class MemoryGameActivity extends AppCompatActivity {
         resultScreen = findViewById(R.id.memory_result_screen);
         pauseOverlay = findViewById(R.id.memory_pause_screen);
         levelGrid = findViewById(R.id.memory_level_grid);
-        startButton = findViewById(R.id.memory_start_button);
         levelLabelView = findViewById(R.id.memory_level_label);
         metaSmallView = findViewById(R.id.memory_meta_small);
         bestStreakView = findViewById(R.id.memory_best_streak);
@@ -134,24 +141,21 @@ public class MemoryGameActivity extends AppCompatActivity {
 
     private void bindActions() {
         findViewById(R.id.memory_setup_back).setOnClickListener(v -> finish());
-        startButton.setOnClickListener(v -> viewModel.startSelectedLevel());
         findViewById(R.id.memory_back).setOnClickListener(v -> showPauseDialog());
         findViewById(R.id.memory_pause).setOnClickListener(v -> showPauseDialog());
-        resultBackButton.setText("Quay lại");
         resultBackButton.setOnClickListener(v -> viewModel.showLevelSelection());
         resultCloseButton.setVisibility(View.GONE);
-        nextLevelButton.setText("Màn tiếp");
+        nextLevelButton.setOnClickListener(v -> {
+            if (viewModel.canPlayNextLevel()) {
+                startLevel(viewModel.getNextLevelIndex());
+            }
+        });
         findViewById(R.id.memory_pause_resume).setOnClickListener(v -> {
             viewModel.hidePause();
             render();
-            startTimer();
+            scheduleTimerTick();
         });
         findViewById(R.id.memory_pause_exit).setOnClickListener(v -> finish());
-        nextLevelButton.setOnClickListener(v -> {
-            if (viewModel.canPlayNextLevel()) {
-                viewModel.startLevel(viewModel.getNextLevelIndex());
-            }
-        });
     }
 
     private void installBackHandler() {
@@ -161,7 +165,7 @@ public class MemoryGameActivity extends AppCompatActivity {
                 if (viewModel.isPauseVisible()) {
                     viewModel.hidePause();
                     render();
-                    startTimer();
+                    scheduleTimerTick();
                     return;
                 }
                 if (viewModel.getCurrentScreen() == MemoryViewModel.Screen.GAMEPLAY) {
@@ -186,28 +190,15 @@ public class MemoryGameActivity extends AppCompatActivity {
         if (!isSetup) {
             return;
         }
-        List<MemoryLevel> levels = viewModel.getLevels();
-        int selectedLevelIndex = viewModel.getSelectedLevelIndex();
-        buildLevelGrid(levels, selectedLevelIndex);
-        startButton.setEnabled(!viewModel.isLoading() && !levels.isEmpty());
-        startButton.setAlpha(startButton.isEnabled() ? 1f : 0.45f);
-        if (viewModel.isLoading()) {
-            startButton.setText("Đang chuẩn bị...");
-        } else if (!levels.isEmpty()) {
-            MemoryLevel selectedLevel = levels.get(Math.max(0, Math.min(selectedLevelIndex, levels.size() - 1)));
-            startButton.setText(String.format(Locale.getDefault(), "Chơi Màn %d", selectedLevel.levelId));
-        } else {
-            startButton.setText("Bắt đầu chơi");
-        }
-
-        scrollLevelListToFocus(selectedLevelIndex);
+        buildLevelGrid(viewModel.getLevels(), viewModel.getSelectedLevelIndex());
+        scrollLevelListToFocus(viewModel.getSelectedLevelIndex());
     }
 
     private void renderGameplay() {
         boolean isGameplay = viewModel.getCurrentScreen() == MemoryViewModel.Screen.GAMEPLAY;
         gameplayScreen.setVisibility(isGameplay ? View.VISIBLE : View.GONE);
         if (!isGameplay) {
-            handler.removeCallbacks(timerRunnable);
+            stopTimer();
             handler.removeCallbacks(mismatchRunnable);
             lastRenderedBoardVersion = -1;
             return;
@@ -217,7 +208,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         if (currentLevel == null) {
             return;
         }
-        levelLabelView.setText(String.format(Locale.getDefault(), "Ghi nhớ · Màn %d", currentLevel.levelId));
+        levelLabelView.setText(String.format(Locale.getDefault(), "Ghi nhớ · Level %d", currentLevel.levelId));
         metaSmallView.setText(String.format(
                 Locale.getDefault(),
                 "%s · %d cặp · %d hàng · %d cột",
@@ -241,10 +232,6 @@ public class MemoryGameActivity extends AppCompatActivity {
             adapter.submitList(viewModel.getCards());
             lastRenderedBoardVersion = boardStateVersion;
         }
-
-        if (!viewModel.isPauseVisible() && !viewModel.isBoardLocked()) {
-            startTimer();
-        }
     }
 
     private void renderResult() {
@@ -256,7 +243,8 @@ public class MemoryGameActivity extends AppCompatActivity {
         MemoryLevel currentLevel = viewModel.getCurrentLevel();
         String levelLabel = currentLevel == null
                 ? "--"
-                : String.format(Locale.getDefault(), "Màn %d · %s", currentLevel.levelId, currentLevel.getDisplayLabel());
+                : String.format(Locale.getDefault(), "Level %d (%s)", currentLevel.levelId, currentLevel.getDisplayLabel());
+
         resultTitleView.setText(String.format(Locale.getDefault(), "%d điểm", viewModel.getScore()));
         resultSubtitleView.setText(String.format(
                 Locale.getDefault(),
@@ -268,9 +256,17 @@ public class MemoryGameActivity extends AppCompatActivity {
         resultTimeValueView.setText(viewModel.formatDuration(viewModel.getElapsedTimeMs()));
         resultAccuracyValueView.setText(String.format(Locale.getDefault(), "%d%%", viewModel.getAccuracyPercent()));
         resultStreakValueView.setText(String.valueOf(viewModel.getBestStreak()));
-        resultNoteView.setText(viewModel.canPlayNextLevel()
-                ? "Đã mở màn tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng màn mới."
-                : "Đây là màn cao nhất đã mở. Bạn có thể quay lại danh sách để chơi lại các màn trước.");
+
+        if (!viewModel.didLastGameWin()) {
+            resultNoteView.setText("Bạn chưa hoàn thành level này. Hãy thử lại hoặc quay lại danh sách level.");
+        } else if (viewModel.didUnlockNextLevelThisRound()) {
+            resultNoteView.setText("Đã mở level tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng level mới.");
+        } else if (viewModel.canPlayNextLevel()) {
+            resultNoteView.setText("Level tiếp theo đã sẵn sàng. Bạn có thể tiếp tục hoặc quay lại danh sách level.");
+        } else {
+            resultNoteView.setText("Bạn đã hoàn thành level cao nhất hiện có. Có thể quay lại danh sách để chơi lại các level trước.");
+        }
+
         nextLevelButton.setEnabled(viewModel.canPlayNextLevel());
         nextLevelButton.setAlpha(nextLevelButton.isEnabled() ? 1f : 0.45f);
         String syncToastMessage = viewModel.consumePendingSyncToastMessage();
@@ -288,63 +284,163 @@ public class MemoryGameActivity extends AppCompatActivity {
 
     private void buildLevelGrid(List<MemoryLevel> levels, int selectedIndex) {
         levelGrid.removeAllViews();
-        levelGrid.setColumnCount(2);
-        levelGrid.setRowCount((int) Math.ceil(levels.size() / 2f));
+        levelGrid.setColumnCount(LEVEL_GRID_COLUMNS);
+        levelGrid.setRowCount((int) Math.ceil(levels.size() / (float) LEVEL_GRID_COLUMNS));
         for (int index = 0; index < levels.size(); index++) {
             MemoryLevel level = levels.get(index);
-            LinearLayout tile = new LinearLayout(this);
-            tile.setOrientation(LinearLayout.VERTICAL);
-            tile.setPadding(dpToPx(18), dpToPx(14), dpToPx(18), dpToPx(14));
-            tile.setBackgroundResource(index == selectedIndex ? R.drawable.bg_tile_selected_memory : R.drawable.bg_card_surface_22);
-            tile.setClickable(level.isUnlocked);
-            tile.setFocusable(level.isUnlocked);
-            tile.setAlpha(level.isUnlocked ? 1f : 0.55f);
+            LinearLayout tile = createLevelTile(level, index == selectedIndex);
 
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = 0;
-            params.height = dpToPx(88);
-            params.columnSpec = GridLayout.spec(index % 2, 1f);
-            params.rowSpec = GridLayout.spec(index / 2);
-            params.setMargins(0, index < 2 ? 0 : dpToPx(14), index % 2 == 0 ? dpToPx(10) : 0, 0);
+            params.height = dpToPx(96);
+            params.columnSpec = GridLayout.spec(index % LEVEL_GRID_COLUMNS, 1f);
+            params.rowSpec = GridLayout.spec(index / LEVEL_GRID_COLUMNS);
+            params.setMargins(index % LEVEL_GRID_COLUMNS == 0 ? 0 : dpToPx(8), index < LEVEL_GRID_COLUMNS ? 0 : dpToPx(12), index % LEVEL_GRID_COLUMNS == 0 ? dpToPx(8) : 0, 0);
             tile.setLayoutParams(params);
-
-            TextView icon = new TextView(this);
-            icon.setText("◌");
-            icon.setTextSize(18f);
-            icon.setTextColor(getColor(R.color.gh_bg_brand));
-            tile.addView(icon);
-
-            TextView title = new TextView(this);
-            title.setText(String.format(Locale.getDefault(), "Màn %d", level.levelId));
-            title.setTextSize(18f);
-            title.setTextColor(getColor(R.color.gh_text_primary));
-            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
-            title.setPadding(0, dpToPx(8), 0, 0);
-            tile.addView(title);
-
-            TextView subtitle = new TextView(this);
-            subtitle.setText(level.isUnlocked
-                    ? String.format(
-                    Locale.getDefault(),
-                    "%s · %d cặp · %ds",
-                    level.getDisplayLabel(),
-                    level.getPairCount(),
-                    level.timeLimitSec
-            )
-                    : String.format(Locale.getDefault(), "Mở sau khi thắng màn %d", Math.max(1, level.levelId - 1)));
-            subtitle.setTextSize(12f);
-            subtitle.setTextColor(getColor(R.color.gh_text_secondary));
-            tile.addView(subtitle);
 
             final int finalIndex = index;
             tile.setOnClickListener(v -> {
                 if (!level.isUnlocked) {
                     return;
                 }
-                viewModel.startLevel(finalIndex);
+                viewModel.selectLevel(finalIndex);
+                render();
+                startLevel(finalIndex);
             });
             levelGrid.addView(tile);
         }
+    }
+
+    private LinearLayout createLevelTile(MemoryLevel level, boolean isFocused) {
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setGravity(Gravity.CENTER_VERTICAL);
+        tile.setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12));
+        tile.setBackgroundResource(!level.isUnlocked
+                ? R.drawable.bg_tile_memory_locked
+                : isFocused ? R.drawable.bg_tile_selected_memory : R.drawable.bg_tile_memory_unlocked);
+        tile.setClickable(level.isUnlocked);
+        tile.setFocusable(level.isUnlocked);
+        tile.setAlpha(level.isUnlocked ? 1f : 0.62f);
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        FrameLayout iconStack = new FrameLayout(this);
+        LinearLayout.LayoutParams iconStackParams = new LinearLayout.LayoutParams(dpToPx(42), dpToPx(38));
+        iconStack.setLayoutParams(iconStackParams);
+
+        TextView backCard = new TextView(this);
+        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dpToPx(24), dpToPx(28));
+        backParams.gravity = Gravity.TOP | Gravity.START;
+        backCard.setLayoutParams(backParams);
+        backCard.setBackgroundResource(R.drawable.bg_stats_value_chip);
+        backCard.setGravity(Gravity.CENTER);
+        backCard.setText("?");
+        backCard.setTextSize(13f);
+        backCard.setTypeface(backCard.getTypeface(), android.graphics.Typeface.BOLD);
+        backCard.setTextColor(getColor(R.color.gh_text_secondary));
+        iconStack.addView(backCard);
+
+        TextView frontCard = new TextView(this);
+        FrameLayout.LayoutParams frontParams = new FrameLayout.LayoutParams(dpToPx(26), dpToPx(30));
+        frontParams.gravity = Gravity.BOTTOM | Gravity.END;
+        frontCard.setLayoutParams(frontParams);
+        frontCard.setBackgroundResource(R.drawable.bg_stats_value_chip_active);
+        frontCard.setGravity(Gravity.CENTER);
+        frontCard.setText("A");
+        frontCard.setTextSize(16f);
+        frontCard.setTypeface(frontCard.getTypeface(), android.graphics.Typeface.BOLD);
+        frontCard.setTextColor(getColor(R.color.gh_button_primary_border));
+        iconStack.addView(frontCard);
+
+        header.addView(iconStack);
+
+        TextView title = new TextView(this);
+        title.setText(String.format(Locale.getDefault(), "Level %d", level.levelId));
+        title.setTextSize(18f);
+        title.setTextColor(getColor(R.color.gh_text_primary));
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        title.setMaxLines(1);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        titleParams.setMarginStart(dpToPx(10));
+        title.setLayoutParams(titleParams);
+        header.addView(title);
+
+        tile.addView(header);
+
+        LinearLayout recordRow = new LinearLayout(this);
+        recordRow.setOrientation(LinearLayout.HORIZONTAL);
+        recordRow.setGravity(Gravity.CENTER_VERTICAL);
+        recordRow.setPadding(0, dpToPx(10), 0, 0);
+
+        if (level.isUnlocked && viewModel.hasLevelRecord(level)) {
+            TextView bestLabel = new TextView(this);
+            bestLabel.setText("Best:");
+            bestLabel.setTextSize(12f);
+            bestLabel.setTypeface(bestLabel.getTypeface(), android.graphics.Typeface.BOLD);
+            bestLabel.setTextColor(getColor(R.color.gh_text_secondary));
+            recordRow.addView(bestLabel);
+
+            ImageView avatarView = new ImageView(this);
+            LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dpToPx(20), dpToPx(20));
+            avatarParams.setMarginStart(dpToPx(6));
+            avatarView.setLayoutParams(avatarParams);
+            String avatarUrl = viewModel.getCurrentPlayerAvatarUrl();
+            Glide.with(this)
+                    .load(avatarUrl == null || avatarUrl.trim().isEmpty() ? R.drawable.img_avatar_cat : avatarUrl.trim())
+                    .placeholder(R.drawable.img_avatar_cat)
+                    .error(R.drawable.img_avatar_cat)
+                    .circleCrop()
+                    .into(avatarView);
+            recordRow.addView(avatarView);
+
+            TextView bestValue = new TextView(this);
+            bestValue.setText(String.format(
+                    Locale.getDefault(),
+                    "%s - %s",
+                    viewModel.getCurrentPlayerName(),
+                    viewModel.formatSeconds(level.bestTimeMs)
+            ));
+            bestValue.setTextSize(12f);
+            bestValue.setTextColor(getColor(R.color.gh_text_primary));
+            bestValue.setMaxLines(1);
+            bestValue.setEllipsize(TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams bestValueParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            bestValueParams.setMarginStart(dpToPx(6));
+            bestValue.setLayoutParams(bestValueParams);
+            recordRow.addView(bestValue);
+        } else if (level.isUnlocked) {
+            TextView bestLabel = new TextView(this);
+            bestLabel.setText("Best:");
+            bestLabel.setTextSize(12f);
+            bestLabel.setTypeface(bestLabel.getTypeface(), android.graphics.Typeface.BOLD);
+            bestLabel.setTextColor(getColor(R.color.gh_text_secondary));
+            recordRow.addView(bestLabel);
+
+            TextView bestValue = new TextView(this);
+            bestValue.setText("chưa có");
+            bestValue.setTextSize(12f);
+            bestValue.setTextColor(getColor(R.color.gh_text_secondary));
+            LinearLayout.LayoutParams bestValueParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            bestValueParams.setMarginStart(dpToPx(6));
+            bestValue.setLayoutParams(bestValueParams);
+            recordRow.addView(bestValue);
+        } else {
+            TextView bestValue = new TextView(this);
+            bestValue.setText(String.format(Locale.getDefault(), "Mở sau Level %d", Math.max(1, level.levelId - 1)));
+            bestValue.setTextSize(12f);
+            bestValue.setTextColor(getColor(R.color.gh_text_secondary));
+            bestValue.setMaxLines(1);
+            bestValue.setEllipsize(TextUtils.TruncateAt.END);
+            recordRow.addView(bestValue);
+        }
+
+        tile.addView(recordRow);
+
+        return tile;
     }
 
     private void scrollLevelListToFocus(int selectedIndex) {
@@ -355,9 +451,9 @@ public class MemoryGameActivity extends AppCompatActivity {
             if (levelGrid.getChildCount() == 0) {
                 return;
             }
-            int selectedRow = selectedIndex / 2;
+            int selectedRow = selectedIndex / LEVEL_GRID_COLUMNS;
             int anchorRow = Math.max(0, selectedRow - 1);
-            int anchorChildIndex = Math.min(levelGrid.getChildCount() - 1, anchorRow * 2);
+            int anchorChildIndex = Math.min(levelGrid.getChildCount() - 1, anchorRow * LEVEL_GRID_COLUMNS);
             View anchorChild = levelGrid.getChildAt(anchorChildIndex);
             if (anchorChild == null) {
                 return;
@@ -373,19 +469,20 @@ public class MemoryGameActivity extends AppCompatActivity {
         switch (outcome.type) {
             case FIRST_REVEAL:
                 soundManager.playCardFlip();
-                startTimer();
+                scheduleTimerTick();
                 break;
             case MATCH:
                 soundManager.playMatch();
-                startTimer();
+                scheduleTimerTick();
                 break;
             case WIN:
+                stopTimer();
                 soundManager.playWin();
                 animateResultScreen();
                 break;
             case MISMATCH:
+                stopTimer();
                 soundManager.playWrong();
-                handler.removeCallbacks(timerRunnable);
                 handler.removeCallbacks(mismatchRunnable);
                 handler.postDelayed(mismatchRunnable, MemoryViewModel.MISMATCH_DELAY_MS);
                 break;
@@ -395,19 +492,35 @@ public class MemoryGameActivity extends AppCompatActivity {
         }
     }
 
+    private void startLevel(int index) {
+        stopTimer();
+        handler.removeCallbacks(mismatchRunnable);
+        viewModel.startLevel(index);
+        render();
+        scheduleTimerTick();
+    }
+
     private void showPauseDialog() {
         if (viewModel.getCurrentScreen() != MemoryViewModel.Screen.GAMEPLAY) {
             finish();
             return;
         }
-        handler.removeCallbacks(timerRunnable);
+        stopTimer();
         viewModel.showPause();
         render();
     }
 
-    private void startTimer() {
-        handler.removeCallbacks(timerRunnable);
+    private void scheduleTimerTick() {
+        if (timerScheduled || viewModel == null || viewModel.getCurrentScreen() != MemoryViewModel.Screen.GAMEPLAY || viewModel.isPauseVisible() || viewModel.isBoardLocked()) {
+            return;
+        }
+        timerScheduled = true;
         handler.postDelayed(timerRunnable, 1000L);
+    }
+
+    private void stopTimer() {
+        timerScheduled = false;
+        handler.removeCallbacks(timerRunnable);
     }
 
     private int dpToPx(int dp) {
@@ -435,9 +548,20 @@ public class MemoryGameActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        handler.removeCallbacks(timerRunnable);
+        stopTimer();
         handler.removeCallbacks(mismatchRunnable);
         super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (viewModel != null
+                && viewModel.getCurrentScreen() == MemoryViewModel.Screen.GAMEPLAY
+                && !viewModel.isPauseVisible()
+                && !viewModel.isBoardLocked()) {
+            scheduleTimerTick();
+        }
     }
 
     @Override

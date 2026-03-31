@@ -68,6 +68,8 @@ public class MemoryViewModel extends AndroidViewModel {
     private boolean loading;
     private boolean pauseVisible;
     private boolean boardLocked;
+    private boolean lastGameWon;
+    private boolean unlockedNextLevelThisRound;
     private int selectedLevelIndex;
     private int currentLevelIndex;
     private int firstSelectedPosition = -1;
@@ -141,6 +143,14 @@ public class MemoryViewModel extends AndroidViewModel {
         return boardLocked;
     }
 
+    public boolean didLastGameWin() {
+        return lastGameWon;
+    }
+
+    public boolean didUnlockNextLevelThisRound() {
+        return unlockedNextLevelThisRound;
+    }
+
     public List<MemoryLevel> getLevels() {
         return new ArrayList<>(levels);
     }
@@ -151,6 +161,35 @@ public class MemoryViewModel extends AndroidViewModel {
 
     public int getSelectedLevelIndex() {
         return selectedLevelIndex;
+    }
+
+    public String getLevelRecordSummary(@NonNull MemoryLevel level) {
+        if (level.bestTimeMs <= 0L) {
+            return "Best: chưa có";
+        }
+        String nickname = repository.getCurrentNickname();
+        if (nickname == null || nickname.trim().isEmpty()) {
+            nickname = "Player";
+        }
+        return String.format(Locale.getDefault(), "Best: %s - %s", nickname.trim(), formatSeconds(level.bestTimeMs));
+    }
+
+    public boolean hasLevelRecord(@NonNull MemoryLevel level) {
+        return level.bestTimeMs > 0L;
+    }
+
+    public String getCurrentPlayerName() {
+        String nickname = repository.getCurrentNickname();
+        return (nickname == null || nickname.trim().isEmpty()) ? "Player" : nickname.trim();
+    }
+
+    public String getCurrentPlayerAvatarUrl() {
+        return repository.getCachedAvatarUrl();
+    }
+
+    public String formatSeconds(long durationMs) {
+        long totalSeconds = Math.max(1L, Math.round(durationMs / 1000f));
+        return totalSeconds + "s";
     }
 
     public void selectLevel(int index) {
@@ -181,6 +220,8 @@ public class MemoryViewModel extends AndroidViewModel {
         currentScreen = Screen.GAMEPLAY;
         pauseVisible = false;
         boardLocked = false;
+        lastGameWon = false;
+        unlockedNextLevelThisRound = false;
         firstSelectedPosition = -1;
         secondSelectedPosition = -1;
         matchedPairs = 0;
@@ -359,14 +400,17 @@ public class MemoryViewModel extends AndroidViewModel {
         currentScreen = Screen.RESULT;
         pauseVisible = false;
         boardLocked = true;
+        lastGameWon = won;
+        unlockedNextLevelThisRound = false;
 
         MemoryLevel currentLevel = getCurrentLevel();
         if (currentLevel != null && won) {
             if (currentLevel.bestTimeMs == 0L || elapsedTimeMs < currentLevel.bestTimeMs) {
                 currentLevel.bestTimeMs = elapsedTimeMs;
             }
-            if (currentLevelIndex + 1 < levels.size()) {
+            if (currentLevelIndex + 1 < levels.size() && !levels.get(currentLevelIndex + 1).isUnlocked) {
                 levels.get(currentLevelIndex + 1).isUnlocked = true;
+                unlockedNextLevelThisRound = true;
             }
         }
         notifyObservers();
@@ -381,7 +425,7 @@ public class MemoryViewModel extends AndroidViewModel {
                 elapsedTimeMs,
                 System.currentTimeMillis(),
                 false,
-                String.format(Locale.getDefault(), "Màn %d · %s", currentLevel.levelId, currentLevel.getDisplayLabel()),
+                String.format(Locale.getDefault(), "Level %d (%s)", currentLevel.levelId, currentLevel.getDisplayLabel()),
                 pairAttempts
         );
 

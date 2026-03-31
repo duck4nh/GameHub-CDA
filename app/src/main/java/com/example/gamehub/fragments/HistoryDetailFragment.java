@@ -224,7 +224,7 @@ public class HistoryDetailFragment extends Fragment {
         StringBuilder builder = new StringBuilder();
         builder.append("Bạn có thể xem lại thời gian, điểm số và kết quả của trận này tại đây.");
         if (isMemoryGame(item) && item.attemptCount > 0) {
-            builder.append(" Với Ghi nhớ, số lượt đoán cũng được giữ lại để bạn dễ so sánh giữa các màn.");
+            builder.append(" Với Ghi nhớ, số lượt đoán cũng được giữ lại để bạn dễ so sánh giữa các level.");
         }
         if (item.detail != null && !item.detail.trim().isEmpty()) {
             builder.append(" Ghi chú: ").append(item.detail.trim()).append(".");
@@ -237,7 +237,7 @@ public class HistoryDetailFragment extends Fragment {
             return "Chơi bàn Sudoku khác";
         }
         if (isMemoryGame(item)) {
-            return "Chơi màn ghi nhớ khác";
+            return "Chơi level ghi nhớ khác";
         }
         return "Chơi lượt đố vui khác";
     }
