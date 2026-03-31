@@ -95,9 +95,8 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
 
         holder.itemView.animate().cancel();
         holder.labelView.setText(card.label);
-        holder.labelView.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactCard ? 22f : 26f);
-        holder.metaView.setText(card.matched ? "khớp" : "cặp");
-        holder.metaView.setVisibility(compactCard ? View.GONE : View.VISIBLE);
+        holder.labelView.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactCard ? 24f : 30f);
+        holder.metaView.setVisibility(View.GONE);
         applyFrontTint(holder.frontFace, card);
 
         if (!holder.bound || holder.boundCardId != card.cardId) {

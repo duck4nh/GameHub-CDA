@@ -21,6 +21,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MemoryViewModel extends AndroidViewModel {
+    // Keep this pool visually distinct so players can remember pairs quickly.
+    private static final String[] EMOJI_POOL = {
+            "😀", "😎", "🤖", "👻", "👽", "🤡", "👑", "💎",
+            "🔥", "⚡", "🌈", "☀️", "🌙", "⭐", "☁️", "❄️",
+            "🍎", "🍋", "🍉", "🍇", "🍒", "🍓", "🍍", "🥕",
+            "🌽", "🍔", "🍕", "🍩", "🍪", "🍰", "🍭", "🧁",
+            "⚽", "🏀", "🏈", "⚾", "🎾", "🏓", "🎯", "🎲",
+            "🚗", "🚕", "🚙", "🚲", "✈️", "🚀", "🚁", "⛵",
+            "🎈", "🎁", "🎸", "🎹", "🥁", "📚", "✏️", "💡",
+            "⏰", "🔒", "🧩", "🧸", "🪙", "🎨", "🪐", "🏆"
+    };
+
     public enum Screen {
         SETUP,
         GAMEPLAY,
@@ -501,9 +513,10 @@ public class MemoryViewModel extends AndroidViewModel {
 
     private String buildLabel(int identifier) {
         int zeroBased = Math.max(0, identifier - 1);
-        char letter = (char) ('A' + (zeroBased % 26));
-        int suffix = zeroBased / 26 + 1;
-        return suffix == 1 ? String.valueOf(letter) : letter + String.valueOf(suffix);
+        if (zeroBased < EMOJI_POOL.length) {
+            return EMOJI_POOL[zeroBased];
+        }
+        return EMOJI_POOL[zeroBased % EMOJI_POOL.length];
     }
 
     private int findHighestUnlockedLevelIndex() {
