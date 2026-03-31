@@ -130,6 +130,14 @@ public class SudokuGridView extends View {
         this.notesMode = enabled;
     }
 
+    public int getSelectedRow() {
+        return selectedRow;
+    }
+
+    public int getSelectedCol() {
+        return selectedCol;
+    }
+
     public void setSelectedValue(int value) {
         if (selectedRow < 0 || selectedCol < 0 || initialBoard[selectedRow][selectedCol] != 0) {
             return;

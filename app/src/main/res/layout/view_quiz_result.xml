@@ -208,7 +208,7 @@
                 android:id="@+id/quiz_result_note"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Kết quả của bạn đã được lưu. Điểm số sẽ sớm xuất hiện trên bảng xếp hạng."
+                android:text="AI đang phân tích ván chơi của bạn..."
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>

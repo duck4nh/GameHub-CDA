@@ -1,6 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.gms.google-services")
+}
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+fun escapeBuildConfigString(value: String): String {
+    return value.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
 android {
@@ -15,6 +28,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val geminiApiKey = (
+            localProperties.getProperty("GEMINI_API_KEY")
+                ?: localProperties.getProperty("gemini.api.key")
+                ?: localProperties.getProperty("GOOGLE_AI_STUDIO_API_KEY")
+                ?: ""
+            ).trim()
+        buildConfigField("String", "GEMINI_API_KEY", "\"${escapeBuildConfigString(geminiApiKey)}\"")
     }
 
     buildTypes {
@@ -30,6 +50,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 }
 

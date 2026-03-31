@@ -211,7 +211,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Đã mở level tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng level mới."
+                android:text="AI đang phân tích cách bạn ghi nhớ và lật thẻ..."
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>

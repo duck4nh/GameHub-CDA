@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.OnBackPressedCallback;
 
 import com.example.gamehub.R;
+import com.example.gamehub.ai.GeminiReviewService;
 import com.example.gamehub.data.local.AppDatabase;
 import com.example.gamehub.data.local.dao.SudokuDao;
 import com.example.gamehub.data.local.dao.SudokuGameStateDao;
@@ -48,6 +49,7 @@ public class SudokuActivity extends AppCompatActivity {
     private SudokuStatsDao sudokuStatsDao;
     private PreferenceManager preferenceManager;
     private GameRepository repository;
+    private GeminiReviewService reviewService;
 
     private View setupScreen;
     private View gameplayScreen;
@@ -90,6 +92,8 @@ public class SudokuActivity extends AppCompatActivity {
     private int currentErrorCount;
     private int remainingHints = 3;
     private boolean notesMode = false;
+    private final List<String> sessionLog = new ArrayList<>();
+    private String activeReviewKey = "";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -102,6 +106,7 @@ public class SudokuActivity extends AppCompatActivity {
         sudokuStatsDao = database.sudokuStatsDao();
         preferenceManager = new PreferenceManager(this);
         repository = GameRepository.getInstance(this);
+        reviewService = GeminiReviewService.getInstance(this);
 
         bindViews();
         bindActions();
@@ -185,12 +190,18 @@ public class SudokuActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.sudoku_action_hint).setOnClickListener(v -> useHint());
-        
+
         findViewById(R.id.sudoku_action_notes).setOnClickListener(v -> toggleNotesMode());
 
-        findViewById(R.id.sudoku_action_delete).setOnClickListener(v -> boardView.clearSelectedCell());
+        findViewById(R.id.sudoku_action_delete).setOnClickListener(v -> {
+            logDeleteAction();
+            boardView.clearSelectedCell();
+        });
 
-        findViewById(R.id.sudoku_pause_resume).setOnClickListener(v -> hidePauseOverlay(true));
+        findViewById(R.id.sudoku_pause_resume).setOnClickListener(v -> {
+            appendSessionLog(String.format(Locale.getDefault(), "%s Tiếp tục ván Sudoku.", getElapsedLabel()));
+            hidePauseOverlay(true);
+        });
         findViewById(R.id.sudoku_pause_exit).setOnClickListener(v -> finish());
 
         findViewById(R.id.sudoku_result_retry).setOnClickListener(v -> startSelectedLevel());
@@ -201,20 +212,36 @@ public class SudokuActivity extends AppCompatActivity {
             @Override
             public void onCellSelected(int row, int col, boolean editable) {
                 if (!sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
+                    appendSessionLog(String.format(
+                            Locale.getDefault(),
+                            "%s Chọn ô R%dC%d (%s).",
+                            getElapsedLabel(),
+                            row + 1,
+                            col + 1,
+                            editable ? "có thể sửa" : "ô cố định"
+                    ));
                     renderGameplayMeta();
                 }
             }
 
             @Override
             public void onBoardChanged(int[][] board) {
+                int[][] previousBoard = SudokuLogic.copyMatrix(currentBoard);
                 currentBoard = SudokuLogic.copyMatrix(board);
+                logBoardMutation(previousBoard, currentBoard);
                 int oldErrors = currentErrorCount;
                 currentErrorCount = SudokuLogic.countIncorrectFilledCells(currentBoard, solutionBoard);
                 
                 if (currentErrorCount > oldErrors) {
+                    appendSessionLog(String.format(
+                            Locale.getDefault(),
+                            "%s Tăng lên %d lỗi.",
+                            getElapsedLabel(),
+                            currentErrorCount
+                    ));
                     updateHearts();
                     if (currentErrorCount >= 3) {
-                        showGameOverDialog();
+                        finishSession(false);
                         return;
                     }
                 }
@@ -247,6 +274,14 @@ public class SudokuActivity extends AppCompatActivity {
         int col = randomCell[1];
         int correctValue = solutionBoard[row][col];
 
+        appendSessionLog(String.format(
+                Locale.getDefault(),
+                "%s Dùng gợi ý cho ô R%dC%d -> %d.",
+                getElapsedLabel(),
+                row + 1,
+                col + 1,
+                correctValue
+        ));
         boardView.setCellValue(row, col, correctValue);
         remainingHints--;
         updateHintButtonUI();
@@ -255,6 +290,12 @@ public class SudokuActivity extends AppCompatActivity {
     private void toggleNotesMode() {
         notesMode = !notesMode;
         boardView.setNotesMode(notesMode);
+        appendSessionLog(String.format(
+                Locale.getDefault(),
+                "%s Chuyển chế độ nháp sang %s.",
+                getElapsedLabel(),
+                notesMode ? "bật" : "tắt"
+        ));
         updateNotesButtonUI();
     }
 
@@ -291,6 +332,7 @@ public class SudokuActivity extends AppCompatActivity {
 
     private void showGameOverDialog() {
         sessionFinished = true;
+        appendSessionLog(String.format(Locale.getDefault(), "%s Tạm dừng ván Sudoku.", getElapsedLabel()));
         handler.removeCallbacks(timerRunnable);
         new AlertDialog.Builder(this)
                 .setTitle("Bạn đã thua!")
@@ -305,6 +347,7 @@ public class SudokuActivity extends AppCompatActivity {
             @Override
             public void handleOnBackPressed() {
                 if (pauseOverlay.getVisibility() == View.VISIBLE) {
+                    appendSessionLog(String.format(Locale.getDefault(), "%s Tiếp tục ván Sudoku.", getElapsedLabel()));
                     hidePauseOverlay(true);
                     return;
                 }
@@ -454,6 +497,14 @@ public class SudokuActivity extends AppCompatActivity {
         currentErrorCount = 0;
         remainingHints = 3;
         notesMode = false;
+        activeReviewKey = "";
+        sessionLog.clear();
+        appendSessionLog(String.format(
+                Locale.getDefault(),
+                "Bắt đầu bàn Sudoku mức %s%s.",
+                getLevelLabel(board.level),
+                savedState == null ? "" : " từ bản lưu"
+        ));
 
         if (savedState != null && savedState.currentMatrix != null && !savedState.currentMatrix.isEmpty()) {
             int[][] restored = SudokuLogic.parseMatrix(savedState.currentMatrix);
@@ -493,6 +544,7 @@ public class SudokuActivity extends AppCompatActivity {
         if (pauseOverlay == null || gameplayScreen.getVisibility() != View.VISIBLE || currentBoardEntity == null || sessionFinished) {
             return;
         }
+        appendSessionLog(String.format(Locale.getDefault(), "%s Tạm dừng ván Sudoku.", getElapsedLabel()));
         handler.removeCallbacks(timerRunnable);
         saveInProgressState();
         subtitleView.setText("Tạm dừng");
@@ -533,7 +585,10 @@ public class SudokuActivity extends AppCompatActivity {
         );
         updateSudokuStats(won);
 
-        resultTitleView.setText(String.format(Locale.getDefault(), "Hoàn thành trong %s", formatDuration(elapsedTimeMs)));
+        appendSessionLog(String.format(Locale.getDefault(), "Kết thúc bàn: %s, mức %s, %d lỗi, dùng %d gợi ý, thời gian %s.", won ? "thắng" : "thua", getLevelLabel(currentBoardEntity.level), currentErrorCount, 3 - remainingHints, formatDuration(elapsedTimeMs)));
+        resultTitleView.setText(won
+                ? String.format(Locale.getDefault(), "Hoàn thành trong %s", formatDuration(elapsedTimeMs))
+                : String.format(Locale.getDefault(), "Dừng lại sau %s", formatDuration(elapsedTimeMs)));
         resultSubtitleView.setText(String.format(
                 Locale.getDefault(),
                 "Chế độ %s · %d lỗi · %d gợi ý · +%d điểm",
@@ -547,8 +602,9 @@ public class SudokuActivity extends AppCompatActivity {
         resultRewardValueView.setText(String.format(Locale.getDefault(), "+%d", reward));
         resultSyncBadgeView.setText("Đang kiểm tra");
         resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_brand);
-        resultNoteView.setText("Kết quả của bạn đã được lưu. Hệ thống đang thử gửi trận này lên Firebase.");
+        resultNoteView.setText("AI đang phân tích ván Sudoku của bạn...");
         showResultScreen();
+        requestSudokuAiReview();
 
         repository.saveHistory(history, result -> {
             if (isFinishing() || isDestroyed()) {
@@ -581,20 +637,20 @@ public class SudokuActivity extends AppCompatActivity {
         if (result == null) {
             resultSyncBadgeView.setText("Đã lưu");
             resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_warning);
-            resultNoteView.setText("Kết quả của bạn đã được lưu trong lịch sử.");
+
             return;
         }
 
         if (result.success && result.remainingCount <= 0) {
             resultSyncBadgeView.setText("Đã lên Firebase");
             resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_success);
-            resultNoteView.setText("Kết quả của bạn đã lên Firebase và sẽ được dùng cho bảng xếp hạng.");
+
             return;
         }
 
         resultSyncBadgeView.setText("Đã lưu");
         resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_warning);
-        resultNoteView.setText("Kết quả của bạn đã được lưu trong lịch sử. Ứng dụng sẽ thử đồng bộ lại sau.");
+
     }
 
     private void saveInProgressState() {
@@ -611,64 +667,183 @@ public class SudokuActivity extends AppCompatActivity {
                 SudokuLogic.serializeMatrix(currentBoard),
                 elapsedTimeMs,
                 System.currentTimeMillis()
-            ));
-        }
-    
-        private boolean isBoardChanged() {
-            for (int row = 0; row < 9; row++) {
-                for (int col = 0; col < 9; col++) {
-                    if (initialBoard[row][col] != currentBoard[row][col]) {
-                        return true;
-                    }
+        ));
+    }
+
+    private boolean isBoardChanged() {
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                if (initialBoard[row][col] != currentBoard[row][col]) {
+                    return true;
                 }
             }
-            return false;
         }
-    
-        private void startTimer() {
-            handler.removeCallbacks(timerRunnable);
-            if (gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null && !sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
-                handler.postDelayed(timerRunnable, 1000L);
-            }
-        }
-    
-        private String getLevelLabel(String level) {
-            if ("medium".equals(level)) {
-                return "Trung bình";
-            }
-            if ("hard".equals(level)) {
-                return "Khó";
-            }
-            if ("expert".equals(level)) {
-                return "Chuyên gia";
-            }
-            return "Dễ";
-        }
-    
-        private String formatDuration(long durationMillis) {
-            long totalSeconds = Math.max(0L, durationMillis / 1000L);
-            long minutes = totalSeconds / 60L;
-            long seconds = totalSeconds % 60L;
-            return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
-        }
-    
-        protected void onPause() {
-            saveInProgressState();
-            handler.removeCallbacks(timerRunnable);
-            super.onPause();
-        }
-    
-        @Override
-        protected void onResume() {
-            super.onResume();
-            if (gameplayScreen.getVisibility() == View.VISIBLE && pauseOverlay.getVisibility() != View.VISIBLE && currentBoardEntity != null && !sessionFinished) {
-                startTimer();
-            }
-        }
-    
-        @Override
-        protected void onDestroy() {
-            handler.removeCallbacksAndMessages(null);
-            super.onDestroy();
+        return false;
+    }
+
+    private void startTimer() {
+        handler.removeCallbacks(timerRunnable);
+        if (gameplayScreen.getVisibility() == View.VISIBLE && currentBoardEntity != null && !sessionFinished && pauseOverlay.getVisibility() != View.VISIBLE) {
+            handler.postDelayed(timerRunnable, 1000L);
         }
     }
+
+    private String getLevelLabel(String level) {
+        if ("medium".equals(level)) {
+            return "Trung bình";
+        }
+        if ("hard".equals(level)) {
+            return "Khó";
+        }
+        if ("expert".equals(level)) {
+            return "Chuyên gia";
+        }
+        return "Dễ";
+    }
+
+    private String formatDuration(long durationMillis) {
+        long totalSeconds = Math.max(0L, durationMillis / 1000L);
+        long minutes = totalSeconds / 60L;
+        long seconds = totalSeconds % 60L;
+        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+    }
+
+    private void logNumberTap(int value) {
+        int row = boardView.getSelectedRow();
+        int col = boardView.getSelectedCol();
+        if (row < 0 || col < 0) {
+            return;
+        }
+        appendSessionLog(String.format(
+                Locale.getDefault(),
+                "%s %s số %d tại ô R%dC%d.",
+                getElapsedLabel(),
+                notesMode ? "Đánh dấu nháp" : "Chọn",
+                value,
+                row + 1,
+                col + 1
+        ));
+    }
+
+    private void logDeleteAction() {
+        int row = boardView.getSelectedRow();
+        int col = boardView.getSelectedCol();
+        if (row < 0 || col < 0) {
+            return;
+        }
+        appendSessionLog(String.format(
+                Locale.getDefault(),
+                "%s Xóa nội dung ô R%dC%d.",
+                getElapsedLabel(),
+                row + 1,
+                col + 1
+        ));
+    }
+
+    private void logBoardMutation(int[][] previousBoard, int[][] nextBoard) {
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                if (previousBoard[row][col] != nextBoard[row][col]) {
+                    if (nextBoard[row][col] == 0) {
+                        appendSessionLog(String.format(Locale.getDefault(), "%s Ô R%dC%d trở về trống.", getElapsedLabel(), row + 1, col + 1));
+                    } else {
+                        appendSessionLog(String.format(Locale.getDefault(), "%s Điền %d vào ô R%dC%d.", getElapsedLabel(), nextBoard[row][col], row + 1, col + 1));
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    private String buildSudokuReviewPrompt() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Bạn là huấn luyện viên Sudoku. ")
+                .append("Hãy viết đúng 2 đến 3 câu tiếng Việt tự nhiên, khách quan và dễ nghe. ")
+                .append("Nêu một điểm người chơi làm tốt và một gợi ý cải thiện cụ thể về độ chính xác, tốc độ hoặc quản lý lỗi/gợi ý, không dùng gạch đầu dòng, không xưng là AI.\n\n")
+                .append("Tóm tắt ván chơi:\n")
+                .append("- Cấp độ: ").append(getLevelLabel(selectedLevel)).append('\n')
+                .append("- Kết quả: ").append(currentErrorCount >= 3 ? "Thua" : "Hoàn thành").append('\n')
+                .append("- Lỗi: ").append(currentErrorCount).append('\n')
+                .append("- Gợi ý đã dùng: ").append(3 - remainingHints).append('\n')
+                .append("- Chế độ nháp cuối: ").append(notesMode ? "Bật" : "Tắt").append('\n')
+                .append("- Thời gian: ").append(formatDuration(elapsedTimeMs)).append("\n\n")
+                .append("Nhật ký thao tác:\n");
+        if (sessionLog.isEmpty()) {
+            builder.append("- Không có nhật ký chi tiết.");
+        } else {
+            for (String entry : sessionLog) {
+                builder.append("- ").append(entry).append('\n');
+            }
+        }
+        return builder.toString();
+    }
+
+    private void requestSudokuAiReview() {
+        activeReviewKey = String.format(
+                Locale.US,
+                "%s:%d:%d:%d:%d",
+                selectedLevel,
+                currentErrorCount,
+                remainingHints,
+                elapsedTimeMs,
+                sessionLog.size()
+        );
+        String reviewKey = activeReviewKey;
+        reviewService.requestReview(buildSudokuReviewPrompt(), new GeminiReviewService.Callback() {
+            @Override
+            public void onSuccess(String review) {
+                if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                resultNoteView.setText(review == null || review.trim().isEmpty()
+                        ? "Chưa thể tạo nhận xét AI cho ván này."
+                        : review.trim());
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                resultNoteView.setText(message == null || message.trim().isEmpty()
+                        ? "Chưa thể tạo nhận xét AI cho ván này."
+                        : message.trim());
+            }
+        });
+    }
+
+    private void appendSessionLog(String entry) {
+        if (entry == null) {
+            return;
+        }
+        String trimmed = entry.trim();
+        if (!trimmed.isEmpty()) {
+            sessionLog.add(trimmed);
+        }
+    }
+
+    private String getElapsedLabel() {
+        return formatDuration(elapsedTimeMs);
+    }
+
+    @Override
+    protected void onPause() {
+        saveInProgressState();
+        handler.removeCallbacks(timerRunnable);
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (gameplayScreen.getVisibility() == View.VISIBLE && pauseOverlay.getVisibility() != View.VISIBLE && currentBoardEntity != null && !sessionFinished) {
+            startTimer();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
+}

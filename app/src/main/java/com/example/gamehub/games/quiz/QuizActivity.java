@@ -1,5 +1,6 @@
 package com.example.gamehub.games.quiz;
 
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -20,6 +21,7 @@ import androidx.core.widget.CompoundButtonCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.gamehub.R;
+import com.example.gamehub.ai.GeminiReviewService;
 import com.example.gamehub.data.local.entities.QuizQuestion;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.utils.ImageLoader;
@@ -38,6 +40,7 @@ public class QuizActivity extends AppCompatActivity {
     private QuizViewModel viewModel;
     private PreferenceManager preferenceManager;
     private SoundManager soundManager;
+    private GeminiReviewService reviewService;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable timerRunnable = new Runnable() {
@@ -109,7 +112,11 @@ public class QuizActivity extends AppCompatActivity {
     private TextView resultHistoryView;
     private TextView resultNoteView;
     private TextView pauseMessageView;
+
     private String renderedIllustrationUrl = "";
+    private String activeReviewKey = "";
+    private boolean aiReviewLoading;
+    private String aiReviewText = "";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -118,6 +125,7 @@ public class QuizActivity extends AppCompatActivity {
 
         preferenceManager = new PreferenceManager(this);
         soundManager = new SoundManager(this);
+        reviewService = GeminiReviewService.getInstance(this);
         viewModel = new ViewModelProvider(this).get(QuizViewModel.class);
 
         bindViews();
@@ -262,6 +270,8 @@ public class QuizActivity extends AppCompatActivity {
             return;
         }
 
+        resetAiReviewState();
+
         QuizQuestion question = viewModel.getCurrentQuestion();
         liveScoreView.setText(String.valueOf(viewModel.getScore()));
         liveComboView.setText(String.valueOf(viewModel.getCombo()));
@@ -301,8 +311,10 @@ public class QuizActivity extends AppCompatActivity {
         boolean isResult = viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT;
         resultScreen.setVisibility(isResult ? View.VISIBLE : View.GONE);
         if (!isResult) {
+            resetAiReviewState();
             return;
         }
+
         int totalQuestions = Math.max(1, viewModel.getTotalQuestions());
         resultScoreView.setText(String.format(Locale.getDefault(), "%d / %d câu đúng", viewModel.getCorrectCount(), totalQuestions));
         resultSummaryView.setText(String.format(
@@ -316,9 +328,16 @@ public class QuizActivity extends AppCompatActivity {
         resultAccuracyValueView.setText(String.format(Locale.getDefault(), "%d%%", viewModel.getAccuracyPercent()));
         resultRewardValueView.setText(String.valueOf(viewModel.getScore()));
         resultHistoryView.setText(viewModel.getBestHistoryText());
-        resultNoteView.setText(viewModel.isWin()
-                ? "Kết quả của bạn đã được lưu. Bạn đạt ngưỡng thắng từ 60% số câu đúng."
-                : "Kết quả của bạn đã được lưu. Hãy thử lại để cải thiện độ chính xác và điểm số.");
+
+        ensureQuizAiReview();
+        if (aiReviewLoading) {
+            resultNoteView.setText("AI đang phân tích ván chơi của bạn...");
+        } else if (!aiReviewText.isEmpty()) {
+            resultNoteView.setText(aiReviewText);
+        } else {
+            resultNoteView.setText("Chưa thể tạo nhận xét AI cho ván này.");
+        }
+
         String syncToastMessage = viewModel.consumePendingSyncToastMessage();
         if (syncToastMessage != null && !syncToastMessage.trim().isEmpty()) {
             Toast.makeText(this, syncToastMessage, Toast.LENGTH_LONG).show();
@@ -361,6 +380,7 @@ public class QuizActivity extends AppCompatActivity {
             }
         });
     }
+
     private void renderAnswerButtons(QuizQuestion question, @Nullable QuizManager.AnswerOutcome outcome) {
         optionAButton.setText(question.optionA);
         optionBButton.setText(question.optionB);
@@ -437,6 +457,7 @@ public class QuizActivity extends AppCompatActivity {
             imageContainer.setVisibility(View.GONE);
         }
     }
+
     private void updateProgressFill(float ratio) {
         progressTrackView.post(() -> {
             int width = progressTrackView.getWidth();
@@ -499,7 +520,7 @@ public class QuizActivity extends AppCompatActivity {
         titleView.setText("Chọn chủ đề");
         titleView.setTextSize(20f);
         titleView.setTextColor(getColor(R.color.gh_text_primary));
-        titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+        titleView.setTypeface(titleView.getTypeface(), Typeface.BOLD);
         container.addView(titleView);
 
         List<String> selections = new ArrayList<>(viewModel.getSelectedCategories());
@@ -582,7 +603,7 @@ public class QuizActivity extends AppCompatActivity {
         titleView.setText(title);
         titleView.setTextSize(20f);
         titleView.setTextColor(getColor(R.color.gh_text_primary));
-        titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+        titleView.setTypeface(titleView.getTypeface(), Typeface.BOLD);
         container.addView(titleView);
 
         for (String option : options) {
@@ -665,6 +686,7 @@ public class QuizActivity extends AppCompatActivity {
         }
         gameplayScrollView.post(() -> gameplayScrollView.smoothScrollTo(0, 0));
     }
+
     private void animateResultScreen() {
         if (!isAnimationOn()) {
             return;
@@ -678,6 +700,47 @@ public class QuizActivity extends AppCompatActivity {
                 .scaleY(1f)
                 .setDuration(220L)
                 .start();
+    }
+
+    private void ensureQuizAiReview() {
+        String reviewKey = viewModel.getAiReviewRequestKey();
+        if (reviewKey == null || reviewKey.trim().isEmpty() || reviewKey.equals(activeReviewKey)) {
+            return;
+        }
+        activeReviewKey = reviewKey;
+        aiReviewLoading = true;
+        aiReviewText = "";
+        reviewService.requestReview(viewModel.buildAiReviewPrompt(), new GeminiReviewService.Callback() {
+            @Override
+            public void onSuccess(String review) {
+                if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                aiReviewLoading = false;
+                aiReviewText = review == null ? "" : review.trim();
+                if (viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT) {
+                    renderResult();
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                aiReviewLoading = false;
+                aiReviewText = message == null ? "Chưa thể tạo nhận xét AI cho ván này." : message.trim();
+                if (viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT) {
+                    renderResult();
+                }
+            }
+        });
+    }
+
+    private void resetAiReviewState() {
+        activeReviewKey = "";
+        aiReviewLoading = false;
+        aiReviewText = "";
     }
 
     @Override
