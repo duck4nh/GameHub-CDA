@@ -50,7 +50,6 @@ public class HistoryDetailFragment extends Fragment {
     private TextView secondaryLabelView;
     private TextView secondaryValueView;
     private TextView secondaryCaptionView;
-    private TextView notesView;
     private TextView playSimilarView;
 
     @Nullable
@@ -76,7 +75,6 @@ public class HistoryDetailFragment extends Fragment {
         secondaryLabelView = view.findViewById(R.id.history_detail_secondary_label);
         secondaryValueView = view.findViewById(R.id.history_detail_secondary_value);
         secondaryCaptionView = view.findViewById(R.id.history_detail_secondary_caption);
-        notesView = view.findViewById(R.id.history_detail_notes);
         playSimilarView = view.findViewById(R.id.history_detail_play_similar);
 
         view.findViewById(R.id.history_detail_back).setOnClickListener(v -> navigateBack());
@@ -127,8 +125,6 @@ public class HistoryDetailFragment extends Fragment {
         secondaryLabelView.setText("Trạng thái");
         secondaryValueView.setText(getStatusLabel(history.status));
         secondaryCaptionView.setText(buildSecondaryCaption(history));
-
-        notesView.setText(buildNotes(history));
         playSimilarView.setText(getReplayLabel(history));
     }
 
@@ -218,18 +214,6 @@ public class HistoryDetailFragment extends Fragment {
             return "Thua";
         }
         return status == null || status.isEmpty() ? "N/A" : status;
-    }
-
-    private String buildNotes(LocalHistory item) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("Bạn có thể xem lại thời gian, điểm số và kết quả của trận này tại đây.");
-        if (isMemoryGame(item) && item.attemptCount > 0) {
-            builder.append(" Với Ghi nhớ, số lượt đoán cũng được giữ lại để bạn dễ so sánh giữa các màn.");
-        }
-        if (item.detail != null && !item.detail.trim().isEmpty()) {
-            builder.append(" Ghi chú: ").append(item.detail.trim()).append(".");
-        }
-        return builder.toString();
     }
 
     private String getReplayLabel(LocalHistory item) {

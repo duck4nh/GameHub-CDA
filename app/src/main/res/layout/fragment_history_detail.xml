@@ -137,36 +137,51 @@
 
                 <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="116dp"
+                    android:layout_height="148dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_card_surface_22"
                     android:elevation="4dp"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="18dp">
 
                     <TextView
                         android:id="@+id/history_detail_primary_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="match_parent"
+                        android:layout_height="16dp"
+                        android:gravity="top|start"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="11sp"
                         tools:text="Lượt" />
 
                     <TextView
                         android:id="@+id/history_detail_primary_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="12dp"
                         android:fontFamily="sans-serif-medium"
+                        android:gravity="center_vertical|start"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:ellipsize="end"
                         android:textColor="@color/gh_text_primary"
                         android:textSize="24sp"
                         tools:text="81" />
 
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
                     <TextView
                         android:id="@+id/history_detail_primary_caption"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:ellipsize="end"
+                        android:gravity="top|start"
+                        android:includeFontPadding="false"
+                        android:maxLines="2"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="14sp"
                         tools:text="Bản ghi của phiên này" />
@@ -174,68 +189,56 @@
 
                 <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="116dp"
+                    android:layout_height="148dp"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_card_brand_22"
                     android:elevation="4dp"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="18dp">
 
                     <TextView
                         android:id="@+id/history_detail_secondary_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="match_parent"
+                        android:layout_height="16dp"
+                        android:gravity="top|start"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="11sp"
                         tools:text="Chính xác" />
 
                     <TextView
                         android:id="@+id/history_detail_secondary_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="12dp"
                         android:fontFamily="sans-serif-medium"
+                        android:gravity="center_vertical|start"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:ellipsize="end"
                         android:textColor="@color/gh_text_primary"
                         android:textSize="24sp"
                         tools:text="98%" />
 
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
                     <TextView
                         android:id="@+id/history_detail_secondary_caption"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:ellipsize="end"
+                        android:gravity="top|start"
+                        android:includeFontPadding="false"
+                        android:maxLines="2"
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="14sp"
                         tools:text="1 lỗi đã được sửa" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:background="@drawable/bg_card_surface_24"
-                android:elevation="4dp"
-                android:orientation="vertical"
-                android:padding="18dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="Ghi chú phiên"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="18sp" />
-
-                <TextView
-                    android:id="@+id/history_detail_notes"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="14sp"
-                    tools:text="Bạn có thể xem lại thời gian, điểm số và kết quả của trận này tại đây." />
             </LinearLayout>
 
             <TextView
