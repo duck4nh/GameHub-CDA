@@ -4,11 +4,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.widget.ImageView;
-import android.widget.FrameLayout;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -22,10 +22,12 @@ import androidx.recyclerview.widget.GridLayoutManager;
 
 import com.bumptech.glide.Glide;
 import com.example.gamehub.R;
+import com.example.gamehub.ai.GeminiReviewService;
 import com.example.gamehub.data.local.entities.MemoryLevel;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.utils.SoundManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -35,6 +37,7 @@ public class MemoryGameActivity extends AppCompatActivity {
     private MemoryViewModel viewModel;
     private PreferenceManager preferenceManager;
     private SoundManager soundManager;
+    private GeminiReviewService reviewService;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean timerScheduled;
@@ -47,6 +50,12 @@ public class MemoryGameActivity extends AppCompatActivity {
                 return;
             }
             if (viewModel.tick()) {
+                appendSessionLog(String.format(
+                        Locale.getDefault(),
+                        "%s Hết giờ ở Level %d.",
+                        getElapsedLabel(),
+                        getSafeCurrentLevelId()
+                ));
                 render();
                 soundManager.playLose();
                 animateResultScreen();
@@ -60,6 +69,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         if (viewModel == null) {
             return;
         }
+        appendSessionLog(String.format(Locale.getDefault(), "%s Úp lại hai thẻ không khớp.", getElapsedLabel()));
         viewModel.resolveMismatch();
         render();
         scheduleTimerTick();
@@ -91,6 +101,10 @@ public class MemoryGameActivity extends AppCompatActivity {
 
     private MemoryBoardAdapter adapter;
     private int lastRenderedBoardVersion = -1;
+    private final List<String> sessionLog = new ArrayList<>();
+    private String activeReviewKey = "";
+    private boolean aiReviewLoading;
+    private String aiReviewText = "";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -99,6 +113,7 @@ public class MemoryGameActivity extends AppCompatActivity {
 
         preferenceManager = new PreferenceManager(this);
         soundManager = new SoundManager(this);
+        reviewService = GeminiReviewService.getInstance(this);
         viewModel = new ViewModelProvider(this).get(MemoryViewModel.class);
 
         bindViews();
@@ -151,6 +166,7 @@ public class MemoryGameActivity extends AppCompatActivity {
             }
         });
         findViewById(R.id.memory_pause_resume).setOnClickListener(v -> {
+            appendSessionLog(String.format(Locale.getDefault(), "%s Tiếp tục ván nhớ hình.", getElapsedLabel()));
             viewModel.hidePause();
             render();
             scheduleTimerTick();
@@ -163,6 +179,7 @@ public class MemoryGameActivity extends AppCompatActivity {
             @Override
             public void handleOnBackPressed() {
                 if (viewModel.isPauseVisible()) {
+                    appendSessionLog(String.format(Locale.getDefault(), "%s Tiếp tục ván nhớ hình.", getElapsedLabel()));
                     viewModel.hidePause();
                     render();
                     scheduleTimerTick();
@@ -204,6 +221,8 @@ public class MemoryGameActivity extends AppCompatActivity {
             return;
         }
 
+        resetAiReviewState();
+
         MemoryLevel currentLevel = viewModel.getCurrentLevel();
         if (currentLevel == null) {
             return;
@@ -238,6 +257,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         boolean isResult = viewModel.getCurrentScreen() == MemoryViewModel.Screen.RESULT;
         resultScreen.setVisibility(isResult ? View.VISIBLE : View.GONE);
         if (!isResult) {
+            resetAiReviewState();
             return;
         }
         MemoryLevel currentLevel = viewModel.getCurrentLevel();
@@ -257,14 +277,13 @@ public class MemoryGameActivity extends AppCompatActivity {
         resultAccuracyValueView.setText(String.format(Locale.getDefault(), "%d%%", viewModel.getAccuracyPercent()));
         resultStreakValueView.setText(String.valueOf(viewModel.getBestStreak()));
 
-        if (!viewModel.didLastGameWin()) {
-            resultNoteView.setText("Bạn chưa hoàn thành level này. Hãy thử lại hoặc quay lại danh sách level.");
-        } else if (viewModel.didUnlockNextLevelThisRound()) {
-            resultNoteView.setText("Đã mở level tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng level mới.");
-        } else if (viewModel.canPlayNextLevel()) {
-            resultNoteView.setText("Level tiếp theo đã sẵn sàng. Bạn có thể tiếp tục hoặc quay lại danh sách level.");
+        ensureMemoryAiReview();
+        if (aiReviewLoading) {
+            resultNoteView.setText("AI đang phân tích cách bạn ghi nhớ và lật thẻ...");
+        } else if (!aiReviewText.isEmpty()) {
+            resultNoteView.setText(aiReviewText);
         } else {
-            resultNoteView.setText("Bạn đã hoàn thành level cao nhất hiện có. Có thể quay lại danh sách để chơi lại các level trước.");
+            resultNoteView.setText("Chưa thể tạo nhận xét AI cho ván này.");
         }
 
         nextLevelButton.setEnabled(viewModel.canPlayNextLevel());
@@ -349,8 +368,8 @@ public class MemoryGameActivity extends AppCompatActivity {
         frontCard.setLayoutParams(frontParams);
         frontCard.setBackgroundResource(R.drawable.bg_stats_value_chip_active);
         frontCard.setGravity(Gravity.CENTER);
-        frontCard.setText("A");
-        frontCard.setTextSize(16f);
+        frontCard.setText("🂠");
+        frontCard.setTextSize(15f);
         frontCard.setTypeface(frontCard.getTypeface(), android.graphics.Typeface.BOLD);
         frontCard.setTextColor(getColor(R.color.gh_button_primary_border));
         iconStack.addView(frontCard);
@@ -464,23 +483,50 @@ public class MemoryGameActivity extends AppCompatActivity {
     }
 
     private void onCardClicked(int position) {
+        MemoryLevel currentLevel = viewModel.getCurrentLevel();
+        MemoryCard tappedCard = position >= 0 && position < viewModel.getCards().size()
+                ? viewModel.getCards().get(position)
+                : null;
         MemoryViewModel.TurnOutcome outcome = viewModel.onCardSelected(position);
         render();
+
+        String cardLabel = tappedCard == null ? "?" : tappedCard.label;
+        String cardPosition = currentLevel == null ? ("#" + (position + 1)) : formatBoardPosition(position, currentLevel.columnCount);
+
         switch (outcome.type) {
             case FIRST_REVEAL:
+                appendSessionLog(String.format(Locale.getDefault(), "%s Lật %s → %s.", getElapsedLabel(), cardPosition, cardLabel));
                 soundManager.playCardFlip();
                 scheduleTimerTick();
                 break;
             case MATCH:
+                appendSessionLog(String.format(
+                        Locale.getDefault(),
+                        "%s Lật %s → %s và ghép đúng. Điểm %d, chuỗi %d.",
+                        getElapsedLabel(),
+                        cardPosition,
+                        cardLabel,
+                        outcome.awardedScore,
+                        viewModel.getBestStreak()
+                ));
                 soundManager.playMatch();
                 scheduleTimerTick();
                 break;
             case WIN:
+                appendSessionLog(String.format(
+                        Locale.getDefault(),
+                        "%s Lật %s → %s và hoàn thành level với %d lượt đoán.",
+                        getElapsedLabel(),
+                        cardPosition,
+                        cardLabel,
+                        viewModel.getPairAttempts()
+                ));
                 stopTimer();
                 soundManager.playWin();
                 animateResultScreen();
                 break;
             case MISMATCH:
+                appendSessionLog(String.format(Locale.getDefault(), "%s Lật %s → %s nhưng chưa khớp.", getElapsedLabel(), cardPosition, cardLabel));
                 stopTimer();
                 soundManager.playWrong();
                 handler.removeCallbacks(mismatchRunnable);
@@ -496,6 +542,19 @@ public class MemoryGameActivity extends AppCompatActivity {
         stopTimer();
         handler.removeCallbacks(mismatchRunnable);
         viewModel.startLevel(index);
+        resetAiReviewState();
+        sessionLog.clear();
+        MemoryLevel level = viewModel.getCurrentLevel();
+        if (level != null) {
+            appendSessionLog(String.format(
+                    Locale.getDefault(),
+                    "Bắt đầu Level %d với lưới %s, %d cặp và %ds.",
+                    level.levelId,
+                    level.getDisplayLabel(),
+                    level.getPairCount(),
+                    level.timeLimitSec
+            ));
+        }
         render();
         scheduleTimerTick();
     }
@@ -505,6 +564,7 @@ public class MemoryGameActivity extends AppCompatActivity {
             finish();
             return;
         }
+        appendSessionLog(String.format(Locale.getDefault(), "%s Tạm dừng ván nhớ hình.", getElapsedLabel()));
         stopTimer();
         viewModel.showPause();
         render();
@@ -544,6 +604,113 @@ public class MemoryGameActivity extends AppCompatActivity {
                 .scaleY(1f)
                 .setDuration(220L)
                 .start();
+    }
+
+    private void ensureMemoryAiReview() {
+        String reviewKey = buildMemoryReviewKey();
+        if (reviewKey.equals(activeReviewKey)) {
+            return;
+        }
+        activeReviewKey = reviewKey;
+        aiReviewLoading = true;
+        aiReviewText = "";
+        reviewService.requestReview(buildMemoryReviewPrompt(), new GeminiReviewService.Callback() {
+            @Override
+            public void onSuccess(String review) {
+                if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                aiReviewLoading = false;
+                aiReviewText = review == null ? "" : review.trim();
+                if (viewModel.getCurrentScreen() == MemoryViewModel.Screen.RESULT) {
+                    renderResult();
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                aiReviewLoading = false;
+                aiReviewText = message == null ? "Chưa thể tạo nhận xét AI cho ván này." : message.trim();
+                if (viewModel.getCurrentScreen() == MemoryViewModel.Screen.RESULT) {
+                    renderResult();
+                }
+            }
+        });
+    }
+
+    private String buildMemoryReviewKey() {
+        MemoryLevel level = viewModel.getCurrentLevel();
+        int levelId = level == null ? 0 : level.levelId;
+        return String.format(
+                Locale.US,
+                "%d:%d:%d:%d:%d",
+                levelId,
+                viewModel.getScore(),
+                viewModel.getMatchedPairs(),
+                viewModel.getPairAttempts(),
+                viewModel.getElapsedTimeMs()
+        );
+    }
+
+    private String buildMemoryReviewPrompt() {
+        MemoryLevel level = viewModel.getCurrentLevel();
+        StringBuilder builder = new StringBuilder();
+        builder.append("Bạn là huấn luyện viên cho game lật hình. ")
+                .append("Hãy viết đúng 2 đến 3 câu tiếng Việt tự nhiên, khách quan và dễ nghe. ")
+                .append("Nêu một điểm làm tốt và một gợi ý cải thiện cụ thể về khả năng ghi nhớ, tốc độ hoặc độ ổn định, không dùng gạch đầu dòng, không xưng là AI.\n\n")
+                .append("Tóm tắt ván chơi:\n")
+                .append("- Level: ").append(level == null ? "--" : level.levelId).append('\n')
+                .append("- Lưới: ").append(level == null ? "--" : level.getDisplayLabel()).append('\n')
+                .append("- Cặp khớp: ").append(viewModel.getMatchedPairs()).append('\n')
+                .append("- Lượt đoán: ").append(viewModel.getPairAttempts()).append('\n')
+                .append("- Chuỗi tốt nhất: ").append(viewModel.getBestStreak()).append('\n')
+                .append("- Điểm: ").append(viewModel.getScore()).append('\n')
+                .append("- Chính xác: ").append(viewModel.getAccuracyPercent()).append("%\n")
+                .append("- Thời gian: ").append(viewModel.formatDuration(viewModel.getElapsedTimeMs())).append('\n')
+                .append("- Kết quả: ").append(viewModel.didLastGameWin() ? "Hoàn thành" : "Chưa hoàn thành").append("\n\n")
+                .append("Nhật ký thao tác:\n");
+        if (sessionLog.isEmpty()) {
+            builder.append("- Không có nhật ký chi tiết.");
+        } else {
+            for (String entry : sessionLog) {
+                builder.append("- ").append(entry).append('\n');
+            }
+        }
+        return builder.toString();
+    }
+
+    private void appendSessionLog(String entry) {
+        if (entry == null) {
+            return;
+        }
+        String trimmed = entry.trim();
+        if (!trimmed.isEmpty()) {
+            sessionLog.add(trimmed);
+        }
+    }
+
+    private String formatBoardPosition(int position, int columns) {
+        int row = (position / Math.max(1, columns)) + 1;
+        int column = (position % Math.max(1, columns)) + 1;
+        return "R" + row + "C" + column;
+    }
+
+    private int getSafeCurrentLevelId() {
+        MemoryLevel level = viewModel.getCurrentLevel();
+        return level == null ? 0 : level.levelId;
+    }
+
+    private String getElapsedLabel() {
+        return viewModel.formatDuration(viewModel.getElapsedTimeMs());
+    }
+
+    private void resetAiReviewState() {
+        activeReviewKey = "";
+        aiReviewLoading = false;
+        aiReviewText = "";
     }
 
     @Override

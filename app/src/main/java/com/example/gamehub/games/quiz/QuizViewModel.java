@@ -41,6 +41,7 @@ public class QuizViewModel extends AndroidViewModel {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final List<Observer> observers = new CopyOnWriteArrayList<>();
     private final List<String> availableCategories = new ArrayList<>();
+    private final List<String> sessionLog = new ArrayList<>();
     private final Set<String> selectedCategories = new LinkedHashSet<>();
 
     private Screen currentScreen = Screen.SETUP;
@@ -246,6 +247,19 @@ public class QuizViewModel extends AndroidViewModel {
                 remainingQuestionMs = QUESTION_TIME_MS;
                 elapsedSessionMs = 0L;
                 message = emptyState ? "Chưa có câu hỏi phù hợp với bộ lọc hiện tại." : "";
+                sessionLog.clear();
+                appendLog(String.format(
+                        Locale.getDefault(),
+                        "Bắt đầu ván mới với chủ đề %s, độ khó %s, %d câu.",
+                        getSelectedCategoriesLabel(),
+                        getSelectedDifficultyLabel(),
+                        selectedQuestionCount
+                ));
+                if (emptyState) {
+                    appendLog("Không lấy được bộ câu hỏi phù hợp với bộ lọc hiện tại.");
+                } else {
+                    appendQuestionShownLog();
+                }
                 notifyObservers();
             });
         });
@@ -266,6 +280,12 @@ public class QuizViewModel extends AndroidViewModel {
             return;
         }
         selectedAnswerKey = answerKey == null ? "" : answerKey.toUpperCase(Locale.getDefault());
+        appendLog(String.format(
+                Locale.getDefault(),
+                "Câu %d: chọn đáp án %s.",
+                getCurrentQuestionNumber(),
+                selectedAnswerKey
+        ));
         notifyObservers();
     }
 
@@ -278,6 +298,7 @@ public class QuizViewModel extends AndroidViewModel {
         answerLocked = true;
         if (latestOutcome != null) {
             message = latestOutcome.buildFeedbackMessage();
+            appendOutcomeLog(latestOutcome);
         }
         notifyObservers();
         return latestOutcome;
@@ -293,6 +314,7 @@ public class QuizViewModel extends AndroidViewModel {
         selectedAnswerKey = "";
         if (latestOutcome != null) {
             message = latestOutcome.buildFeedbackMessage();
+            appendOutcomeLog(latestOutcome);
         }
         notifyObservers();
         return latestOutcome;
@@ -308,6 +330,7 @@ public class QuizViewModel extends AndroidViewModel {
             latestOutcome = null;
             answerLocked = false;
             message = "";
+            appendQuestionShownLog();
             notifyObservers();
             return;
         }
@@ -317,6 +340,7 @@ public class QuizViewModel extends AndroidViewModel {
     public void showPause() {
         if (currentScreen == Screen.GAMEPLAY && !emptyState) {
             pauseVisible = true;
+            appendLog(String.format(Locale.getDefault(), "Tạm dừng ở câu %d.", getCurrentQuestionNumber()));
             notifyObservers();
         }
     }
@@ -324,6 +348,7 @@ public class QuizViewModel extends AndroidViewModel {
     public void hidePause() {
         if (pauseVisible) {
             pauseVisible = false;
+            appendLog(String.format(Locale.getDefault(), "Tiếp tục ván ở câu %d.", getCurrentQuestionNumber()));
             notifyObservers();
         }
     }
@@ -376,6 +401,10 @@ public class QuizViewModel extends AndroidViewModel {
         return quizManager == null ? 0 : quizManager.getCombo();
     }
 
+    public int getBestCombo() {
+        return quizManager == null ? 0 : quizManager.getBestCombo();
+    }
+
     public int getCorrectCount() {
         return quizManager == null ? 0 : quizManager.getCorrectCount();
     }
@@ -390,6 +419,44 @@ public class QuizViewModel extends AndroidViewModel {
 
     public String getBestHistoryText() {
         return bestHistoryText;
+    }
+
+    public String getAiReviewRequestKey() {
+        return String.format(
+                Locale.US,
+                "%d:%d:%d:%d:%d",
+                getScore(),
+                getCorrectCount(),
+                getTotalQuestions(),
+                elapsedSessionMs,
+                getBestCombo()
+        );
+    }
+
+    public String buildAiReviewPrompt() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Bạn là huấn luyện viên cho game đố vui. ")
+                .append("Hãy viết đúng 2 đến 3 câu tiếng Việt tự nhiên, khách quan và dễ nghe. ")
+                .append("Nêu ngắn gọn một điểm người chơi làm tốt và một hướng cải thiện cụ thể, không dùng gạch đầu dòng, không xưng là AI.\n\n")
+                .append("Tóm tắt ván chơi:\n")
+                .append("- Chủ đề: ").append(getSelectedCategoriesLabel()).append('\n')
+                .append("- Độ khó: ").append(getSelectedDifficultyLabel()).append('\n')
+                .append("- Số câu: ").append(getTotalQuestions()).append('\n')
+                .append("- Đúng: ").append(getCorrectCount()).append('\n')
+                .append("- Chính xác: ").append(getAccuracyPercent()).append("%\n")
+                .append("- Điểm: ").append(getScore()).append('\n')
+                .append("- Combo tốt nhất: ").append(getBestCombo()).append('\n')
+                .append("- Thời gian: ").append(formatDuration(elapsedSessionMs)).append('\n')
+                .append("- Kết quả: ").append(isWin() ? "Đạt" : "Chưa đạt").append("\n\n")
+                .append("Nhật ký thao tác:\n");
+        if (sessionLog.isEmpty()) {
+            builder.append("- Không có nhật ký chi tiết.");
+        } else {
+            for (String entry : sessionLog) {
+                builder.append("- ").append(entry).append('\n');
+            }
+        }
+        return builder.toString();
     }
 
     @Nullable
@@ -407,6 +474,16 @@ public class QuizViewModel extends AndroidViewModel {
         pauseVisible = false;
         answerLocked = true;
         bestHistoryText = "Đang cập nhật lịch sử...";
+        appendLog(String.format(
+                Locale.getDefault(),
+                "Kết thúc ván: đúng %d/%d, điểm %d, chính xác %d%%, combo tốt nhất %d, thời gian %s.",
+                getCorrectCount(),
+                getTotalQuestions(),
+                getScore(),
+                getAccuracyPercent(),
+                getBestCombo(),
+                formatDuration(elapsedSessionMs)
+        ));
         notifyObservers();
 
         if (quizManager == null) {
@@ -446,6 +523,53 @@ public class QuizViewModel extends AndroidViewModel {
                 history.score,
                 formatDuration(history.timeSpent)
         );
+    }
+
+    private void appendQuestionShownLog() {
+        QuizQuestion question = getCurrentQuestion();
+        if (question == null) {
+            return;
+        }
+        appendLog(String.format(
+                Locale.getDefault(),
+                "Hiển thị câu %d thuộc chủ đề %s.",
+                getCurrentQuestionNumber(),
+                safeValue(question.category, "không rõ")
+        ));
+    }
+
+    private void appendOutcomeLog(@Nullable QuizManager.AnswerOutcome outcome) {
+        if (outcome == null) {
+            return;
+        }
+        String selected = outcome.selectedAnswerKey == null || outcome.selectedAnswerKey.isEmpty()
+                ? "không chọn"
+                : outcome.selectedAnswerKey;
+        appendLog(String.format(
+                Locale.getDefault(),
+                "Câu %d: %s, đáp án đã chọn %s, đáp án đúng %s, +%d điểm, còn %s, combo %d.",
+                outcome.answeredCount,
+                outcome.timedOut ? "hết giờ" : (outcome.correct ? "trả lời đúng" : "trả lời sai"),
+                selected,
+                outcome.correctAnswerKey,
+                outcome.awardedScore,
+                formatDuration(remainingQuestionMs),
+                outcome.combo
+        ));
+    }
+
+    private void appendLog(@Nullable String entry) {
+        if (entry == null) {
+            return;
+        }
+        String trimmed = entry.trim();
+        if (!trimmed.isEmpty()) {
+            sessionLog.add(trimmed);
+        }
+    }
+
+    private String safeValue(@Nullable String value, @NonNull String fallback) {
+        return value == null || value.trim().isEmpty() ? fallback : value.trim();
     }
 
     private String formatDuration(long durationMs) {
