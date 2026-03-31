@@ -3,68 +3,22 @@
     android:id="@+id/chat_item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:clipChildren="false"
-    android:clipToPadding="false"
     android:paddingBottom="12dp">
 
     <LinearLayout
         android:id="@+id/chat_message_column"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:clipChildren="false"
-        android:clipToPadding="false"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/chat_reply_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="↩ Bạn đã trả lời Anh"
-            android:textColor="@color/gh_text_secondary"
-            android:textSize="11sp"
-            android:visibility="gone" />
-
         <FrameLayout
-            android:id="@+id/chat_stack"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clipChildren="false"
-            android:clipToPadding="false">
-
-            <LinearLayout
-                android:id="@+id/chat_reply_preview"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_chat_reply_preview_other"
-                android:gravity="center_vertical"
-                android:minHeight="32dp"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingTop="5dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="5dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/chat_reply_content"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="160dp"
-                    android:text="Mang đồ khô ô"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="12sp" />
-            </LinearLayout>
+            android:layout_height="wrap_content">
 
             <LinearLayout
                 android:id="@+id/chat_bubble"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
                 android:background="@drawable/bg_chat_bubble_other"
                 android:minWidth="104dp"
                 android:orientation="vertical"
@@ -92,13 +46,5 @@
                     android:textSize="14sp" />
             </LinearLayout>
         </FrameLayout>
-
-        <LinearLayout
-            android:id="@+id/chat_reactions_container"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="-8dp"
-            android:orientation="horizontal"
-            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

@@ -4,7 +4,6 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,6 +15,9 @@ import com.example.gamehub.data.pref.PreferenceManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ProfileActivity extends AppCompatActivity {
 
@@ -59,12 +61,37 @@ public class ProfileActivity extends AppCompatActivity {
                 return;
             }
 
-            // Lưu vào SharedPreferences
-            preferenceManager.putString(PreferenceManager.KEY_CACHE_NICKNAME, newNickname);
-            
-            Toast.makeText(this, "Đã cập nhật biệt danh thành công!", Toast.LENGTH_SHORT).show();
-            finish();
+            saveProfileToFirebase(newNickname);
         });
+    }
+
+    private void saveProfileToFirebase(String newNickname) {
+        FirebaseUser user = mAuth.getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "Bạn chưa đăng nhập", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        btnSaveProfile.setEnabled(false);
+        btnSaveProfile.setText("Đang lưu...");
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("nickname", newNickname);
+
+        firestore.collection("Users").document(user.getUid())
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    // Cập nhật SharedPreferences sau khi Firebase thành công
+                    preferenceManager.putString(PreferenceManager.KEY_CACHE_NICKNAME, newNickname);
+                    
+                    Toast.makeText(this, "Cập nhật thông tin thành công!", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    btnSaveProfile.setEnabled(true);
+                    btnSaveProfile.setText("Xác nhận");
+                    Toast.makeText(this, "Lỗi cập nhật: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
     }
 
     private void loadCurrentData() {
@@ -75,6 +102,7 @@ public class ProfileActivity extends AppCompatActivity {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
             etEditEmail.setText(user.getEmail());
+            etEditEmail.setEnabled(false); // Thường email không cho sửa trực tiếp ở đây
         }
 
         // Nạp avatar từ cache

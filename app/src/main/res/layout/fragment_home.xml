@@ -47,53 +47,63 @@
             android:layout_height="wrap_content"
             android:padding="24dp">
 
-            <!-- Header Section -->
-            <com.google.android.material.imageview.ShapeableImageView
-                android:id="@+id/ivHomeProfile"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:layout_marginTop="16dp"
-                android:src="@drawable/img_avatar_cat"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:shapeAppearanceOverlay="@style/CircleImageView"
-                app:strokeColor="#782A62"
-                app:strokeWidth="2dp" />
-
-            <TextView
-                android:id="@+id/tvHomeUsername"
-                android:layout_width="wrap_content"
+            <!-- Header Section Wrapper (Khung bao quanh phần thông tin cá nhân) -->
+            <LinearLayout
+                android:id="@+id/llHeaderWrapper"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="8dp"
-                android:text="qyuhn"
-                android:textColor="#251B6D"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toEndOf="@id/ivHomeProfile"
-                app:layout_constraintTop_toTopOf="@id/ivHomeProfile" />
+                android:background="@drawable/bg_profile_row"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                app:layout_constraintTop_toTopOf="parent">
 
-            <TextView
-                android:id="@+id/tvHomeRank"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Hạng: 2"
-                android:textColor="#6B7280"
-                android:textSize="16sp"
-                app:layout_constraintStart_toStartOf="@id/tvHomeUsername"
-                app:layout_constraintTop_toBottomOf="@id/tvHomeUsername" />
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/ivHomeProfile"
+                    android:layout_width="70dp"
+                    android:layout_height="70dp"
+                    android:src="@drawable/img_avatar_cat"
+                    app:shapeAppearanceOverlay="@style/CircleImageView"
+                    app:strokeColor="#782A62"
+                    app:strokeWidth="2dp" />
 
-            <!-- Greeting Text (Replacing Search Bar) -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvHomeUsername"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="qyuhn"
+                        android:textColor="#251B6D"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvHomeRank"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Hạng: 2"
+                        android:textColor="#6B7280"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Greeting Text -->
             <TextView
                 android:id="@+id/tvGreeting"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
+                android:layout_marginTop="24dp"
                 android:text="Chào mừng bạn quay trở lại!"
                 android:textColor="#251B6D"
                 android:textSize="20sp"
                 android:textStyle="italic"
-                app:layout_constraintTop_toBottomOf="@id/ivHomeProfile" />
+                app:layout_constraintTop_toBottomOf="@id/llHeaderWrapper" />
 
             <!-- Recently Accessed -->
             <TextView
@@ -145,20 +155,11 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/tvActivitySubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Một nơi tổng hợp tiến trình và lịch sử chơi của bạn."
-                    android:textColor="#6B7280"
-                    android:textSize="13sp" />
-
                 <LinearLayout
                     android:id="@+id/llActivityList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="vertical">
                     <!-- Dynamic Activity Items will be added here -->
                 </LinearLayout>
@@ -208,7 +209,6 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/llRecentQuiz" />
 
-            <!-- Dummy view to avoid crashes if Java code still looks for etSearchGame -->
             <EditText
                 android:id="@+id/etSearchGame"
                 android:layout_width="1dp"

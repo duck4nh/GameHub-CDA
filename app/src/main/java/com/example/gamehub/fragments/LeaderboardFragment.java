@@ -56,6 +56,8 @@ public class LeaderboardFragment extends Fragment {
     private int leaderboardRequestVersion;
     private boolean hasRenderedLeaderboard;
     private boolean requestedCurrentUserProfile;
+    @Nullable
+    private Boolean lastRenderedWeekly;
 
     @Nullable
     @Override
@@ -113,9 +115,11 @@ public class LeaderboardFragment extends Fragment {
     private void renderLeaderboard(boolean weekly) {
         int requestVersion = ++leaderboardRequestVersion;
         boolean hasInstantCache = repository.hasLeaderboardCache(weekly);
+        boolean switchingMode = lastRenderedWeekly == null || lastRenderedWeekly != weekly;
+        lastRenderedWeekly = weekly;
         repository.setLeaderboardFilter(weekly);
         setToggleState(weekly);
-        if (!hasRenderedLeaderboard && !hasInstantCache) {
+        if (!hasInstantCache && (!hasRenderedLeaderboard || switchingMode)) {
             leaderboardStatusText.setVisibility(View.VISIBLE);
             leaderboardStatusText.setText("Đang tải bảng xếp hạng...");
             leaderboardEmptyText.setVisibility(View.GONE);
@@ -160,6 +164,13 @@ public class LeaderboardFragment extends Fragment {
                 for (LeaderboardEntry entry : entries) {
                     if (entry.getRank() > 3 && !entry.isCurrentUser()) {
                         remaining.add(entry);
+                    }
+                }
+                if (remaining.isEmpty() && entries.size() > 1) {
+                    for (LeaderboardEntry entry : entries) {
+                        if (!entry.isCurrentUser()) {
+                            remaining.add(entry);
+                        }
                     }
                 }
                 adapter.submitList(remaining);

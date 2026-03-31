@@ -553,10 +553,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <View
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/leaderboard_summary_avatar"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                    android:src="@drawable/img_avatar_cat"
+                    app:shapeAppearanceOverlay="@style/CircleImageView"
+                    app:strokeColor="@color/gh_border_soft"
+                    app:strokeWidth="1dp" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -603,10 +607,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <View
+                <ImageView
+                    android:id="@+id/best_quiz_icon"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                    android:background="@drawable/bg_avatar_placeholder"
+                    android:padding="6dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/img_home_quiz" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -653,10 +661,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <View
+                <ImageView
+                    android:id="@+id/best_memory_icon"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                    android:background="@drawable/bg_avatar_placeholder"
+                    android:padding="6dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/img_home_memory" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -703,10 +715,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <View
+                <ImageView
+                    android:id="@+id/best_sudoku_icon"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                    android:background="@drawable/bg_avatar_placeholder"
+                    android:padding="6dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/img_home_sudoku" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -751,10 +767,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <View
+                <ImageView
+                    android:id="@+id/history_summary_icon"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:background="@drawable/bg_avatar_placeholder" />
+                    android:background="@drawable/bg_avatar_placeholder"
+                    android:padding="6dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_games" />
 
                 <LinearLayout
                     android:layout_width="0dp"
