@@ -1,6 +1,7 @@
 package com.example.gamehub.data.repository;
 
 import android.content.Context;
+import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -88,11 +89,30 @@ public class GameRepository {
         void onError(String message);
     }
 
+    public interface HistorySyncCallback {
+        void onCompleted(HistorySyncResult result);
+    }
+
     private static final String DEFAULT_NICKNAME = "Player";
     private static final String HISTORY_SYNC_WORK_NAME = "history_sync";
     private static final String GENERAL_CHAT_ROOM_ID = "general";
     private static final long LEADERBOARD_CACHE_TTL_MS = 45_000L;
     private static final long ENSURE_USER_DOC_TTL_MS = 120_000L;
+    private static final String TAG = "GameRepository";
+
+    public static final class HistorySyncResult {
+        public final boolean success;
+        public final int syncedCount;
+        public final int remainingCount;
+        public final String message;
+
+        public HistorySyncResult(boolean success, int syncedCount, int remainingCount, String message) {
+            this.success = success;
+            this.syncedCount = syncedCount;
+            this.remainingCount = remainingCount;
+            this.message = message == null ? "" : message;
+        }
+    }
 
     private static final class LeaderboardCacheEntry {
         final List<LeaderboardEntry> entries;
@@ -138,6 +158,7 @@ public class GameRepository {
 
     private ListenerRegistration chatListenerRegistration;
     private boolean localDataReady;
+    private volatile String lastHistorySyncStatusMessage = "";
     @Nullable private LeaderboardCacheEntry weeklyLeaderboardCache;
     @Nullable private LeaderboardCacheEntry allTimeLeaderboardCache;
     private boolean weeklyLeaderboardRefreshInFlight;
@@ -238,7 +259,12 @@ public class GameRepository {
     }
 
     public long saveHistory(LocalHistory historyItem) {
+        return saveHistory(historyItem, null);
+    }
+
+    public long saveHistory(LocalHistory historyItem, @Nullable HistorySyncCallback callback) {
         long insertedId = historyDao.insert(historyItem);
+        syncPendingHistoryNow(callback);
         triggerHistorySyncIfNeeded();
         return insertedId;
     }
@@ -585,6 +611,23 @@ public class GameRepository {
         return historyDao.getUnsyncedCount();
     }
 
+    public long getLastSyncTime() {
+        return preferenceManager.getLong(PreferenceManager.KEY_LAST_SYNC_TIME, 0L);
+    }
+
+    public String getLastHistorySyncStatusMessage() {
+        return lastHistorySyncStatusMessage == null ? "" : lastHistorySyncStatusMessage;
+    }
+
+    public void syncPendingHistoryNow(@Nullable HistorySyncCallback callback) {
+        ioExecutor.execute(() -> {
+            HistorySyncResult result = syncPendingHistoryBlocking();
+            if (callback != null) {
+                mainHandler.post(() -> callback.onCompleted(result));
+            }
+        });
+    }
+
     public List<LocalHistory> getHistory(@Nullable String filter) {
         triggerHistorySyncIfNeeded();
         List<LocalHistory> items = new ArrayList<>(historyDao.getAllNewestFirst());
@@ -848,25 +891,84 @@ public class GameRepository {
         }
 
         ioExecutor.execute(() -> {
-            String currentUid = getCurrentUid();
-            String cachedNickname = getCurrentNickname();
-            boolean syncedAnyRecord = false;
-            if (firebaseManager.canSyncHistoryResults(currentUid)) {
-                List<LocalHistory> pendingItems = historyDao.getUnsyncedHistory();
-                for (LocalHistory history : pendingItems) {
-                    if (firebaseManager.syncHistoryRecord(history, currentUid, cachedNickname)) {
-                        historyDao.markSynced(history.id);
-                        syncedAnyRecord = true;
-                    }
-                }
-            }
-
-            if (syncedAnyRecord) {
-                preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
-            }
-
+            syncPendingHistoryBlocking();
             mainHandler.post(() -> fetchLeaderboardFromCloud(weekly, callback));
         });
+    }
+
+    private HistorySyncResult syncPendingHistoryBlocking() {
+        int pendingCount = historyDao.getUnsyncedCount();
+        if (pendingCount <= 0) {
+            lastHistorySyncStatusMessage = "Không còn bản ghi nào chờ đồng bộ.";
+            return new HistorySyncResult(true, 0, 0, lastHistorySyncStatusMessage);
+        }
+
+        if (!NetworkUtils.isOnline(appContext)) {
+            lastHistorySyncStatusMessage = "Không có mạng. Kết quả đã lưu trên máy và sẽ tự đồng bộ khi có mạng.";
+            Log.w(TAG, "History sync skipped because device is offline. pending=" + pendingCount);
+            triggerHistorySyncIfNeeded();
+            return new HistorySyncResult(false, 0, pendingCount, lastHistorySyncStatusMessage);
+        }
+
+        syncSessionFromFirebase();
+        String currentUid = getCurrentUid();
+        if (!firebaseManager.canSyncHistoryResults(currentUid)) {
+            lastHistorySyncStatusMessage = "Chưa có tài khoản đăng nhập để đồng bộ Game_Records.";
+            Log.w(TAG, "History sync skipped because current uid is missing.");
+            triggerHistorySyncIfNeeded();
+            return new HistorySyncResult(false, 0, pendingCount, lastHistorySyncStatusMessage);
+        }
+
+        String cachedNickname = getCurrentNickname();
+        List<LocalHistory> pendingItems = historyDao.getUnsyncedHistory();
+        int syncedCount = 0;
+        String firstError = "";
+        for (LocalHistory history : pendingItems) {
+            FirebaseManager.SyncHistoryResult syncResult = firebaseManager.syncHistoryRecordDetailed(history, currentUid, cachedNickname);
+            if (syncResult.success) {
+                historyDao.markSynced(history.id);
+                syncedCount++;
+            } else if (firstError.isEmpty()) {
+                firstError = syncResult.message;
+            }
+        }
+
+        int remainingCount = historyDao.getUnsyncedCount();
+        if (syncedCount > 0) {
+            preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
+        }
+
+        String message;
+        boolean success;
+        if (remainingCount <= 0) {
+            success = true;
+            message = syncedCount > 0
+                    ? String.format(Locale.getDefault(), "Đã đồng bộ %d trận lên Firebase.", syncedCount)
+                    : "Không còn bản ghi nào chờ đồng bộ.";
+        } else if (syncedCount > 0) {
+            success = false;
+            message = String.format(
+                    Locale.getDefault(),
+                    "Đã đồng bộ %d trận, còn %d trận chưa lên Firebase. %s",
+                    syncedCount,
+                    remainingCount,
+                    firstError.isEmpty() ? "" : firstError
+            ).trim();
+        } else {
+            success = false;
+            message = firstError.isEmpty()
+                    ? "Chưa đồng bộ được trận nào lên Firebase."
+                    : "Lỗi đồng bộ Firebase: " + firstError;
+        }
+
+        lastHistorySyncStatusMessage = message;
+        if (!success) {
+            Log.w(TAG, "History sync incomplete. pending=" + pendingCount + ", synced=" + syncedCount + ", remaining=" + remainingCount + ", message=" + message);
+            triggerHistorySyncIfNeeded();
+        } else {
+            Log.i(TAG, "History sync completed. synced=" + syncedCount);
+        }
+        return new HistorySyncResult(success, syncedCount, remainingCount, message);
     }
 
     private void fetchLeaderboardFromCloud(boolean weekly, LeaderboardCallback callback) {

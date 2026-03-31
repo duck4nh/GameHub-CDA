@@ -1,6 +1,7 @@
 package com.example.gamehub.workers;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.work.Worker;
@@ -18,6 +19,8 @@ import com.google.firebase.auth.FirebaseUser;
 import java.util.List;
 
 public class SyncWorker extends Worker {
+    private static final String TAG = "SyncWorker";
+
     public SyncWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
     }
@@ -48,11 +51,13 @@ public class SyncWorker extends Worker {
         int syncedCount = 0;
         boolean hasFailure = false;
         for (LocalHistory history : pendingItems) {
-            if (firebaseManager.syncHistoryRecord(history, currentUid, cachedNickname)) {
+            FirebaseManager.SyncHistoryResult syncResult = firebaseManager.syncHistoryRecordDetailed(history, currentUid, cachedNickname);
+            if (syncResult.success) {
                 historyDao.markSynced(history.id);
                 syncedCount++;
             } else {
                 hasFailure = true;
+                Log.w(TAG, "Background history sync failed for id=" + history.id + ": " + syncResult.message);
             }
         }
 
