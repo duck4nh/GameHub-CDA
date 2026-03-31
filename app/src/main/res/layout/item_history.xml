@@ -8,10 +8,14 @@
     android:orientation="horizontal"
     android:padding="16dp">
 
-    <View
+    <ImageView
+        android:id="@+id/history_icon"
         android:layout_width="36dp"
         android:layout_height="36dp"
-        android:background="@drawable/bg_avatar_placeholder" />
+        android:background="@drawable/bg_avatar_placeholder"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_games" />
 
     <LinearLayout
         android:layout_width="0dp"

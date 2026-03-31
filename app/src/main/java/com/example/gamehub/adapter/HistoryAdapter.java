@@ -3,6 +3,7 @@ package com.example.gamehub.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -43,6 +44,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         LocalHistory item = items.get(position);
+        holder.iconView.setImageResource(resolveGameIcon(item.gameName));
         holder.titleView.setText(buildTitle(item));
         holder.subtitleView.setText(buildSubtitle(item));
         holder.itemView.setOnClickListener(v -> clickListener.onHistoryClick(item));
@@ -97,6 +99,19 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         return gameName;
     }
 
+    private int resolveGameIcon(String gameName) {
+        if ("quiz".equalsIgnoreCase(gameName)) {
+            return R.drawable.img_home_quiz;
+        }
+        if ("memory".equalsIgnoreCase(gameName)) {
+            return R.drawable.img_home_memory;
+        }
+        if ("sudoku".equalsIgnoreCase(gameName)) {
+            return R.drawable.img_home_sudoku;
+        }
+        return R.drawable.ic_games;
+    }
+
     private String mapStatus(String status) {
         if ("won".equalsIgnoreCase(status)) {
             return "Thắng";
@@ -118,11 +133,13 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
+        final ImageView iconView;
         final TextView titleView;
         final TextView subtitleView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
+            iconView = itemView.findViewById(R.id.history_icon);
             titleView = itemView.findViewById(R.id.history_title);
             subtitleView = itemView.findViewById(R.id.history_subtitle);
         }
