@@ -1,28 +1,33 @@
 package com.example.gamehub.fragments;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.gamehub.MainActivity;
 import com.example.gamehub.R;
-import com.example.gamehub.activities.FriendsActivity;
 import com.example.gamehub.adapter.ChatAdapter;
 import com.example.gamehub.data.repository.GameRepository;
 import com.example.gamehub.models.ChatMessage;
+import com.example.gamehub.models.User;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -43,9 +48,16 @@ public class ChatFragment extends Fragment {
     private TextView quizRoomSubtitleView;
     private TextView sudokuRoomSubtitleView;
     private EditText messageInput;
+    private View composerReplyContainer;
+    private TextView composerReplyTitle;
+    private TextView composerReplyContent;
+    private ImageView communityHeaderAvatar;
     private OnBackPressedCallback backPressedCallback;
     private String activeRoomId = ROOM_GENERAL;
     private String activeRoomSuffix = "";
+    private boolean requestedCurrentUserProfile;
+    @Nullable
+    private ChatMessage replyingToMessage;
 
     @Nullable
     @Override
@@ -57,6 +69,17 @@ public class ChatFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         repository = GameRepository.getInstance(requireContext());
         adapter = new ChatAdapter();
+        adapter.setMessageActionListener(new ChatAdapter.MessageActionListener() {
+            @Override
+            public void onMessageLongPressed(ChatMessage message) {
+                showMessageActions(message);
+            }
+
+            @Override
+            public void onReplyPreviewClicked(ChatMessage message) {
+                scrollToReferencedMessage(message);
+            }
+        });
 
         roomsContainer = view.findViewById(R.id.community_rooms_container);
         chatRoomContainer = view.findViewById(R.id.chat_room_container);
@@ -67,6 +90,10 @@ public class ChatFragment extends Fragment {
         quizRoomSubtitleView = view.findViewById(R.id.room_quiz_subtitle);
         sudokuRoomSubtitleView = view.findViewById(R.id.room_sudoku_subtitle);
         messageInput = view.findViewById(R.id.message_input);
+        composerReplyContainer = view.findViewById(R.id.composer_reply_container);
+        composerReplyTitle = view.findViewById(R.id.composer_reply_title);
+        composerReplyContent = view.findViewById(R.id.composer_reply_content);
+        communityHeaderAvatar = view.findViewById(R.id.community_header_avatar);
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
         chatMessages.setLayoutManager(layoutManager);
@@ -78,15 +105,7 @@ public class ChatFragment extends Fragment {
         view.findViewById(R.id.room_sudoku).setOnClickListener(v -> openRoom(ROOM_SUDOKU, "Câu lạc bộ Sudoku", "xếp hạng tuần"));
         view.findViewById(R.id.chat_back).setOnClickListener(v -> showRooms());
         view.findViewById(R.id.send_button).setOnClickListener(v -> sendMessage());
-
-        // Thiết lập sự kiện click cho icon kết bạn
-        View ivAddFriend = view.findViewById(R.id.ivAddFriend);
-        if (ivAddFriend != null) {
-            ivAddFriend.setOnClickListener(v -> {
-                Intent intent = new Intent(getActivity(), FriendsActivity.class);
-                startActivity(intent);
-            });
-        }
+        view.findViewById(R.id.composer_reply_close).setOnClickListener(v -> clearReplyComposer());
 
         backPressedCallback = new OnBackPressedCallback(false) {
             @Override
@@ -97,18 +116,21 @@ public class ChatFragment extends Fragment {
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backPressedCallback);
 
         showRooms();
+        bindCurrentUserAvatar();
         refreshRoomSummaries();
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        bindCurrentUserAvatar();
         refreshRoomSummaries();
     }
 
     private void openRoom(String roomId, String title, String suffix) {
         activeRoomId = roomId;
         activeRoomSuffix = suffix;
+        clearReplyComposer();
         chatTitle.setText(title);
         chatSubtitle.setText("Đang tải cuộc trò chuyện...");
         roomsContainer.setVisibility(View.GONE);
@@ -127,7 +149,7 @@ public class ChatFragment extends Fragment {
                     chatSubtitle.setText(subtitle + " · chưa có tin nhắn");
                 } else {
                     chatSubtitle.setText(subtitle);
-                    chatMessages.post(() -> chatMessages.scrollToPosition(adapter.getItemCount() - 1));
+                    chatMessages.post(() -> chatMessages.scrollToPosition(Math.max(0, adapter.getItemCount() - 1)));
                 }
             }
 
@@ -144,6 +166,7 @@ public class ChatFragment extends Fragment {
 
     private void showRooms() {
         repository.stopChatMessagesListener();
+        clearReplyComposer();
         chatRoomContainer.setVisibility(View.GONE);
         roomsContainer.setVisibility(View.VISIBLE);
         refreshRoomSummaries();
@@ -154,13 +177,14 @@ public class ChatFragment extends Fragment {
     }
 
     private void sendMessage() {
-        repository.sendChatMessage(activeRoomId, messageInput.getText().toString(), new GameRepository.ActionCallback() {
+        repository.sendChatMessage(activeRoomId, messageInput.getText().toString(), replyingToMessage, new GameRepository.ActionCallback() {
             @Override
             public void onSuccess() {
                 if (!isAdded()) {
                     return;
                 }
                 messageInput.setText("");
+                clearReplyComposer();
             }
 
             @Override
@@ -171,6 +195,85 @@ public class ChatFragment extends Fragment {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void beginReply(ChatMessage message) {
+        replyingToMessage = message;
+        composerReplyContainer.setVisibility(View.VISIBLE);
+        String senderLabel = message.getSenderUid().equals(repository.getCurrentUid()) ? "chính bạn" : message.getSenderNickname();
+        composerReplyTitle.setText("Đang trả lời " + senderLabel);
+        composerReplyContent.setText(message.getContent());
+        messageInput.requestFocus();
+    }
+
+    private void clearReplyComposer() {
+        replyingToMessage = null;
+        composerReplyContainer.setVisibility(View.GONE);
+        composerReplyTitle.setText("");
+        composerReplyContent.setText("");
+    }
+
+    private void showMessageActions(ChatMessage message) {
+        if (!isAdded()) {
+            return;
+        }
+
+        List<CharSequence> options = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        options.add("Trả lời");
+        actions.add(() -> beginReply(message));
+
+        options.add("👍 Thích");
+        actions.add(() -> reactToMessage(message, "👍"));
+        options.add("❤️ Yêu thích");
+        actions.add(() -> reactToMessage(message, "❤️"));
+        options.add("😂 Haha");
+        actions.add(() -> reactToMessage(message, "😂"));
+        options.add("😮 Bất ngờ");
+        actions.add(() -> reactToMessage(message, "😮"));
+
+        if (!message.getUserReaction(repository.getCurrentUid()).isEmpty()) {
+            options.add("Gỡ cảm xúc");
+            actions.add(() -> reactToMessage(message, ""));
+        }
+
+        new AlertDialog.Builder(requireContext())
+                .setItems(options.toArray(new CharSequence[0]), (dialog, which) -> actions.get(which).run())
+                .show();
+    }
+
+    private void reactToMessage(ChatMessage message, String emoji) {
+        repository.toggleChatReaction(message, emoji, new GameRepository.ActionCallback() {
+            @Override
+            public void onSuccess() {
+                // Snapshot listener sẽ tự cập nhật lại danh sách.
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) {
+                    return;
+                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void scrollToReferencedMessage(ChatMessage message) {
+        String targetMessageId = message.getReplyToMessageId();
+        int position = adapter.findPositionByMessageId(targetMessageId);
+        if (position == RecyclerView.NO_POSITION) {
+            Toast.makeText(requireContext(), "Không tìm thấy tin nhắn gốc trong cuộc trò chuyện này.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        adapter.highlightMessage(targetMessageId);
+        RecyclerView.LayoutManager layoutManager = chatMessages.getLayoutManager();
+        if (layoutManager instanceof LinearLayoutManager) {
+            ((LinearLayoutManager) layoutManager).scrollToPositionWithOffset(position, 32);
+        } else {
+            chatMessages.scrollToPosition(position);
+        }
+        chatMessages.postDelayed(() -> adapter.highlightMessage(null), 1600L);
     }
 
     private void refreshRoomSummaries() {
@@ -211,7 +314,7 @@ public class ChatFragment extends Fragment {
     }
 
     private int countParticipants(List<ChatMessage> messages) {
-        java.util.HashSet<String> participants = new java.util.HashSet<>();
+        HashSet<String> participants = new HashSet<>();
         for (ChatMessage message : messages) {
             if (!message.getSenderUid().isEmpty()) {
                 participants.add(message.getSenderUid());
@@ -226,6 +329,63 @@ public class ChatFragment extends Fragment {
         if (requireActivity() instanceof MainActivity) {
             ((MainActivity) requireActivity()).setBottomNavVisible(visible);
         }
+    }
+
+    private void bindCurrentUserAvatar() {
+        loadAvatar(repository.getCachedAvatarUrl());
+        if (requestedCurrentUserProfile) {
+            return;
+        }
+        requestedCurrentUserProfile = true;
+        repository.fetchCurrentUserProfile(new GameRepository.UserProfileCallback() {
+            @Override
+            public void onLoaded(User user) {
+                if (!isAdded()) {
+                    return;
+                }
+                loadAvatar(user.getAvatarUrl());
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) {
+                    return;
+                }
+                loadAvatar("");
+            }
+        });
+    }
+
+    private void loadAvatar(@Nullable String url) {
+        if (!isAdded()) {
+            return;
+        }
+        String optimizedUrl = url == null ? "" : url.trim();
+        if (optimizedUrl.contains("/svg")) {
+            optimizedUrl = optimizedUrl.replace("/svg", "/png");
+        } else if (optimizedUrl.endsWith(".svg")) {
+            optimizedUrl = optimizedUrl.replace(".svg", ".png");
+        }
+        String cacheKey = optimizedUrl.isEmpty() ? "__fallback__" : optimizedUrl;
+        loadIntoAvatarView(communityHeaderAvatar, optimizedUrl, cacheKey);
+    }
+
+    private void loadIntoAvatarView(@Nullable ImageView imageView, String url, String cacheKey) {
+        if (imageView == null) {
+            return;
+        }
+        Object currentTag = imageView.getTag();
+        if (cacheKey.equals(currentTag)) {
+            return;
+        }
+        imageView.setTag(cacheKey);
+        Glide.with(this)
+                .load(url.isEmpty() ? R.drawable.img_avatar_cat : url)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.img_avatar_cat)
+                .error(R.drawable.img_avatar_cat)
+                .circleCrop()
+                .into(imageView);
     }
 
     @Override
