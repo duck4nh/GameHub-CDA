@@ -2,9 +2,14 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_profile_row"
     android:gravity="center_vertical"
-    android:paddingVertical="8dp"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:paddingBottom="12dp"
+    android:paddingEnd="12dp"
+    android:paddingStart="40dp"
+    android:paddingTop="12dp">
 
     <TextView
         android:id="@+id/tvActivityTitle"
@@ -12,15 +17,16 @@
         android:layout_height="wrap_content"
         android:text="Activity Title"
         android:textColor="#251B6D"
-        android:textSize="15sp"
+        android:textSize="14sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvActivityTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:text="Time status"
         android:textColor="#9CA3AF"
-        android:textSize="12sp" />
+        android:textSize="11sp" />
 
 </LinearLayout>
