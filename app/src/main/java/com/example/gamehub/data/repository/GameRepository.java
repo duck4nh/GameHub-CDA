@@ -1228,7 +1228,7 @@ public class GameRepository {
                 readInt(document, "score"),
                 readLong(document, "time_played"),
                 readString(document, "status"),
-                readLong(document, "date")
+                readDateMillis(document, "date")
         );
     }
 
@@ -1339,6 +1339,18 @@ public class GameRepository {
             }
         }
         return 0L;
+    }
+
+    private long readDateMillis(DocumentSnapshot document, String field) {
+        long rawValue = readLong(document, field);
+        if (rawValue <= 0L) {
+            return 0L;
+        }
+        // Backward compatibility: some records may store Unix seconds instead of milliseconds.
+        if (rawValue < 100_000_000_000L) {
+            return rawValue * 1000L;
+        }
+        return rawValue;
     }
 
     private Map<String, User> buildUsersByUid(List<DocumentSnapshot> documents) {

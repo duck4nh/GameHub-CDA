@@ -30,13 +30,18 @@ public class StatisticsFragment extends Fragment {
     private TextView metricStreak;
     private TextView metricStreakCaption;
     private TextView leaderboardSummaryCaption;
+    private ImageView leaderboardSummaryAvatar;
     private View bestQuizRow;
     private TextView bestQuizTime;
+    private ImageView bestQuizIcon;
     private View bestMemoryRow;
     private TextView bestMemoryTime;
+    private ImageView bestMemoryIcon;
     private View bestSudokuRow;
     private TextView bestSudokuTime;
+    private ImageView bestSudokuIcon;
     private TextView historySummaryCaption;
+    private ImageView historySummaryIcon;
     private ImageView headerAvatar;
     private TextView chartOverviewText;
     private TextView chartWeekTotalChip;
@@ -60,13 +65,18 @@ public class StatisticsFragment extends Fragment {
         metricStreak = view.findViewById(R.id.metric_streak);
         metricStreakCaption = view.findViewById(R.id.metric_streak_caption);
         leaderboardSummaryCaption = view.findViewById(R.id.leaderboard_summary_caption);
+        leaderboardSummaryAvatar = view.findViewById(R.id.leaderboard_summary_avatar);
         bestQuizRow = view.findViewById(R.id.best_quiz_row);
         bestQuizTime = view.findViewById(R.id.best_quiz_time);
+        bestQuizIcon = view.findViewById(R.id.best_quiz_icon);
         bestMemoryRow = view.findViewById(R.id.best_memory_row);
         bestMemoryTime = view.findViewById(R.id.best_memory_time);
+        bestMemoryIcon = view.findViewById(R.id.best_memory_icon);
         bestSudokuRow = view.findViewById(R.id.best_sudoku_row);
         bestSudokuTime = view.findViewById(R.id.best_sudoku_time);
+        bestSudokuIcon = view.findViewById(R.id.best_sudoku_icon);
         historySummaryCaption = view.findViewById(R.id.history_summary_caption);
+        historySummaryIcon = view.findViewById(R.id.history_summary_icon);
         headerAvatar = view.findViewById(R.id.stats_header_avatar);
         chartOverviewText = view.findViewById(R.id.chart_overview_text);
         chartWeekTotalChip = view.findViewById(R.id.chart_week_total_chip);
@@ -113,6 +123,7 @@ public class StatisticsFragment extends Fragment {
             ((MainActivity) requireActivity()).setBottomNavVisible(true);
         }
 
+        bindSummaryIcons();
         bindCurrentUserAvatar();
         renderStatistics();
     }
@@ -121,6 +132,7 @@ public class StatisticsFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (getView() != null) {
+            bindSummaryIcons();
             bindCurrentUserAvatar();
             renderStatistics();
         }
@@ -270,7 +282,7 @@ public class StatisticsFragment extends Fragment {
     }
 
     private void loadAvatar(@Nullable String url) {
-        if (headerAvatar == null || !isAdded()) {
+        if (!isAdded()) {
             return;
         }
 
@@ -281,19 +293,8 @@ public class StatisticsFragment extends Fragment {
             optimizedUrl = optimizedUrl.replace(".svg", ".png");
         }
         String cacheKey = optimizedUrl.isEmpty() ? "__fallback__" : optimizedUrl;
-        Object currentTag = headerAvatar.getTag();
-        if (cacheKey.equals(currentTag)) {
-            return;
-        }
-        headerAvatar.setTag(cacheKey);
-
-        Glide.with(this)
-                .load(optimizedUrl.isEmpty() ? R.drawable.img_avatar_cat : optimizedUrl)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .placeholder(R.drawable.img_avatar_cat)
-                .error(R.drawable.img_avatar_cat)
-                .circleCrop()
-                .into(headerAvatar);
+        loadAvatarInto(headerAvatar, optimizedUrl, cacheKey);
+        loadAvatarInto(leaderboardSummaryAvatar, optimizedUrl, cacheKey);
     }
 
     private int dpToPx(int dp) {
@@ -305,5 +306,38 @@ public class StatisticsFragment extends Fragment {
         long minutes = totalSeconds / 60L;
         long seconds = totalSeconds % 60L;
         return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+    }
+
+    private void bindSummaryIcons() {
+        if (bestQuizIcon != null) {
+            bestQuizIcon.setImageResource(R.drawable.img_home_quiz);
+        }
+        if (bestMemoryIcon != null) {
+            bestMemoryIcon.setImageResource(R.drawable.img_home_memory);
+        }
+        if (bestSudokuIcon != null) {
+            bestSudokuIcon.setImageResource(R.drawable.img_home_sudoku);
+        }
+        if (historySummaryIcon != null) {
+            historySummaryIcon.setImageResource(R.drawable.ic_games);
+        }
+    }
+
+    private void loadAvatarInto(@Nullable ImageView imageView, @NonNull String optimizedUrl, @NonNull String cacheKey) {
+        if (imageView == null) {
+            return;
+        }
+        Object currentTag = imageView.getTag();
+        if (cacheKey.equals(currentTag)) {
+            return;
+        }
+        imageView.setTag(cacheKey);
+        Glide.with(this)
+                .load(optimizedUrl.isEmpty() ? R.drawable.img_avatar_cat : optimizedUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.img_avatar_cat)
+                .error(R.drawable.img_avatar_cat)
+                .circleCrop()
+                .into(imageView);
     }
 }
