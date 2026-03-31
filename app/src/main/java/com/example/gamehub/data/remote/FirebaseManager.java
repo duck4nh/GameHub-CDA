@@ -1,5 +1,7 @@
 package com.example.gamehub.data.remote;
 
+import android.util.Log;
+
 import com.example.gamehub.data.local.entities.LocalHistory;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
@@ -13,6 +15,17 @@ import java.util.Locale;
 import java.util.Map;
 
 public class FirebaseManager {
+    public static final class SyncHistoryResult {
+        public final boolean success;
+        public final String message;
+
+        public SyncHistoryResult(boolean success, String message) {
+            this.success = success;
+            this.message = message == null ? "" : message;
+        }
+    }
+
+    private static final String TAG = "FirebaseManager";
     private final FirebaseFirestore firestore = FirebaseFirestore.getInstance();
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
 
@@ -37,8 +50,12 @@ public class FirebaseManager {
     }
 
     public boolean syncHistoryRecord(LocalHistory history, String currentUid, String cachedNickname) {
+        return syncHistoryRecordDetailed(history, currentUid, cachedNickname).success;
+    }
+
+    public SyncHistoryResult syncHistoryRecordDetailed(LocalHistory history, String currentUid, String cachedNickname) {
         if (history == null || currentUid == null || currentUid.trim().isEmpty()) {
-            return false;
+            return new SyncHistoryResult(false, "Thiếu tài khoản hiện tại để đồng bộ.");
         }
 
         String recordId = buildRecordId(currentUid, history.id);
@@ -48,6 +65,7 @@ public class FirebaseManager {
         try {
             Tasks.await(firestore.runTransaction(transaction -> {
                 DocumentSnapshot existingRecord = transaction.get(recordRef);
+                DocumentSnapshot userSnapshot = transaction.get(userRef);
                 if (existingRecord.exists()) {
                     return null;
                 }
@@ -62,7 +80,6 @@ public class FirebaseManager {
                 recordPayload.put("date", history.playDate);
                 transaction.set(recordRef, recordPayload);
 
-                DocumentSnapshot userSnapshot = transaction.get(userRef);
                 if (userSnapshot.exists()) {
                     long currentScore = readLong(userSnapshot.get(FIELD_TOTAL_SCORE));
                     Map<String, Object> updates = new HashMap<>();
@@ -87,9 +104,15 @@ public class FirebaseManager {
                 }
                 return null;
             }));
-            return true;
+            Log.i(TAG, "Synced history id=" + history.id + " to Game_Records/" + recordId);
+            return new SyncHistoryResult(true, "Đã đồng bộ trận lên Firebase.");
         } catch (Exception error) {
-            return false;
+            String rawMessage = error.getMessage();
+            String message = rawMessage == null || rawMessage.trim().isEmpty()
+                    ? "Không ghi được Game_Records lên Firebase."
+                    : rawMessage.trim();
+            Log.e(TAG, "Failed to sync history id=" + history.id + " to Firebase. uid=" + currentUid, error);
+            return new SyncHistoryResult(false, message);
         }
     }
 
@@ -99,10 +122,10 @@ public class FirebaseManager {
 
     private String mapGameType(String gameName) {
         String normalized = gameName == null ? "" : gameName.toLowerCase(Locale.getDefault());
-        if (normalized.contains("đố vui")) {
+        if (normalized.contains("quiz") || normalized.contains("đố vui")) {
             return "Quiz";
         }
-        if (normalized.contains("ghi nhớ")) {
+        if (normalized.contains("memory") || normalized.contains("ghi nhớ")) {
             return "Memory";
         }
         return "Sudoku";
@@ -116,11 +139,8 @@ public class FirebaseManager {
     }
 
     private long readLong(Object value) {
-        if (value instanceof Long) {
-            return (Long) value;
-        }
-        if (value instanceof Integer) {
-            return ((Integer) value).longValue();
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
         }
         return 0L;
     }

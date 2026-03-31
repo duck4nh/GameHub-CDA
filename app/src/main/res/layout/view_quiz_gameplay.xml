@@ -344,7 +344,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:gravity="center"
-            android:text="Chưa có câu hỏi trong DB cục bộ."
+            android:text="Chưa có câu hỏi phù hợp để hiển thị."
             android:textColor="@color/gh_text_secondary"
             android:textSize="14sp"
             android:visibility="gone" />

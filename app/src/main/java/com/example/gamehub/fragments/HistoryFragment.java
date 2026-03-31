@@ -21,8 +21,7 @@ import com.example.gamehub.data.repository.GameRepository;
 public class HistoryFragment extends Fragment {
     private GameRepository repository;
     private HistoryAdapter historyAdapter;
-    private TextView queueBannerTitle;
-    private TextView queueBannerSubtitle;
+    private View queueBanner;
     private TextView filterAll;
     private TextView filterQuiz;
     private TextView filterMemory;
@@ -40,8 +39,7 @@ public class HistoryFragment extends Fragment {
         repository = GameRepository.getInstance(requireContext());
         historyAdapter = new HistoryAdapter(this::openHistoryDetail);
 
-        queueBannerTitle = view.findViewById(R.id.queue_banner_title);
-        queueBannerSubtitle = view.findViewById(R.id.queue_banner_subtitle);
+        queueBanner = view.findViewById(R.id.queue_banner);
         filterAll = view.findViewById(R.id.filter_all);
         filterQuiz = view.findViewById(R.id.filter_quiz);
         filterMemory = view.findViewById(R.id.filter_memory);
@@ -62,7 +60,9 @@ public class HistoryFragment extends Fragment {
             ((MainActivity) requireActivity()).setBottomNavVisible(true);
         }
 
-        renderQueueBanner();
+        if (queueBanner != null) {
+            queueBanner.setVisibility(View.GONE);
+        }
         applyFilter(selectedFilter);
     }
 
@@ -70,19 +70,7 @@ public class HistoryFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (getView() != null) {
-            renderQueueBanner();
             applyFilter(selectedFilter);
-        }
-    }
-
-    private void renderQueueBanner() {
-        int unsyncedCount = repository.getUnsyncedCount();
-        if (unsyncedCount > 0) {
-            queueBannerTitle.setText(getString(R.string.history_queue_pending_title, unsyncedCount));
-            queueBannerSubtitle.setText(R.string.history_queue_pending_subtitle);
-        } else {
-            queueBannerTitle.setText(R.string.history_queue_empty_title);
-            queueBannerSubtitle.setText(R.string.history_queue_empty_subtitle);
         }
     }
 

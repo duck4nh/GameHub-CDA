@@ -34,3 +34,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Agent instructions
+AGENTS.md
+agents.md
+agent.md

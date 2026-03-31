@@ -11,12 +11,9 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.OnBackPressedCallback;
-import androidx.work.OneTimeWorkRequest;
-import androidx.work.WorkManager;
 
 import com.example.gamehub.R;
 import com.example.gamehub.data.local.AppDatabase;
-import com.example.gamehub.data.local.dao.HistoryDao;
 import com.example.gamehub.data.local.dao.SudokuDao;
 import com.example.gamehub.data.local.dao.SudokuGameStateDao;
 import com.example.gamehub.data.local.dao.SudokuStatsDao;
@@ -25,8 +22,7 @@ import com.example.gamehub.data.local.entities.SudokuBoard;
 import com.example.gamehub.data.local.entities.SudokuGameState;
 import com.example.gamehub.data.local.entities.SudokuStats;
 import com.example.gamehub.data.pref.PreferenceManager;
-import com.example.gamehub.data.remote.FirebaseManager;
-import com.example.gamehub.workers.SyncWorker;
+import com.example.gamehub.data.repository.GameRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,8 +46,8 @@ public class SudokuActivity extends AppCompatActivity {
     private SudokuDao sudokuDao;
     private SudokuGameStateDao sudokuGameStateDao;
     private SudokuStatsDao sudokuStatsDao;
-    private HistoryDao historyDao;
     private PreferenceManager preferenceManager;
+    private GameRepository repository;
 
     private View setupScreen;
     private View gameplayScreen;
@@ -104,8 +100,8 @@ public class SudokuActivity extends AppCompatActivity {
         sudokuDao = database.sudokuDao();
         sudokuGameStateDao = database.sudokuGameStateDao();
         sudokuStatsDao = database.sudokuStatsDao();
-        historyDao = database.historyDao();
         preferenceManager = new PreferenceManager(this);
+        repository = GameRepository.getInstance(this);
 
         bindViews();
         bindActions();
@@ -389,7 +385,7 @@ public class SudokuActivity extends AppCompatActivity {
         continueCard.setAlpha(canContinue ? 1f : 0.75f);
         if (!canContinue) {
             continueTitleView.setText("Chưa có bàn đang chơi dở");
-            continueSummaryView.setText("Dữ liệu cục bộ sẽ xuất hiện ở đây khi bạn tạm dừng ván.");
+            continueSummaryView.setText("Ván gần nhất sẽ hiện ở đây để bạn quay lại nhanh hơn.");
             return;
         }
 
@@ -398,7 +394,7 @@ public class SudokuActivity extends AppCompatActivity {
         continueTitleView.setText("Tiếp tục · " + getLevelLabel(continueBoard.level));
         continueSummaryView.setText(String.format(
                 Locale.getDefault(),
-                "%s đã lưu cục bộ · %d/81 ô đúng",
+                "%s đã chơi · %d/81 ô đúng",
                 formatDuration(continueState.elapsedTime),
                 correctCells
         ));
@@ -432,7 +428,7 @@ public class SudokuActivity extends AppCompatActivity {
     private void startSelectedLevel() {
         SudokuBoard board = sudokuDao.getBoardByLevel(selectedLevel);
         if (board == null) {
-            Toast.makeText(this, "Chưa có bàn Sudoku cục bộ cho level này.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Chưa có bàn Sudoku cho cấp độ này.", Toast.LENGTH_SHORT).show();
             return;
         }
         sudokuGameStateDao.clearStateForBoard(board.id);
@@ -500,7 +496,7 @@ public class SudokuActivity extends AppCompatActivity {
         handler.removeCallbacks(timerRunnable);
         saveInProgressState();
         subtitleView.setText("Tạm dừng");
-        pauseMessageView.setText("Bàn hiện tại đã được lưu cục bộ, nên bạn có thể tiếp tục ngay hoặc quay lại sau.");
+        pauseMessageView.setText("Bạn có thể tiếp tục ngay hoặc quay lại sau.");
         pauseOverlay.setVisibility(View.VISIBLE);
     }
 
@@ -527,12 +523,15 @@ public class SudokuActivity extends AppCompatActivity {
         sudokuGameStateDao.clearStateForBoard(currentBoardEntity.id);
 
         int reward = won ? 100 : 0;
-        historyDao.insert(new LocalHistory("Sudoku", won ? "won" : "lost", reward, elapsedTimeMs, System.currentTimeMillis(), false));
+        LocalHistory history = new LocalHistory(
+                "Sudoku",
+                won ? "won" : "lost",
+                reward,
+                elapsedTimeMs,
+                System.currentTimeMillis(),
+                false
+        );
         updateSudokuStats(won);
-        enqueueSudokuSync();
-
-        FirebaseManager firebaseManager = new FirebaseManager();
-        boolean canSync = firebaseManager.canSyncSudokuResults();
 
         resultTitleView.setText(String.format(Locale.getDefault(), "Hoàn thành trong %s", formatDuration(elapsedTimeMs)));
         resultSubtitleView.setText(String.format(
@@ -546,12 +545,20 @@ public class SudokuActivity extends AppCompatActivity {
         resultLevelValueView.setText(getLevelLabel(currentBoardEntity.level));
         resultErrorsValueView.setText(String.valueOf(currentErrorCount));
         resultRewardValueView.setText(String.format(Locale.getDefault(), "+%d", reward));
-        resultSyncBadgeView.setText(canSync ? "Sẵn sàng đồng bộ" : "Chờ cấu hình đồng bộ");
-        resultSyncBadgeView.setBackgroundResource(canSync ? R.drawable.bg_chip_success : R.drawable.bg_chip_warning);
-        resultNoteView.setText(canSync
-                ? "Đã lưu vào lịch sử, cập nhật vào thống kê và sẵn sàng cho lần đồng bộ trực tuyến tiếp theo."
-                : "Đã lưu vào lịch sử, cập nhật vào thống kê và chờ cấu hình đồng bộ trực tuyến của dự án.");
+        resultSyncBadgeView.setText("Đang kiểm tra");
+        resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_brand);
+        resultNoteView.setText("Kết quả của bạn đã được lưu. Hệ thống đang thử gửi trận này lên Firebase.");
         showResultScreen();
+
+        repository.saveHistory(history, result -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            applySyncResultToResultUi(result);
+            if (!result.success && result.message != null && !result.message.trim().isEmpty()) {
+                Toast.makeText(this, result.message, Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void updateSudokuStats(boolean won) {
@@ -570,8 +577,24 @@ public class SudokuActivity extends AppCompatActivity {
         sudokuStatsDao.updateStats(stats.id, played, winCount, bestTime);
     }
 
-    private void enqueueSudokuSync() {
-        WorkManager.getInstance(this).enqueue(new OneTimeWorkRequest.Builder(SyncWorker.class).build());
+    private void applySyncResultToResultUi(GameRepository.HistorySyncResult result) {
+        if (result == null) {
+            resultSyncBadgeView.setText("Đã lưu");
+            resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_warning);
+            resultNoteView.setText("Kết quả của bạn đã được lưu trong lịch sử.");
+            return;
+        }
+
+        if (result.success && result.remainingCount <= 0) {
+            resultSyncBadgeView.setText("Đã lên Firebase");
+            resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_success);
+            resultNoteView.setText("Kết quả của bạn đã lên Firebase và sẽ được dùng cho bảng xếp hạng.");
+            return;
+        }
+
+        resultSyncBadgeView.setText("Đã lưu");
+        resultSyncBadgeView.setBackgroundResource(R.drawable.bg_chip_warning);
+        resultNoteView.setText("Kết quả của bạn đã được lưu trong lịch sử. Ứng dụng sẽ thử đồng bộ lại sau.");
     }
 
     private void saveInProgressState() {

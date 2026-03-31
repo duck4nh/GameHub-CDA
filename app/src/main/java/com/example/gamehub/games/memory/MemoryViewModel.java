@@ -80,6 +80,7 @@ public class MemoryViewModel extends AndroidViewModel {
     private int boardStateVersion;
     private long remainingTimeMs;
     private long elapsedTimeMs;
+    private String pendingSyncToastMessage = "";
 
     public MemoryViewModel(@NonNull Application application) {
         super(application);
@@ -344,6 +345,16 @@ public class MemoryViewModel extends AndroidViewModel {
         return currentLevelIndex + 1;
     }
 
+    @androidx.annotation.Nullable
+    public String consumePendingSyncToastMessage() {
+        if (pendingSyncToastMessage == null || pendingSyncToastMessage.trim().isEmpty()) {
+            return null;
+        }
+        String value = pendingSyncToastMessage;
+        pendingSyncToastMessage = "";
+        return value;
+    }
+
     private void finishGame(boolean won) {
         currentScreen = Screen.RESULT;
         pauseVisible = false;
@@ -375,7 +386,12 @@ public class MemoryViewModel extends AndroidViewModel {
         );
 
         executor.execute(() -> {
-            repository.saveHistory(history);
+            repository.saveHistory(history, result -> {
+                if (!result.success && result.message != null && !result.message.trim().isEmpty()) {
+                    pendingSyncToastMessage = result.message;
+                    notifyObservers();
+                }
+            });
             repository.completeMemoryLevel(currentLevel.levelId, elapsedTimeMs, won);
             List<MemoryLevel> refreshedLevels = repository.getMemoryLevels();
             mainHandler.post(() -> {

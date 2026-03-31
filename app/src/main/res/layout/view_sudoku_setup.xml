@@ -100,7 +100,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:paddingEnd="8dp"
-                        android:text="Dữ liệu cục bộ sẽ xuất hiện ở đây khi bạn tạm dừng ván."
+                        android:text="Ván gần nhất sẽ hiện ở đây để bạn quay lại nhanh hơn."
                         android:textColor="@color/gh_text_secondary"
                         android:textSize="14sp" />
                 </LinearLayout>

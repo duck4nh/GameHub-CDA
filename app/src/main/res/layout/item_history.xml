@@ -34,7 +34,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="17/20 · 06:21 · đã đồng bộ"
+            android:text="Thắng · 120 điểm · 06:21 · đã lưu"
             android:textColor="@color/gh_text_secondary"
             android:textSize="11sp" />
     </LinearLayout>

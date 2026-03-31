@@ -30,7 +30,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Bàn hiện tại đã được lưu cục bộ, nên bạn có thể tiếp tục ngay hoặc quay lại sau."
+            android:text="Bạn có thể tiếp tục ngay hoặc quay lại sau."
             android:textColor="@color/gh_text_secondary"
             android:textSize="14sp" />
 

@@ -240,7 +240,7 @@ public class QuizActivity extends AppCompatActivity {
 
     private void renderSetup() {
         selectedTopicHeroView.setText(viewModel.getSelectedCategoriesHeroLabel());
-        selectedSummaryView.setText(viewModel.isLoading() ? "Đang tải ngân hàng câu hỏi cục bộ..." : viewModel.getSetupSummary());
+        selectedSummaryView.setText(viewModel.isLoading() ? "Đang tải câu hỏi..." : viewModel.getSetupSummary());
         selectedTopicView.setText(viewModel.getSelectedCategoriesLabel());
         selectedDifficultyView.setText(viewModel.getSelectedDifficultyLabel());
         selectedDifficultyHelperView.setText(viewModel.getDifficultyHelperLabel());
@@ -317,8 +317,12 @@ public class QuizActivity extends AppCompatActivity {
         resultRewardValueView.setText(String.valueOf(viewModel.getScore()));
         resultHistoryView.setText(viewModel.getBestHistoryText());
         resultNoteView.setText(viewModel.isWin()
-                ? "Đã lưu lịch sử cục bộ. Bạn đạt ngưỡng thắng từ 60% số câu đúng."
-                : "Đã lưu lịch sử cục bộ. Hãy thử lại để cải thiện độ chính xác và điểm số.");
+                ? "Kết quả của bạn đã được lưu. Bạn đạt ngưỡng thắng từ 60% số câu đúng."
+                : "Kết quả của bạn đã được lưu. Hãy thử lại để cải thiện độ chính xác và điểm số.");
+        String syncToastMessage = viewModel.consumePendingSyncToastMessage();
+        if (syncToastMessage != null && !syncToastMessage.trim().isEmpty()) {
+            Toast.makeText(this, syncToastMessage, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void renderPause() {
