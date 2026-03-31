@@ -20,4 +20,7 @@ public interface SudokuGameStateDao {
 
     @Query("DELETE FROM Sudoku_Game_State WHERE board_id = :boardId")
     void clearStateForBoard(int boardId);
+
+    @Query("DELETE FROM Sudoku_Game_State")
+    void deleteAll();
 }

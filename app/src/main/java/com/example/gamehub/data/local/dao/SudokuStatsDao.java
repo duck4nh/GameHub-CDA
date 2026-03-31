@@ -17,4 +17,7 @@ public interface SudokuStatsDao {
 
     @Query("UPDATE Sudoku_Stats SET games_played = :gamesPlayed, games_won = :gamesWon, best_time = :bestTime WHERE id = :id")
     void updateStats(int id, int gamesPlayed, int gamesWon, long bestTime);
+
+    @Query("DELETE FROM Sudoku_Stats")
+    void deleteAll();
 }

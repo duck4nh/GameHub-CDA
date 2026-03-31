@@ -10,13 +10,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class DatabaseSeeder {
+public final class DatabaseSeeder {
     private static final int MEMORY_LEVEL_COUNT = 30;
 
     private DatabaseSeeder() {
     }
 
-    static void seedIfNeeded(AppDatabase database) {
+    public static void seedIfNeeded(AppDatabase database) {
         syncMemoryLevels(database);
         if (database.sudokuDao().getCount() == 0) {
             database.sudokuDao().insertAll(buildSudokuBoards());

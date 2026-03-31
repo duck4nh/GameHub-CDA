@@ -5,6 +5,7 @@ import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
@@ -15,6 +16,7 @@ import com.example.gamehub.data.local.QuizAssetImporter;
 import com.example.gamehub.data.local.dao.HistoryDao;
 import com.example.gamehub.data.local.dao.MemoryDao;
 import com.example.gamehub.data.local.dao.QuizDao;
+import com.example.gamehub.data.local.entities.LocalFriend;
 import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.local.entities.MemoryLevel;
 import com.example.gamehub.data.local.entities.QuizQuestion;
@@ -26,6 +28,8 @@ import com.example.gamehub.models.LeaderboardEntry;
 import com.example.gamehub.models.User;
 import com.example.gamehub.utils.NetworkUtils;
 import com.example.gamehub.workers.SyncWorker;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -34,6 +38,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 
 import java.io.IOException;
@@ -86,6 +91,11 @@ public class GameRepository {
     public interface ActionCallback {
         void onSuccess();
 
+        void onError(String message);
+    }
+
+    public interface FriendsPlayedCallback {
+        void onLoaded(List<String> names);
         void onError(String message);
     }
 
@@ -364,10 +374,6 @@ public class GameRepository {
     }
 
     public void sendChatMessage(String roomId, String content, ActionCallback callback) {
-        sendChatMessage(roomId, content, null, callback);
-    }
-
-    public void sendChatMessage(String roomId, String content, @Nullable ChatMessage replyToMessage, ActionCallback callback) {
         syncSessionFromFirebase();
         String trimmed = content == null ? "" : content.trim();
         if (trimmed.isEmpty()) {
@@ -394,57 +400,12 @@ public class GameRepository {
         payload.put("sender_nickname", nickname);
         payload.put("content", trimmed);
         payload.put("timestamp", System.currentTimeMillis());
-        if (replyToMessage != null) {
-            payload.put("reply_to_message_id", replyToMessage.getMessageId());
-            payload.put("reply_to_sender_nickname", getDisplayName(replyToMessage.getSenderNickname(), replyToMessage.getSenderUid()));
-            payload.put("reply_to_content", buildReplyPreviewContent(replyToMessage.getContent()));
-        }
 
         firestore.collection("Chat_Messages")
                 .document(messageId)
                 .set(payload)
                 .addOnSuccessListener(unused -> callback.onSuccess())
                 .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không gửi được tin nhắn." : error.getMessage()));
-    }
-
-    public void toggleChatReaction(ChatMessage message, String emoji, ActionCallback callback) {
-        syncSessionFromFirebase();
-        if (message == null || isBlank(message.getMessageId())) {
-            callback.onError("Không tìm thấy tin nhắn để thả cảm xúc.");
-            return;
-        }
-
-        String currentUid = getCurrentUid();
-        if (currentUid.isEmpty()) {
-            callback.onError("Chưa xác định được tài khoản hiện tại.");
-            return;
-        }
-
-        String normalizedEmoji = emoji == null ? "" : emoji.trim();
-        DocumentReference documentReference = firestore.collection("Chat_Messages").document(message.getMessageId());
-        firestore.runTransaction(transaction -> {
-            DocumentSnapshot snapshot = transaction.get(documentReference);
-            ChatMessage latestMessage = toChatMessage(snapshot);
-            Map<String, Object> reactionsByUid = new HashMap<>();
-            for (Map.Entry<String, String> entry : latestMessage.getReactionsByUid().entrySet()) {
-                if (!isBlank(entry.getValue())) {
-                    reactionsByUid.put(entry.getKey(), entry.getValue());
-                }
-            }
-
-            String existingReaction = latestMessage.getUserReaction(currentUid);
-            if (normalizedEmoji.isEmpty() || normalizedEmoji.equals(existingReaction)) {
-                reactionsByUid.remove(currentUid);
-            } else {
-                reactionsByUid.put(currentUid, normalizedEmoji);
-            }
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("reactions_by_uid", reactionsByUid);
-            transaction.set(documentReference, payload, SetOptions.merge());
-            return null;
-        }).addOnSuccessListener(unused -> callback.onSuccess())
-                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không cập nhật được cảm xúc." : error.getMessage()));
     }
 
     public void setLeaderboardFilter(boolean weekly) {
@@ -670,6 +631,61 @@ public class GameRepository {
         return preferenceManager.getCacheAvatar();
     }
 
+    public void fetchFriendsWhoPlayed(String gameType, FriendsPlayedCallback callback) {
+        String currentUid = getCurrentUid();
+        if (isBlank(currentUid)) {
+            callback.onError("User not logged in");
+            return;
+        }
+
+        // Chuẩn hóa tên game (vd: "memory" -> "Memory") để khớp với Firestore
+        final String normalizedGameType = gameType.substring(0, 1).toUpperCase() + gameType.substring(1).toLowerCase();
+
+        ioExecutor.execute(() -> {
+            List<LocalFriend> friends = AppDatabase.getInstance(appContext).friendDao().getAllFriends();
+            List<String> friendUids = new ArrayList<>();
+            Map<String, String> uidToNickname = new HashMap<>();
+            for (LocalFriend f : friends) {
+                if ("accepted".equals(f.status)) {
+                    friendUids.add(f.friend_uid);
+                    uidToNickname.put(f.friend_uid, f.nickname != null ? f.nickname : "Bạn");
+                }
+            }
+
+            if (friendUids.isEmpty()) {
+                mainHandler.post(() -> callback.onLoaded(Collections.emptyList()));
+                return;
+            }
+
+            firestore.collection("Game_Records")
+                    .whereEqualTo("game_type", normalizedGameType)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (!task.isSuccessful()) {
+                            callback.onError(task.getException() != null ? task.getException().getMessage() : "Error fetching records");
+                            return;
+                        }
+
+                        Set<String> uniqueFriends = new HashSet<>();
+                        for (DocumentSnapshot doc : task.getResult().getDocuments()) {
+                            String recordUid = doc.getString("uid");
+                            if (recordUid != null && friendUids.contains(recordUid)) {
+                                uniqueFriends.add(recordUid);
+                            }
+                        }
+
+                        List<String> names = new ArrayList<>();
+                        for (String uid : uniqueFriends) {
+                            String nickname = uidToNickname.get(uid);
+                            if (nickname != null && !nickname.isEmpty()) {
+                                names.add(nickname);
+                            }
+                        }
+                        mainHandler.post(() -> callback.onLoaded(names));
+                    });
+        });
+    }
+
     private void fetchAllTimeLeaderboard(LeaderboardCallback callback) {
         firestore.collection("Users")
                 .get()
@@ -793,7 +809,7 @@ public class GameRepository {
 
     private void removeLegacyMockHistory() {
         historyDao.deleteByExactGameNames(Arrays.asList(
-                "Đố vui · Thủ đô châu Á",
+                "Đố vui · Thủ đổ châu Á",
                 "Ghi nhớ · Lưới trung bình",
                 "Sudoku · Khó",
                 "Đố vui · Chủ đề thể thao",
@@ -1243,11 +1259,7 @@ public class GameRepository {
                 readString(document, "sender_uid"),
                 readString(document, "sender_nickname", "Người chơi"),
                 readString(document, "content"),
-                readLong(document, "timestamp"),
-                readString(document, "reply_to_message_id"),
-                readString(document, "reply_to_sender_nickname"),
-                readString(document, "reply_to_content"),
-                readStringMap(document, "reactions_by_uid")
+                readLong(document, "timestamp")
         );
     }
 
@@ -1269,14 +1281,6 @@ public class GameRepository {
         return message.getSenderNickname().trim().toLowerCase(Locale.getDefault());
     }
 
-    private String buildReplyPreviewContent(String content) {
-        String trimmed = content == null ? "" : content.trim();
-        if (trimmed.length() <= 72) {
-            return trimmed;
-        }
-        return trimmed.substring(0, 69).trim() + "...";
-    }
-
     private String readString(DocumentSnapshot document, String field) {
         return readString(document, field, "");
     }
@@ -1284,25 +1288,6 @@ public class GameRepository {
     private String readString(DocumentSnapshot document, String field, String fallback) {
         String value = document.getString(field);
         return value == null ? fallback : value;
-    }
-
-    private Map<String, String> readStringMap(DocumentSnapshot document, String field) {
-        Object rawValue = document.get(field);
-        if (!(rawValue instanceof Map)) {
-            return Collections.emptyMap();
-        }
-        Map<?, ?> rawMap = (Map<?, ?>) rawValue;
-        if (rawMap.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Map<String, String> normalized = new HashMap<>();
-        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-            if (entry.getKey() == null || entry.getValue() == null) {
-                continue;
-            }
-            normalized.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-        }
-        return normalized;
     }
 
     private int readInt(DocumentSnapshot document, String field) {
@@ -1628,7 +1613,7 @@ public class GameRepository {
     }
 
     private boolean isSuccessfulStatus(String status) {
-        return "won".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status);
+        return "won".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status) || "win".equalsIgnoreCase(status);
     }
 
     private boolean isBlank(@Nullable String value) {

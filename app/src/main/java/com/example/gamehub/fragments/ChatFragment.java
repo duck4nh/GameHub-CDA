@@ -12,7 +12,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.activity.OnBackPressedCallback;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -26,7 +25,6 @@ import com.example.gamehub.data.repository.GameRepository;
 import com.example.gamehub.models.ChatMessage;
 import com.example.gamehub.models.User;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,16 +46,11 @@ public class ChatFragment extends Fragment {
     private TextView quizRoomSubtitleView;
     private TextView sudokuRoomSubtitleView;
     private EditText messageInput;
-    private View composerReplyContainer;
-    private TextView composerReplyTitle;
-    private TextView composerReplyContent;
     private ImageView communityHeaderAvatar;
     private OnBackPressedCallback backPressedCallback;
     private String activeRoomId = ROOM_GENERAL;
     private String activeRoomSuffix = "";
     private boolean requestedCurrentUserProfile;
-    @Nullable
-    private ChatMessage replyingToMessage;
 
     @Nullable
     @Override
@@ -69,17 +62,6 @@ public class ChatFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         repository = GameRepository.getInstance(requireContext());
         adapter = new ChatAdapter();
-        adapter.setMessageActionListener(new ChatAdapter.MessageActionListener() {
-            @Override
-            public void onMessageLongPressed(ChatMessage message) {
-                showMessageActions(message);
-            }
-
-            @Override
-            public void onReplyPreviewClicked(ChatMessage message) {
-                scrollToReferencedMessage(message);
-            }
-        });
 
         roomsContainer = view.findViewById(R.id.community_rooms_container);
         chatRoomContainer = view.findViewById(R.id.chat_room_container);
@@ -90,9 +72,6 @@ public class ChatFragment extends Fragment {
         quizRoomSubtitleView = view.findViewById(R.id.room_quiz_subtitle);
         sudokuRoomSubtitleView = view.findViewById(R.id.room_sudoku_subtitle);
         messageInput = view.findViewById(R.id.message_input);
-        composerReplyContainer = view.findViewById(R.id.composer_reply_container);
-        composerReplyTitle = view.findViewById(R.id.composer_reply_title);
-        composerReplyContent = view.findViewById(R.id.composer_reply_content);
         communityHeaderAvatar = view.findViewById(R.id.community_header_avatar);
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
@@ -105,7 +84,6 @@ public class ChatFragment extends Fragment {
         view.findViewById(R.id.room_sudoku).setOnClickListener(v -> openRoom(ROOM_SUDOKU, "Câu lạc bộ Sudoku", "xếp hạng tuần"));
         view.findViewById(R.id.chat_back).setOnClickListener(v -> showRooms());
         view.findViewById(R.id.send_button).setOnClickListener(v -> sendMessage());
-        view.findViewById(R.id.composer_reply_close).setOnClickListener(v -> clearReplyComposer());
 
         backPressedCallback = new OnBackPressedCallback(false) {
             @Override
@@ -130,7 +108,6 @@ public class ChatFragment extends Fragment {
     private void openRoom(String roomId, String title, String suffix) {
         activeRoomId = roomId;
         activeRoomSuffix = suffix;
-        clearReplyComposer();
         chatTitle.setText(title);
         chatSubtitle.setText("Đang tải cuộc trò chuyện...");
         roomsContainer.setVisibility(View.GONE);
@@ -166,7 +143,6 @@ public class ChatFragment extends Fragment {
 
     private void showRooms() {
         repository.stopChatMessagesListener();
-        clearReplyComposer();
         chatRoomContainer.setVisibility(View.GONE);
         roomsContainer.setVisibility(View.VISIBLE);
         refreshRoomSummaries();
@@ -177,14 +153,13 @@ public class ChatFragment extends Fragment {
     }
 
     private void sendMessage() {
-        repository.sendChatMessage(activeRoomId, messageInput.getText().toString(), replyingToMessage, new GameRepository.ActionCallback() {
+        repository.sendChatMessage(activeRoomId, messageInput.getText().toString(), new GameRepository.ActionCallback() {
             @Override
             public void onSuccess() {
                 if (!isAdded()) {
                     return;
                 }
                 messageInput.setText("");
-                clearReplyComposer();
             }
 
             @Override
@@ -195,85 +170,6 @@ public class ChatFragment extends Fragment {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void beginReply(ChatMessage message) {
-        replyingToMessage = message;
-        composerReplyContainer.setVisibility(View.VISIBLE);
-        String senderLabel = message.getSenderUid().equals(repository.getCurrentUid()) ? "chính bạn" : message.getSenderNickname();
-        composerReplyTitle.setText("Đang trả lời " + senderLabel);
-        composerReplyContent.setText(message.getContent());
-        messageInput.requestFocus();
-    }
-
-    private void clearReplyComposer() {
-        replyingToMessage = null;
-        composerReplyContainer.setVisibility(View.GONE);
-        composerReplyTitle.setText("");
-        composerReplyContent.setText("");
-    }
-
-    private void showMessageActions(ChatMessage message) {
-        if (!isAdded()) {
-            return;
-        }
-
-        List<CharSequence> options = new ArrayList<>();
-        List<Runnable> actions = new ArrayList<>();
-        options.add("Trả lời");
-        actions.add(() -> beginReply(message));
-
-        options.add("👍 Thích");
-        actions.add(() -> reactToMessage(message, "👍"));
-        options.add("❤️ Yêu thích");
-        actions.add(() -> reactToMessage(message, "❤️"));
-        options.add("😂 Haha");
-        actions.add(() -> reactToMessage(message, "😂"));
-        options.add("😮 Bất ngờ");
-        actions.add(() -> reactToMessage(message, "😮"));
-
-        if (!message.getUserReaction(repository.getCurrentUid()).isEmpty()) {
-            options.add("Gỡ cảm xúc");
-            actions.add(() -> reactToMessage(message, ""));
-        }
-
-        new AlertDialog.Builder(requireContext())
-                .setItems(options.toArray(new CharSequence[0]), (dialog, which) -> actions.get(which).run())
-                .show();
-    }
-
-    private void reactToMessage(ChatMessage message, String emoji) {
-        repository.toggleChatReaction(message, emoji, new GameRepository.ActionCallback() {
-            @Override
-            public void onSuccess() {
-                // Snapshot listener sẽ tự cập nhật lại danh sách.
-            }
-
-            @Override
-            public void onError(String message) {
-                if (!isAdded()) {
-                    return;
-                }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void scrollToReferencedMessage(ChatMessage message) {
-        String targetMessageId = message.getReplyToMessageId();
-        int position = adapter.findPositionByMessageId(targetMessageId);
-        if (position == RecyclerView.NO_POSITION) {
-            Toast.makeText(requireContext(), "Không tìm thấy tin nhắn gốc trong cuộc trò chuyện này.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        adapter.highlightMessage(targetMessageId);
-        RecyclerView.LayoutManager layoutManager = chatMessages.getLayoutManager();
-        if (layoutManager instanceof LinearLayoutManager) {
-            ((LinearLayoutManager) layoutManager).scrollToPositionWithOffset(position, 32);
-        } else {
-            chatMessages.scrollToPosition(position);
-        }
-        chatMessages.postDelayed(() -> adapter.highlightMessage(null), 1600L);
     }
 
     private void refreshRoomSummaries() {

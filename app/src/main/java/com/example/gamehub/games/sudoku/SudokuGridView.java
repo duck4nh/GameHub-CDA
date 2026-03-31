@@ -22,6 +22,7 @@ public class SudokuGridView extends View {
     private final Paint cellBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fixedTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint editableTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint noteTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint selectedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint selectedCellBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -32,15 +33,21 @@ public class SudokuGridView extends View {
     
     // Highlight for cells with the same number
     private final Paint sameValueHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    
+    // Highlight for row and column of selected cell
+    private final Paint crossHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final RectF rect = new RectF();
 
     private int[][] initialBoard = new int[9][9];
     private int[][] currentBoard = new int[9][9];
+    private final int[][] notes = new int[9][9]; // Bitmask for numbers 1-9
+    
     private int selectedRow = -1;
     private int selectedCol = -1;
     private float cellSize;
     private OnBoardChangedListener onBoardChangedListener;
+    private boolean notesMode = false;
 
     public SudokuGridView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -55,16 +62,21 @@ public class SudokuGridView extends View {
         fixedTextPaint.setColor(Color.parseColor("#1F2A37"));
         fixedTextPaint.setTextAlign(Paint.Align.CENTER);
         fixedTextPaint.setTextSize(36f);
+        
         editableTextPaint.setColor(Color.parseColor("#3E7DD9"));
         editableTextPaint.setTextAlign(Paint.Align.CENTER);
         editableTextPaint.setTextSize(36f);
+
+        noteTextPaint.setColor(Color.parseColor("#5E7083")); // Grey for notes
+        noteTextPaint.setTextAlign(Paint.Align.CENTER);
+        noteTextPaint.setTextSize(12f);
         
         // Bold brand blue for 3x3 dividers
         linePaint.setColor(Color.parseColor("#4A90E2"));
         linePaint.setStrokeWidth(4.5f);
 
-        // Very light purple tint for selected but empty cells
-        selectedPaint.setColor(Color.parseColor("#F2F0FF"));
+        // Light purple tint for selected cell background
+        selectedPaint.setColor(Color.parseColor("#D4D0FF"));
         selectedPaint.setStyle(Paint.Style.FILL);
 
         // Bold purple border for selected cell
@@ -81,9 +93,13 @@ public class SudokuGridView extends View {
         selectedCircleTextPaint.setTextAlign(Paint.Align.CENTER);
         selectedCircleTextPaint.setTextSize(36f);
 
-        // Darker purple highlight for matching numbers
-        sameValueHighlightPaint.setColor(Color.parseColor("#D1C9FF"));
+        // Deep purple highlight for matching numbers
+        sameValueHighlightPaint.setColor(Color.parseColor("#B9B0FF"));
         sameValueHighlightPaint.setStyle(Paint.Style.FILL);
+        
+        // Soft purple for row/column highlighting
+        crossHighlightPaint.setColor(Color.parseColor("#EDE9FF"));
+        crossHighlightPaint.setStyle(Paint.Style.FILL);
 
         setWillNotDraw(false);
     }
@@ -91,6 +107,12 @@ public class SudokuGridView extends View {
     public void setBoard(int[][] initialBoard, int[][] currentBoard) {
         this.initialBoard = SudokuLogic.copyMatrix(initialBoard);
         this.currentBoard = SudokuLogic.copyMatrix(currentBoard);
+        // Clear notes
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                notes[i][j] = 0;
+            }
+        }
         selectedRow = -1;
         selectedCol = -1;
         invalidate();
@@ -104,11 +126,34 @@ public class SudokuGridView extends View {
         return SudokuLogic.copyMatrix(currentBoard);
     }
 
+    public void setNotesMode(boolean enabled) {
+        this.notesMode = enabled;
+    }
+
     public void setSelectedValue(int value) {
         if (selectedRow < 0 || selectedCol < 0 || initialBoard[selectedRow][selectedCol] != 0) {
             return;
         }
-        currentBoard[selectedRow][selectedCol] = value;
+
+        if (notesMode && value != 0) {
+            // Toggle note
+            int bit = 1 << (value - 1);
+            if ((notes[selectedRow][selectedCol] & bit) != 0) {
+                notes[selectedRow][selectedCol] &= ~bit;
+            } else {
+                notes[selectedRow][selectedCol] |= bit;
+                // If we set a note, clear the main value
+                currentBoard[selectedRow][selectedCol] = 0;
+            }
+        } else {
+            // Set final value
+            currentBoard[selectedRow][selectedCol] = value;
+            // Clear notes if a final value is set
+            if (value != 0) {
+                notes[selectedRow][selectedCol] = 0;
+            }
+        }
+        
         invalidate();
         if (onBoardChangedListener != null) {
             onBoardChangedListener.onBoardChanged(getCurrentBoard());
@@ -118,6 +163,9 @@ public class SudokuGridView extends View {
     public void setCellValue(int row, int col, int value) {
         if (row < 0 || row >= 9 || col < 0 || col >= 9) return;
         currentBoard[row][col] = value;
+        if (value != 0) {
+            notes[row][col] = 0;
+        }
         invalidate();
         if (onBoardChangedListener != null) {
             onBoardChangedListener.onBoardChanged(getCurrentBoard());
@@ -125,7 +173,14 @@ public class SudokuGridView extends View {
     }
 
     public void clearSelectedCell() {
-        setSelectedValue(0);
+        if (selectedRow >= 0 && selectedCol >= 0 && initialBoard[selectedRow][selectedCol] == 0) {
+            currentBoard[selectedRow][selectedCol] = 0;
+            notes[selectedRow][selectedCol] = 0;
+            invalidate();
+            if (onBoardChangedListener != null) {
+                onBoardChangedListener.onBoardChanged(getCurrentBoard());
+            }
+        }
     }
 
     @Override
@@ -141,12 +196,17 @@ public class SudokuGridView extends View {
         super.onDraw(canvas);
         cellSize = getWidth() / 9f;
         float textSize = cellSize * 0.52f;
-        float cornerRadius = cellSize * 0.28f;
+        float noteSize = cellSize / 3f;
+        float cornerRadius = 0f; // Changed from cellSize * 0.28f to 0f for square borders
         float inset = cellSize * 0.06f;
+        
         fixedTextPaint.setTextSize(textSize);
         editableTextPaint.setTextSize(textSize);
         selectedCircleTextPaint.setTextSize(textSize);
+        noteTextPaint.setTextSize(cellSize * 0.25f);
+        
         float textYOffset = (fixedTextPaint.descent() + fixedTextPaint.ascent()) / 2f;
+        float noteYOffset = (noteTextPaint.descent() + noteTextPaint.ascent()) / 2f;
 
         int selectedValue = (selectedRow >= 0 && selectedCol >= 0) ? currentBoard[selectedRow][selectedCol] : 0;
 
@@ -157,16 +217,16 @@ public class SudokuGridView extends View {
                 rect.set(left + inset, top + inset, left + cellSize - inset, top + cellSize - inset);
 
                 boolean isSelected = (row == selectedRow && col == selectedCol);
+                boolean isInSameRowOrCol = (selectedRow != -1 && (row == selectedRow || col == selectedCol));
                 int value = currentBoard[row][col];
                 boolean isSameValue = (selectedValue != 0 && value == selectedValue && !isSelected);
 
                 if (isSelected && value != 0) {
-                    // Draw purple filled circle for selected cell with a number
-                    canvas.drawRoundRect(rect, cornerRadius, cornerRadius, selectedCirclePaint);
+                    // Draw purple filled square for selected cell with a number
+                    canvas.drawRect(rect, selectedCirclePaint);
                     // Also draw the bold border for selection clarity
-                    canvas.drawRoundRect(rect, cornerRadius, cornerRadius, selectedCellBorderPaint);
+                    canvas.drawRect(rect, selectedCellBorderPaint);
                     
-                    // White text on top
                     canvas.drawText(
                             String.valueOf(value),
                             left + cellSize / 2f,
@@ -176,18 +236,19 @@ public class SudokuGridView extends View {
                 } else {
                     // Normal cell background or highlights
                     if (isSelected) {
-                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, selectedPaint);
+                        canvas.drawRect(rect, selectedPaint);
                     } else if (isSameValue) {
-                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, sameValueHighlightPaint);
+                        canvas.drawRect(rect, sameValueHighlightPaint);
+                    } else if (isInSameRowOrCol) {
+                        canvas.drawRect(rect, crossHighlightPaint);
                     } else {
-                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, cellFillPaint);
+                        canvas.drawRect(rect, cellFillPaint);
                     }
                     
-                    // Draw the appropriate border
                     if (isSelected) {
-                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, selectedCellBorderPaint);
+                        canvas.drawRect(rect, selectedCellBorderPaint);
                     } else {
-                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, cellBorderPaint);
+                        canvas.drawRect(rect, cellBorderPaint);
                     }
 
                     if (value != 0) {
@@ -198,6 +259,15 @@ public class SudokuGridView extends View {
                                 top + cellSize / 2f - textYOffset,
                                 textPaint
                         );
+                    } else if (notes[row][col] != 0) {
+                        // Draw notes
+                        for (int n = 0; n < 9; n++) {
+                            if ((notes[row][col] & (1 << n)) != 0) {
+                                float noteX = left + (n % 3) * noteSize + noteSize / 2f;
+                                float noteY = top + (n / 3) * noteSize + noteSize / 2f - noteYOffset;
+                                canvas.drawText(String.valueOf(n + 1), noteX, noteY, noteTextPaint);
+                            }
+                        }
                     }
                 }
             }
@@ -208,7 +278,6 @@ public class SudokuGridView extends View {
             if (i % 3 != 0 || i == 0) {
                 continue;
             }
-            // Use the pre-configured linePaint
             canvas.drawLine(i * cellSize, 0, i * cellSize, getHeight(), linePaint);
             canvas.drawLine(0, i * cellSize, getWidth(), i * cellSize, linePaint);
         }
@@ -223,12 +292,6 @@ public class SudokuGridView extends View {
         int col = Math.min(8, (int) (event.getX() / cellSize));
         boolean editable = initialBoard[row][col] == 0;
         
-        if (editable && row == selectedRow && col == selectedCol && currentBoard[row][col] != 0) {
-            currentBoard[row][col] = 0;
-            if (onBoardChangedListener != null) {
-                onBoardChangedListener.onBoardChanged(getCurrentBoard());
-            }
-        }
         selectedRow = row;
         selectedCol = col;
         invalidate();

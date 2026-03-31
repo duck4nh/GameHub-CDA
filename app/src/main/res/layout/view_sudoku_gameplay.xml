@@ -109,16 +109,15 @@
         </LinearLayout>
 
         <FrameLayout
-            android:layout_width="282dp"
-            android:layout_height="282dp"
-            android:layout_gravity="center_horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:background="@drawable/bg_card_surface_24">
 
             <com.example.gamehub.games.sudoku.SudokuGridView
                 android:id="@+id/sudoku_board"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:background="@android:color/white" />
         </FrameLayout>
 
@@ -139,13 +138,13 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
                     android:background="@drawable/bg_sudoku_number_button"
                     android:gravity="center"
                     android:text="↺"
                     android:textColor="@color/white"
-                    android:textSize="22sp" />
+                    android:textSize="20sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -168,13 +167,13 @@
 
                 <TextView
                     android:id="@+id/sudoku_hint_button_icon"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
                     android:background="@drawable/bg_sudoku_number_button"
                     android:gravity="center"
                     android:text="💡"
                     android:textColor="@color/white"
-                    android:textSize="22sp" />
+                    android:textSize="20sp" />
 
                 <TextView
                     android:id="@+id/sudoku_hint_button_text"
@@ -182,6 +181,36 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="Gợi ý (3)"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/sudoku_action_notes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="36dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/sudoku_notes_button_icon"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_sudoku_number_button"
+                    android:gravity="center"
+                    android:text="✎"
+                    android:textColor="@color/white"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/sudoku_notes_button_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Nháp: Tắt"
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="10sp" />
             </LinearLayout>
@@ -197,13 +226,13 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
                     android:background="@drawable/bg_sudoku_number_button"
                     android:gravity="center"
                     android:text="⌫"
                     android:textColor="@color/white"
-                    android:textSize="22sp" />
+                    android:textSize="20sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -218,14 +247,14 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="20dp"
             android:gravity="center_horizontal"
             android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/sudoku_number_1"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -233,13 +262,13 @@
                 android:gravity="center"
                 android:text="1"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_2"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -247,13 +276,13 @@
                 android:gravity="center"
                 android:text="2"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_3"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -261,13 +290,13 @@
                 android:gravity="center"
                 android:text="3"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_4"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -275,13 +304,13 @@
                 android:gravity="center"
                 android:text="4"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_5"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -289,14 +318,14 @@
                 android:gravity="center"
                 android:text="5"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
         </LinearLayout>
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1.5dp"
-            android:layout_marginTop="14dp"
-            android:layout_marginBottom="14dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
             android:alpha="0.7"
             android:background="@color/gh_grid_blue" />
 
@@ -308,8 +337,8 @@
 
             <TextView
                 android:id="@+id/sudoku_number_6"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -317,13 +346,13 @@
                 android:gravity="center"
                 android:text="6"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_7"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -331,13 +360,13 @@
                 android:gravity="center"
                 android:text="7"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_8"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -345,13 +374,13 @@
                 android:gravity="center"
                 android:text="8"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/sudoku_number_9"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="16dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="14dp"
                 android:background="@drawable/bg_sudoku_number_button"
                 android:clickable="true"
                 android:focusable="true"
@@ -359,7 +388,7 @@
                 android:gravity="center"
                 android:text="9"
                 android:textColor="@color/white"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
