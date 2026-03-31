@@ -364,10 +364,6 @@ public class GameRepository {
     }
 
     public void sendChatMessage(String roomId, String content, ActionCallback callback) {
-        sendChatMessage(roomId, content, null, callback);
-    }
-
-    public void sendChatMessage(String roomId, String content, @Nullable ChatMessage replyToMessage, ActionCallback callback) {
         syncSessionFromFirebase();
         String trimmed = content == null ? "" : content.trim();
         if (trimmed.isEmpty()) {
@@ -394,57 +390,12 @@ public class GameRepository {
         payload.put("sender_nickname", nickname);
         payload.put("content", trimmed);
         payload.put("timestamp", System.currentTimeMillis());
-        if (replyToMessage != null) {
-            payload.put("reply_to_message_id", replyToMessage.getMessageId());
-            payload.put("reply_to_sender_nickname", getDisplayName(replyToMessage.getSenderNickname(), replyToMessage.getSenderUid()));
-            payload.put("reply_to_content", buildReplyPreviewContent(replyToMessage.getContent()));
-        }
 
         firestore.collection("Chat_Messages")
                 .document(messageId)
                 .set(payload)
                 .addOnSuccessListener(unused -> callback.onSuccess())
                 .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không gửi được tin nhắn." : error.getMessage()));
-    }
-
-    public void toggleChatReaction(ChatMessage message, String emoji, ActionCallback callback) {
-        syncSessionFromFirebase();
-        if (message == null || isBlank(message.getMessageId())) {
-            callback.onError("Không tìm thấy tin nhắn để thả cảm xúc.");
-            return;
-        }
-
-        String currentUid = getCurrentUid();
-        if (currentUid.isEmpty()) {
-            callback.onError("Chưa xác định được tài khoản hiện tại.");
-            return;
-        }
-
-        String normalizedEmoji = emoji == null ? "" : emoji.trim();
-        DocumentReference documentReference = firestore.collection("Chat_Messages").document(message.getMessageId());
-        firestore.runTransaction(transaction -> {
-            DocumentSnapshot snapshot = transaction.get(documentReference);
-            ChatMessage latestMessage = toChatMessage(snapshot);
-            Map<String, Object> reactionsByUid = new HashMap<>();
-            for (Map.Entry<String, String> entry : latestMessage.getReactionsByUid().entrySet()) {
-                if (!isBlank(entry.getValue())) {
-                    reactionsByUid.put(entry.getKey(), entry.getValue());
-                }
-            }
-
-            String existingReaction = latestMessage.getUserReaction(currentUid);
-            if (normalizedEmoji.isEmpty() || normalizedEmoji.equals(existingReaction)) {
-                reactionsByUid.remove(currentUid);
-            } else {
-                reactionsByUid.put(currentUid, normalizedEmoji);
-            }
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("reactions_by_uid", reactionsByUid);
-            transaction.set(documentReference, payload, SetOptions.merge());
-            return null;
-        }).addOnSuccessListener(unused -> callback.onSuccess())
-                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không cập nhật được cảm xúc." : error.getMessage()));
     }
 
     public void setLeaderboardFilter(boolean weekly) {
@@ -1243,11 +1194,7 @@ public class GameRepository {
                 readString(document, "sender_uid"),
                 readString(document, "sender_nickname", "Người chơi"),
                 readString(document, "content"),
-                readLong(document, "timestamp"),
-                readString(document, "reply_to_message_id"),
-                readString(document, "reply_to_sender_nickname"),
-                readString(document, "reply_to_content"),
-                readStringMap(document, "reactions_by_uid")
+                readLong(document, "timestamp")
         );
     }
 
@@ -1269,14 +1216,6 @@ public class GameRepository {
         return message.getSenderNickname().trim().toLowerCase(Locale.getDefault());
     }
 
-    private String buildReplyPreviewContent(String content) {
-        String trimmed = content == null ? "" : content.trim();
-        if (trimmed.length() <= 72) {
-            return trimmed;
-        }
-        return trimmed.substring(0, 69).trim() + "...";
-    }
-
     private String readString(DocumentSnapshot document, String field) {
         return readString(document, field, "");
     }
@@ -1284,25 +1223,6 @@ public class GameRepository {
     private String readString(DocumentSnapshot document, String field, String fallback) {
         String value = document.getString(field);
         return value == null ? fallback : value;
-    }
-
-    private Map<String, String> readStringMap(DocumentSnapshot document, String field) {
-        Object rawValue = document.get(field);
-        if (!(rawValue instanceof Map)) {
-            return Collections.emptyMap();
-        }
-        Map<?, ?> rawMap = (Map<?, ?>) rawValue;
-        if (rawMap.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Map<String, String> normalized = new HashMap<>();
-        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-            if (entry.getKey() == null || entry.getValue() == null) {
-                continue;
-            }
-            normalized.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-        }
-        return normalized;
     }
 
     private int readInt(DocumentSnapshot document, String field) {
