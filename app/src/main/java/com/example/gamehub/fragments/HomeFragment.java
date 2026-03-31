@@ -259,26 +259,11 @@ public class HomeFragment extends Fragment {
             View itemView = getLayoutInflater().inflate(R.layout.item_recent_activity_home, llActivityList, false);
             TextView tvTitle = itemView.findViewById(R.id.tvActivityTitle);
             TextView tvSubtitle = itemView.findViewById(R.id.tvActivityTime);
-            View glowView = itemView.findViewById(R.id.vActivityGlow);
 
             String statusText = history.status.toLowerCase();
             String action = statusText.contains("won") || statusText.contains("completed") ? "Bạn đã hoàn thành " : "Bạn đã chơi ";
             tvTitle.setText(action + history.gameName);
             tvSubtitle.setText(sdf.format(new Date(history.playDate)) + " · " + (history.isSynced ? "synced" : "local"));
-
-            int bgRes = R.drawable.bg_profile_row_blue;
-            if (history.gameName.equalsIgnoreCase("Sudoku")) {
-                glowView.setBackgroundResource(R.drawable.bg_screen_glow_light_blue);
-                bgRes = R.drawable.bg_profile_row_orange;
-            } else if (history.gameName.contains("Lật hình") || history.gameName.equalsIgnoreCase("Memory")) {
-                glowView.setBackgroundResource(R.drawable.bg_screen_glow_warm);
-                bgRes = R.drawable.bg_profile_row_green;
-            } else {
-                glowView.setBackgroundResource(R.drawable.bg_screen_glow_blue);
-                bgRes = R.drawable.bg_profile_row_blue;
-            }
-            
-            itemView.setBackgroundResource(bgRes);
 
             llActivityList.addView(itemView);
         }
