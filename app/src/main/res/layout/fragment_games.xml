@@ -78,8 +78,9 @@
             <FrameLayout
                 android:id="@+id/launch_quiz"
                 android:layout_width="match_parent"
-                android:layout_height="138dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
+                android:paddingBottom="16dp"
                 android:background="@drawable/bg_game_card_quiz_28"
                 android:clickable="true"
                 android:focusable="true">
@@ -122,28 +123,38 @@
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="14sp" />
 
-                <View
-                    android:layout_width="6dp"
-                    android:layout_height="6dp"
-                    android:layout_marginStart="19dp"
-                    android:layout_marginTop="107dp"
-                    android:background="@drawable/bg_primary_button_round" />
-
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="31dp"
-                    android:layout_marginTop="100dp"
-                    android:text="Nhấn để mở phần thiết lập nhanh"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="12sp" />
+                    android:layout_marginTop="95dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="19dp"
+                    android:paddingEnd="19dp">
+
+                    <TextView
+                        android:id="@+id/quiz_friends_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Đang tải dữ liệu..."
+                        android:textColor="@color/gh_text_secondary"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:id="@+id/quiz_friends_avatars"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:orientation="horizontal" />
+                </LinearLayout>
             </FrameLayout>
 
             <FrameLayout
                 android:id="@+id/launch_memory"
                 android:layout_width="match_parent"
-                android:layout_height="138dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:paddingBottom="16dp"
                 android:background="@drawable/bg_game_card_memory_28"
                 android:clickable="true"
                 android:focusable="true">
@@ -186,28 +197,38 @@
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="14sp" />
 
-                <View
-                    android:layout_width="6dp"
-                    android:layout_height="6dp"
-                    android:layout_marginStart="19dp"
-                    android:layout_marginTop="107dp"
-                    android:background="@drawable/bg_chip_success" />
-
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="31dp"
-                    android:layout_marginTop="100dp"
-                    android:text="Nhấn để chọn mức 4x4 đến 8x8"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="12sp" />
+                    android:layout_marginTop="95dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="19dp"
+                    android:paddingEnd="19dp">
+
+                    <TextView
+                        android:id="@+id/memory_friends_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Đang tải dữ liệu..."
+                        android:textColor="@color/gh_text_secondary"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:id="@+id/memory_friends_avatars"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:orientation="horizontal" />
+                </LinearLayout>
             </FrameLayout>
 
             <FrameLayout
                 android:id="@+id/launch_sudoku"
                 android:layout_width="match_parent"
-                android:layout_height="138dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:paddingBottom="16dp"
                 android:background="@drawable/bg_game_card_sudoku_28"
                 android:clickable="true"
                 android:focusable="true">
@@ -250,21 +271,30 @@
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="14sp" />
 
-                <View
-                    android:layout_width="6dp"
-                    android:layout_height="6dp"
-                    android:layout_marginStart="19dp"
-                    android:layout_marginTop="107dp"
-                    android:background="@drawable/bg_chip_warning" />
-
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="31dp"
-                    android:layout_marginTop="100dp"
-                    android:text="Nhấn để chọn từ dễ đến chuyên gia"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="12sp" />
+                    android:layout_marginTop="95dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="19dp"
+                    android:paddingEnd="19dp">
+
+                    <TextView
+                        android:id="@+id/sudoku_friends_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Đang tải dữ liệu..."
+                        android:textColor="@color/gh_text_secondary"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:id="@+id/sudoku_friends_avatars"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:orientation="horizontal" />
+                </LinearLayout>
             </FrameLayout>
         </LinearLayout>
     </ScrollView>

@@ -17,6 +17,9 @@ public interface HistoryDao {
     @Query("DELETE FROM Local_History WHERE game_name IN (:gameNames)")
     void deleteByExactGameNames(List<String> gameNames);
 
+    @Query("DELETE FROM Local_History")
+    void deleteAll();
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertAll(List<LocalHistory> historyItems);
 

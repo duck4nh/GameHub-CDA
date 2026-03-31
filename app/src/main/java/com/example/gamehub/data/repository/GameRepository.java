@@ -5,6 +5,7 @@ import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
@@ -15,6 +16,7 @@ import com.example.gamehub.data.local.QuizAssetImporter;
 import com.example.gamehub.data.local.dao.HistoryDao;
 import com.example.gamehub.data.local.dao.MemoryDao;
 import com.example.gamehub.data.local.dao.QuizDao;
+import com.example.gamehub.data.local.entities.LocalFriend;
 import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.local.entities.MemoryLevel;
 import com.example.gamehub.data.local.entities.QuizQuestion;
@@ -26,6 +28,8 @@ import com.example.gamehub.models.LeaderboardEntry;
 import com.example.gamehub.models.User;
 import com.example.gamehub.utils.NetworkUtils;
 import com.example.gamehub.workers.SyncWorker;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -34,6 +38,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 
 import java.io.IOException;
@@ -86,6 +91,11 @@ public class GameRepository {
     public interface ActionCallback {
         void onSuccess();
 
+        void onError(String message);
+    }
+
+    public interface FriendsPlayedCallback {
+        void onLoaded(List<String> names);
         void onError(String message);
     }
 
@@ -670,6 +680,61 @@ public class GameRepository {
         return preferenceManager.getCacheAvatar();
     }
 
+    public void fetchFriendsWhoPlayed(String gameType, FriendsPlayedCallback callback) {
+        String currentUid = getCurrentUid();
+        if (isBlank(currentUid)) {
+            callback.onError("User not logged in");
+            return;
+        }
+
+        // Chuẩn hóa tên game (vd: "memory" -> "Memory") để khớp với Firestore
+        final String normalizedGameType = gameType.substring(0, 1).toUpperCase() + gameType.substring(1).toLowerCase();
+
+        ioExecutor.execute(() -> {
+            List<LocalFriend> friends = AppDatabase.getInstance(appContext).friendDao().getAllFriends();
+            List<String> friendUids = new ArrayList<>();
+            Map<String, String> uidToNickname = new HashMap<>();
+            for (LocalFriend f : friends) {
+                if ("accepted".equals(f.status)) {
+                    friendUids.add(f.friend_uid);
+                    uidToNickname.put(f.friend_uid, f.nickname != null ? f.nickname : "Bạn");
+                }
+            }
+
+            if (friendUids.isEmpty()) {
+                mainHandler.post(() -> callback.onLoaded(Collections.emptyList()));
+                return;
+            }
+
+            firestore.collection("Game_Records")
+                    .whereEqualTo("game_type", normalizedGameType)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (!task.isSuccessful()) {
+                            callback.onError(task.getException() != null ? task.getException().getMessage() : "Error fetching records");
+                            return;
+                        }
+
+                        Set<String> uniqueFriends = new HashSet<>();
+                        for (DocumentSnapshot doc : task.getResult().getDocuments()) {
+                            String recordUid = doc.getString("uid");
+                            if (recordUid != null && friendUids.contains(recordUid)) {
+                                uniqueFriends.add(recordUid);
+                            }
+                        }
+
+                        List<String> names = new ArrayList<>();
+                        for (String uid : uniqueFriends) {
+                            String nickname = uidToNickname.get(uid);
+                            if (nickname != null && !nickname.isEmpty()) {
+                                names.add(nickname);
+                            }
+                        }
+                        mainHandler.post(() -> callback.onLoaded(names));
+                    });
+        });
+    }
+
     private void fetchAllTimeLeaderboard(LeaderboardCallback callback) {
         firestore.collection("Users")
                 .get()
@@ -793,7 +858,7 @@ public class GameRepository {
 
     private void removeLegacyMockHistory() {
         historyDao.deleteByExactGameNames(Arrays.asList(
-                "Đố vui · Thủ đô châu Á",
+                "Đố vui · Thủ đổ châu Á",
                 "Ghi nhớ · Lưới trung bình",
                 "Sudoku · Khó",
                 "Đố vui · Chủ đề thể thao",
@@ -1616,7 +1681,7 @@ public class GameRepository {
     }
 
     private boolean isSuccessfulStatus(String status) {
-        return "won".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status);
+        return "won".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status) || "win".equalsIgnoreCase(status);
     }
 
     private boolean isBlank(@Nullable String value) {
