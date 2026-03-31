@@ -1,15 +1,23 @@
 package com.example.gamehub.data.repository;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+
 import com.example.gamehub.data.local.AppDatabase;
+import com.example.gamehub.data.local.DatabaseSeeder;
 import com.example.gamehub.data.local.entities.LocalFriend;
+import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.models.User;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class AuthRepository {
@@ -17,6 +25,7 @@ public class AuthRepository {
     private final FirebaseFirestore firestore;
     private final AppDatabase database;
     private final PreferenceManager prefManager;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public AuthRepository(AppDatabase database, PreferenceManager prefManager) {
         this.auth = FirebaseAuth.getInstance();
@@ -25,26 +34,25 @@ public class AuthRepository {
         this.prefManager = prefManager;
     }
 
-    // --- 1. ĐĂNG KÝ (SIGN UP) ---
+    // --- 1. ĐĂNG KÝ ---
     public void signUp(String email, String password, String nickname, AuthCallback callback) {
         auth.createUserWithEmailAndPassword(email, password)
                 .addOnSuccessListener(authResult -> {
                     String uid = authResult.getUser().getUid();
-                    // Chuyển sang định dạng PNG để Glide hiển thị dễ dàng hơn (SVG cần thư viện bổ sung)
                     String avatarUrl = "https://api.dicebear.com/7.x/avataaars/png?seed=" + nickname;
                     User newUser = new User(uid, email, nickname, avatarUrl);
 
                     firestore.collection("Users").document(uid).set(newUser)
                             .addOnSuccessListener(aVoid -> {
                                 prefManager.saveLoginSession(uid, nickname, avatarUrl);
-                                callback.onSuccess("Đăng ký thành công!");
+                                mainHandler.post(() -> callback.onSuccess("Đăng ký thành công!"));
                             })
-                            .addOnFailureListener(e -> callback.onError("Lỗi lưu hồ sơ: " + e.getMessage()));
+                            .addOnFailureListener(e -> mainHandler.post(() -> callback.onError("Lỗi lưu hồ sơ: " + e.getMessage())));
                 })
-                .addOnFailureListener(e -> callback.onError("Lỗi xác thực: " + e.getMessage()));
+                .addOnFailureListener(e -> mainHandler.post(() -> callback.onError("Lỗi xác thực: " + e.getMessage())));
     }
 
-    // --- 2. ĐĂNG NHẬP (SIGN IN) ---
+    // --- 2. ĐĂNG NHẬP ---
     public void signIn(String email, String password, AuthCallback callback) {
         auth.signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener(authResult -> {
@@ -54,20 +62,41 @@ public class AuthRepository {
                                 if (document.exists()) {
                                     String nickname = document.getString("nickname");
                                     String avatarUrl = document.getString("avatar_url");
-                                    
-                                    // Đảm bảo lấy được avatar_url từ Firestore và lưu vào local
                                     prefManager.saveLoginSession(uid, nickname, avatarUrl);
-                                    callback.onSuccess("Đăng nhập thành công!");
+                                    
+                                    new Thread(() -> {
+                                        DatabaseSeeder.seedIfNeeded(database);
+                                        
+                                        syncFriends(uid, new SyncCallback() {
+                                            @Override
+                                            public void onSuccess() {
+                                                syncHistory(uid, new SyncCallback() {
+                                                    @Override
+                                                    public void onSuccess() {
+                                                        mainHandler.post(() -> callback.onSuccess("Đăng nhập và đồng bộ thành công!"));
+                                                    }
+                                                    @Override
+                                                    public void onError(String error) {
+                                                        mainHandler.post(() -> callback.onSuccess("Đăng nhập thành công (Lịch sử chưa được tải)"));
+                                                    }
+                                                });
+                                            }
+                                            @Override
+                                            public void onError(String error) {
+                                                mainHandler.post(() -> callback.onSuccess("Đăng nhập thành công (Bạn bè chưa được tải)"));
+                                            }
+                                        });
+                                    }).start();
                                 } else {
-                                    callback.onError("Không tìm thấy thông tin người dùng");
+                                    mainHandler.post(() -> callback.onError("Không tìm thấy thông tin trên Cloud"));
                                 }
                             })
-                            .addOnFailureListener(e -> callback.onError("Lỗi lấy dữ liệu: " + e.getMessage()));
+                            .addOnFailureListener(e -> mainHandler.post(() -> callback.onError("Lỗi lấy dữ liệu: " + e.getMessage())));
                 })
-                .addOnFailureListener(e -> callback.onError("Sai tài khoản hoặc mật khẩu"));
+                .addOnFailureListener(e -> mainHandler.post(() -> callback.onError("Sai tài khoản hoặc mật khẩu")));
     }
 
-    // --- 3. ĐỒNG BỘ BẠN BÈ (SYNC) ---
+    // --- 3. ĐỒNG BỘ BẠN BÈ ---
     public void syncFriends(String uid, SyncCallback callback) {
         firestore.collection("Friendships")
                 .whereEqualTo("user_id", uid)
@@ -83,14 +112,12 @@ public class AuthRepository {
                                 "accepted"
                         ));
                     }
-
                     new Thread(() -> {
                         try {
                             database.friendDao().deleteAllFriends();
                             database.friendDao().insertAll(listToSync);
                             callback.onSuccess();
                         } catch (Exception e) {
-                            Log.e("AuthRepo", "Sync Error", e);
                             callback.onError(e.getMessage());
                         }
                     }).start();
@@ -98,14 +125,82 @@ public class AuthRepository {
                 .addOnFailureListener(e -> callback.onError(e.getMessage()));
     }
 
-    // --- 4. ĐĂNG XUẤT (LOGOUT) ---
+    // --- 4. ĐỒNG BỘ LỊCH SỬ ---
+    public void syncHistory(String uid, SyncCallback callback) {
+        firestore.collection("Game_Records")
+                .whereEqualTo("uid", uid)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<LocalHistory> historyList = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
+                        String gameType = doc.getString("game_type");
+                        String status = doc.getString("status");
+                        long score = readLong(doc, "score");
+                        long timePlayed = readLong(doc, "time_played");
+                        long date = readLong(doc, "date");
+
+                        if (gameType != null && status != null) {
+                            historyList.add(new LocalHistory(
+                                    gameType,
+                                    status,
+                                    (int) score,
+                                    timePlayed,
+                                    date > 0 ? date : System.currentTimeMillis(),
+                                    true
+                            ));
+                        }
+                    }
+                    new Thread(() -> {
+                        try {
+                            database.historyDao().deleteAll();
+                            database.historyDao().insertAll(historyList);
+                            callback.onSuccess();
+                        } catch (Exception e) {
+                            callback.onError(e.getMessage());
+                        }
+                    }).start();
+                })
+                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+    }
+
+    // --- 5. ĐĂNG XUẤT ---
     public void logout() {
         auth.signOut();
         prefManager.clear();
-        new Thread(() -> database.friendDao().deleteAllFriends()).start();
+        new Thread(() -> {
+            try {
+                database.friendDao().deleteAllFriends();
+                database.historyDao().deleteAll();
+                database.sudokuGameStateDao().deleteAll();
+                database.sudokuStatsDao().deleteAll();
+                database.memoryDao().clearAll(); 
+            } catch (Exception e) {
+                Log.e("AuthRepo", "Logout Error", e);
+            }
+        }).start();
     }
 
-    // --- INTERFACES ---
+    private long readLong(DocumentSnapshot document, String field) {
+        Object value = document.get(field);
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        if (value instanceof Timestamp) {
+            return ((Timestamp) value).toDate().getTime();
+        }
+        if (value instanceof Date) {
+            return ((Date) value).getTime();
+        }
+        if (value instanceof String) {
+            try {
+                return Long.parseLong((String) value);
+            } catch (NumberFormatException ignored) {
+                return 0L;
+            }
+        }
+        return 0L;
+    }
+
     public interface AuthCallback {
         void onSuccess(String message);
         void onError(String error);
