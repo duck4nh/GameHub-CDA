@@ -23,8 +23,8 @@ import java.util.List;
 public class GamesFragment extends Fragment {
 
     private GameRepository repository;
-    private LinearLayout namesQuiz, namesMemory, namesSudoku;
-    private TextView labelQuiz, labelMemory, labelSudoku;
+    private LinearLayout layoutQuizFriends, layoutMemoryFriends, layoutSudokuFriends;
+    private TextView tvQuizStatus, tvMemoryStatus, tvSudokuStatus;
     private View launchQuiz, launchMemory, launchSudoku;
 
     @Nullable
@@ -33,13 +33,13 @@ public class GamesFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_games, container, false);
         repository = GameRepository.getInstance(requireContext());
 
-        namesQuiz = view.findViewById(R.id.quiz_friends_avatars);
-        namesMemory = view.findViewById(R.id.memory_friends_avatars);
-        namesSudoku = view.findViewById(R.id.sudoku_friends_avatars);
+        layoutQuizFriends = view.findViewById(R.id.quiz_friends_avatars);
+        layoutMemoryFriends = view.findViewById(R.id.memory_friends_avatars);
+        layoutSudokuFriends = view.findViewById(R.id.sudoku_friends_avatars);
 
-        labelQuiz = view.findViewById(R.id.quiz_friends_status);
-        labelMemory = view.findViewById(R.id.memory_friends_status);
-        labelSudoku = view.findViewById(R.id.sudoku_friends_status);
+        tvQuizStatus = view.findViewById(R.id.quiz_friends_status);
+        tvMemoryStatus = view.findViewById(R.id.memory_friends_status);
+        tvSudokuStatus = view.findViewById(R.id.sudoku_friends_status);
 
         launchQuiz = view.findViewById(R.id.launch_quiz);
         launchMemory = view.findViewById(R.id.launch_memory);
@@ -52,70 +52,51 @@ public class GamesFragment extends Fragment {
     }
 
     private void setupClickListeners() {
-        launchQuiz.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), QuizActivity.class);
-            startActivity(intent);
-        });
-
-        launchMemory.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), MemoryGameActivity.class);
-            startActivity(intent);
-        });
-
-        launchSudoku.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), SudokuActivity.class);
-            startActivity(intent);
-        });
+        launchQuiz.setOnClickListener(v -> startActivity(new Intent(requireContext(), QuizActivity.class)));
+        launchMemory.setOnClickListener(v -> startActivity(new Intent(requireContext(), MemoryGameActivity.class)));
+        launchSudoku.setOnClickListener(v -> startActivity(new Intent(requireContext(), SudokuActivity.class)));
     }
 
     private void loadFriendsPlayed() {
-        loadForGame("quiz", namesQuiz, labelQuiz);
-        loadForGame("memory", namesMemory, labelMemory);
-        loadForGame("sudoku", namesSudoku, labelSudoku);
+        loadForGame("quiz", layoutQuizFriends, tvQuizStatus);
+        loadForGame("memory", layoutMemoryFriends, tvMemoryStatus);
+        loadForGame("sudoku", layoutSudokuFriends, tvSudokuStatus);
     }
 
-    private void loadForGame(String type, LinearLayout layout, TextView label) {
+    private void loadForGame(String type, LinearLayout layout, TextView statusLabel) {
         repository.fetchFriendsWhoPlayed(type, new GameRepository.FriendsPlayedCallback() {
             @Override
             public void onLoaded(List<String> names) {
                 if (!isAdded()) return;
                 layout.removeAllViews();
-                if (names.isEmpty()) {
-                    label.setText("Chưa có bạn bè nào chơi");
+                
+                if (names == null || names.isEmpty()) {
+                    statusLabel.setText("Chưa có bạn bè nào chơi");
                 } else {
-                    label.setText("Bạn bè đã chơi:");
-                    // Hiển thị tối đa tên của 3 người bạn
-                    int count = Math.min(names.size(), 3);
-                    for (int i = 0; i < count; i++) {
-                        String displayText = names.get(i);
-                        if (i < count - 1) displayText += ", ";
-                        addNameToLayout(layout, displayText);
+                    statusLabel.setText("Bạn bè đã chơi: ");
+                    
+                    // Xây dựng chuỗi tên hiển thị trực tiếp vào label để tiết kiệm diện tích
+                    StringBuilder sb = new StringBuilder("Bạn bè đã chơi: ");
+                    int showLimit = 2;
+                    for (int i = 0; i < Math.min(names.size(), showLimit); i++) {
+                        sb.append(names.get(i));
+                        if (i < Math.min(names.size(), showLimit) - 1) {
+                            sb.append(", ");
+                        }
                     }
-                    if (names.size() > 3) {
-                        addNameToLayout(layout, " và " + (names.size() - 3) + " người khác");
+                    
+                    if (names.size() > showLimit) {
+                        sb.append(" và ").append(names.size() - showLimit).append(" người khác");
                     }
+                    
+                    statusLabel.setText(sb.toString());
                 }
             }
 
             @Override
             public void onError(String message) {
-                if (!isAdded()) return;
-                label.setText("Chưa có bạn bè nào chơi");
+                if (isAdded()) statusLabel.setText("Chưa có bạn bè nào chơi");
             }
         });
-    }
-
-    private void addNameToLayout(LinearLayout layout, String text) {
-        TextView textView = new TextView(requireContext());
-        textView.setText(text);
-        textView.setTextSize(12);
-        textView.setTextColor(getResources().getColor(R.color.gh_text_secondary));
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, 
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        textView.setLayoutParams(params);
-
-        layout.addView(textView);
     }
 }

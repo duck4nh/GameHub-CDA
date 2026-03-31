@@ -10,15 +10,19 @@ import com.example.gamehub.data.local.entities.LocalFriend;
 import com.example.gamehub.data.local.entities.LocalHistory;
 import com.example.gamehub.data.pref.PreferenceManager;
 import com.example.gamehub.models.User;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AuthRepository {
     private final FirebaseAuth auth;
@@ -98,31 +102,51 @@ public class AuthRepository {
 
     // --- 3. ĐỒNG BỘ BẠN BÈ ---
     public void syncFriends(String uid, SyncCallback callback) {
-        firestore.collection("Friendships")
-                .whereEqualTo("user_id", uid)
-                .whereEqualTo("status", "accepted")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    List<LocalFriend> listToSync = new ArrayList<>();
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        listToSync.add(new LocalFriend(
-                                doc.getString("friend_uid"),
-                                doc.getString("friend_nickname"),
-                                doc.getString("friend_avatar"),
-                                "accepted"
-                        ));
+        // Thực hiện 2 truy vấn để lấy bạn bè (người gửi hoặc người nhận là mình)
+        Task<QuerySnapshot> q1 = firestore.collection("Friendships")
+                .whereEqualTo("from_uid", uid).whereEqualTo("status", "accepted").get();
+        Task<QuerySnapshot> q2 = firestore.collection("Friendships")
+                .whereEqualTo("to_uid", uid).whereEqualTo("status", "accepted").get();
+
+        Tasks.whenAllComplete(q1, q2).addOnCompleteListener(task -> {
+            new Thread(() -> {
+                try {
+                    Map<String, String> friendUids = new HashMap<>();
+                    if (q1.isSuccessful()) {
+                        for (DocumentSnapshot doc : q1.getResult()) friendUids.put(doc.getString("to_uid"), "accepted");
                     }
-                    new Thread(() -> {
-                        try {
-                            database.friendDao().deleteAllFriends();
-                            database.friendDao().insertAll(listToSync);
-                            callback.onSuccess();
-                        } catch (Exception e) {
-                            callback.onError(e.getMessage());
+                    if (q2.isSuccessful()) {
+                        for (DocumentSnapshot doc : q2.getResult()) friendUids.put(doc.getString("from_uid"), "accepted");
+                    }
+
+                    if (friendUids.isEmpty()) {
+                        database.friendDao().deleteAllFriends();
+                        mainHandler.post(callback::onSuccess);
+                        return;
+                    }
+
+                    // Lấy thông tin nickname/avatar của các friend UID
+                    List<LocalFriend> listToSync = new ArrayList<>();
+                    for (String fUid : friendUids.keySet()) {
+                        DocumentSnapshot userDoc = Tasks.await(firestore.collection("Users").document(fUid).get());
+                        if (userDoc.exists()) {
+                            listToSync.add(new LocalFriend(
+                                    fUid,
+                                    userDoc.getString("nickname") != null ? userDoc.getString("nickname") : "Người chơi",
+                                    userDoc.getString("avatar_url"),
+                                    "accepted"
+                            ));
                         }
-                    }).start();
-                })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                    }
+
+                    database.friendDao().deleteAllFriends();
+                    database.friendDao().insertAll(listToSync);
+                    mainHandler.post(callback::onSuccess);
+                } catch (Exception e) {
+                    mainHandler.post(() -> callback.onError(e.getMessage()));
+                }
+            }).start();
+        });
     }
 
     // --- 4. ĐỒNG BỘ LỊCH SỬ ---
@@ -132,7 +156,7 @@ public class AuthRepository {
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     List<LocalHistory> historyList = new ArrayList<>();
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
+                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
                         String gameType = doc.getString("game_type");
                         String status = doc.getString("status");
                         long score = readLong(doc, "score");
@@ -154,13 +178,13 @@ public class AuthRepository {
                         try {
                             database.historyDao().deleteAll();
                             database.historyDao().insertAll(historyList);
-                            callback.onSuccess();
+                            mainHandler.post(callback::onSuccess);
                         } catch (Exception e) {
-                            callback.onError(e.getMessage());
+                            mainHandler.post(() -> callback.onError(e.getMessage()));
                         }
                     }).start();
                 })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnFailureListener(e -> mainHandler.post(() -> callback.onError(e.getMessage())));
     }
 
     // --- 5. ĐĂNG XUẤT ---
@@ -182,22 +206,9 @@ public class AuthRepository {
 
     private long readLong(DocumentSnapshot document, String field) {
         Object value = document.get(field);
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        if (value instanceof Timestamp) {
-            return ((Timestamp) value).toDate().getTime();
-        }
-        if (value instanceof Date) {
-            return ((Date) value).getTime();
-        }
-        if (value instanceof String) {
-            try {
-                return Long.parseLong((String) value);
-            } catch (NumberFormatException ignored) {
-                return 0L;
-            }
-        }
+        if (value instanceof Number) return ((Number) value).longValue();
+        if (value instanceof Timestamp) return ((Timestamp) value).toDate().getTime();
+        if (value instanceof Date) return ((Date) value).getTime();
         return 0L;
     }
 
