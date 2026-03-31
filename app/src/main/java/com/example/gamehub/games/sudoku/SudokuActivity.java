@@ -72,6 +72,7 @@ public class SudokuActivity extends AppCompatActivity {
 
     private TextView heart1, heart2, heart3;
     private TextView hintButtonText;
+    private TextView notesButtonText;
     private View[] numberButtons = new View[9];
 
     private SudokuGridView boardView;
@@ -88,6 +89,7 @@ public class SudokuActivity extends AppCompatActivity {
     private boolean sessionFinished;
     private int currentErrorCount;
     private int remainingHints = 3;
+    private boolean notesMode = false;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -139,6 +141,7 @@ public class SudokuActivity extends AppCompatActivity {
         heart3 = findViewById(R.id.sudoku_heart_3);
 
         hintButtonText = findViewById(R.id.sudoku_hint_button_text);
+        notesButtonText = findViewById(R.id.sudoku_notes_button_text);
 
         numberButtons[0] = findViewById(R.id.sudoku_number_1);
         numberButtons[1] = findViewById(R.id.sudoku_number_2);
@@ -182,6 +185,8 @@ public class SudokuActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.sudoku_action_hint).setOnClickListener(v -> useHint());
+        
+        findViewById(R.id.sudoku_action_notes).setOnClickListener(v -> toggleNotesMode());
 
         findViewById(R.id.sudoku_action_delete).setOnClickListener(v -> boardView.clearSelectedCell());
 
@@ -240,14 +245,22 @@ public class SudokuActivity extends AppCompatActivity {
         int[] randomCell = emptyCells.get(new Random().nextInt(emptyCells.size()));
         int row = randomCell[0];
         int col = randomCell[1];
-        int correctValue = solutionBoard[row][row]; // Wait, logic bug here, should be [row][col]
-
-        // Fixing the logic bug:
-        correctValue = solutionBoard[row][col];
+        int correctValue = solutionBoard[row][col];
 
         boardView.setCellValue(row, col, correctValue);
         remainingHints--;
         updateHintButtonUI();
+    }
+
+    private void toggleNotesMode() {
+        notesMode = !notesMode;
+        boardView.setNotesMode(notesMode);
+        updateNotesButtonUI();
+    }
+
+    private void updateNotesButtonUI() {
+        notesButtonText.setText(notesMode ? "Nháp: Bật" : "Nháp: Tắt");
+        findViewById(R.id.sudoku_notes_button_icon).setAlpha(notesMode ? 1f : 0.6f);
     }
 
     private void updateHintButtonUI() {
@@ -440,6 +453,7 @@ public class SudokuActivity extends AppCompatActivity {
         sessionFinished = false;
         currentErrorCount = 0;
         remainingHints = 3;
+        notesMode = false;
 
         if (savedState != null && savedState.currentMatrix != null && !savedState.currentMatrix.isEmpty()) {
             int[][] restored = SudokuLogic.parseMatrix(savedState.currentMatrix);
@@ -457,6 +471,7 @@ public class SudokuActivity extends AppCompatActivity {
         resetHearts();
         updateHearts();
         updateHintButtonUI();
+        updateNotesButtonUI();
         updateNumberButtonsVisibility();
         renderGameplayMeta();
         startTimer();
@@ -471,7 +486,7 @@ public class SudokuActivity extends AppCompatActivity {
         if (pauseOverlay.getVisibility() != View.VISIBLE) {
             subtitleView.setText(gameplaySubtitleBeforePause);
         }
-        toolTextView.setText(String.format(Locale.getDefault(), "Ghi chú tắt · %d gợi ý · Tạm dừng", remainingHints));
+        toolTextView.setText(String.format(Locale.getDefault(), "Ghi chú %s · %d gợi ý · Tạm dừng", (notesMode ? "bật" : "tắt"), remainingHints));
     }
 
     private void showPauseOverlay() {
