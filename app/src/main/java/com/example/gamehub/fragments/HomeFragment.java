@@ -265,6 +265,14 @@ public class HomeFragment extends Fragment {
             tvTitle.setText(action + history.gameName);
             tvSubtitle.setText(sdf.format(new Date(history.playDate)) + " · " + (history.isSynced ? "synced" : "local"));
 
+            // Đặt màu nền pastel khác nhau cho mỗi khung
+            int bgRes;
+            if (i % 3 == 0) bgRes = R.drawable.bg_profile_row_blue;
+            else if (i % 3 == 1) bgRes = R.drawable.bg_profile_row_green;
+            else bgRes = R.drawable.bg_profile_row_orange;
+            
+            itemView.setBackgroundResource(bgRes);
+
             llActivityList.addView(itemView);
         }
     }
