@@ -12,6 +12,9 @@ import java.util.List;
 @Dao
 public interface SudokuDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void insert(SudokuBoard item);
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertAll(List<SudokuBoard> items);
 
     @Query("SELECT COUNT(*) FROM Sudoku_Boards")
