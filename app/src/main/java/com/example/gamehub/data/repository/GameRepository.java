@@ -1,6 +1,7 @@
 package com.example.gamehub.data.repository;
 
 import android.content.Context;
+import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -28,6 +29,7 @@ import com.example.gamehub.workers.SyncWorker;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -87,11 +89,30 @@ public class GameRepository {
         void onError(String message);
     }
 
+    public interface HistorySyncCallback {
+        void onCompleted(HistorySyncResult result);
+    }
+
     private static final String DEFAULT_NICKNAME = "Player";
     private static final String HISTORY_SYNC_WORK_NAME = "history_sync";
     private static final String GENERAL_CHAT_ROOM_ID = "general";
     private static final long LEADERBOARD_CACHE_TTL_MS = 45_000L;
     private static final long ENSURE_USER_DOC_TTL_MS = 120_000L;
+    private static final String TAG = "GameRepository";
+
+    public static final class HistorySyncResult {
+        public final boolean success;
+        public final int syncedCount;
+        public final int remainingCount;
+        public final String message;
+
+        public HistorySyncResult(boolean success, int syncedCount, int remainingCount, String message) {
+            this.success = success;
+            this.syncedCount = syncedCount;
+            this.remainingCount = remainingCount;
+            this.message = message == null ? "" : message;
+        }
+    }
 
     private static final class LeaderboardCacheEntry {
         final List<LeaderboardEntry> entries;
@@ -137,6 +158,7 @@ public class GameRepository {
 
     private ListenerRegistration chatListenerRegistration;
     private boolean localDataReady;
+    private volatile String lastHistorySyncStatusMessage = "";
     @Nullable private LeaderboardCacheEntry weeklyLeaderboardCache;
     @Nullable private LeaderboardCacheEntry allTimeLeaderboardCache;
     private boolean weeklyLeaderboardRefreshInFlight;
@@ -237,7 +259,12 @@ public class GameRepository {
     }
 
     public long saveHistory(LocalHistory historyItem) {
+        return saveHistory(historyItem, null);
+    }
+
+    public long saveHistory(LocalHistory historyItem, @Nullable HistorySyncCallback callback) {
         long insertedId = historyDao.insert(historyItem);
+        syncPendingHistoryNow(callback);
         triggerHistorySyncIfNeeded();
         return insertedId;
     }
@@ -337,6 +364,10 @@ public class GameRepository {
     }
 
     public void sendChatMessage(String roomId, String content, ActionCallback callback) {
+        sendChatMessage(roomId, content, null, callback);
+    }
+
+    public void sendChatMessage(String roomId, String content, @Nullable ChatMessage replyToMessage, ActionCallback callback) {
         syncSessionFromFirebase();
         String trimmed = content == null ? "" : content.trim();
         if (trimmed.isEmpty()) {
@@ -363,12 +394,57 @@ public class GameRepository {
         payload.put("sender_nickname", nickname);
         payload.put("content", trimmed);
         payload.put("timestamp", System.currentTimeMillis());
+        if (replyToMessage != null) {
+            payload.put("reply_to_message_id", replyToMessage.getMessageId());
+            payload.put("reply_to_sender_nickname", getDisplayName(replyToMessage.getSenderNickname(), replyToMessage.getSenderUid()));
+            payload.put("reply_to_content", buildReplyPreviewContent(replyToMessage.getContent()));
+        }
 
         firestore.collection("Chat_Messages")
                 .document(messageId)
                 .set(payload)
                 .addOnSuccessListener(unused -> callback.onSuccess())
                 .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không gửi được tin nhắn." : error.getMessage()));
+    }
+
+    public void toggleChatReaction(ChatMessage message, String emoji, ActionCallback callback) {
+        syncSessionFromFirebase();
+        if (message == null || isBlank(message.getMessageId())) {
+            callback.onError("Không tìm thấy tin nhắn để thả cảm xúc.");
+            return;
+        }
+
+        String currentUid = getCurrentUid();
+        if (currentUid.isEmpty()) {
+            callback.onError("Chưa xác định được tài khoản hiện tại.");
+            return;
+        }
+
+        String normalizedEmoji = emoji == null ? "" : emoji.trim();
+        DocumentReference documentReference = firestore.collection("Chat_Messages").document(message.getMessageId());
+        firestore.runTransaction(transaction -> {
+            DocumentSnapshot snapshot = transaction.get(documentReference);
+            ChatMessage latestMessage = toChatMessage(snapshot);
+            Map<String, Object> reactionsByUid = new HashMap<>();
+            for (Map.Entry<String, String> entry : latestMessage.getReactionsByUid().entrySet()) {
+                if (!isBlank(entry.getValue())) {
+                    reactionsByUid.put(entry.getKey(), entry.getValue());
+                }
+            }
+
+            String existingReaction = latestMessage.getUserReaction(currentUid);
+            if (normalizedEmoji.isEmpty() || normalizedEmoji.equals(existingReaction)) {
+                reactionsByUid.remove(currentUid);
+            } else {
+                reactionsByUid.put(currentUid, normalizedEmoji);
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("reactions_by_uid", reactionsByUid);
+            transaction.set(documentReference, payload, SetOptions.merge());
+            return null;
+        }).addOnSuccessListener(unused -> callback.onSuccess())
+                .addOnFailureListener(error -> callback.onError(error.getMessage() == null ? "Không cập nhật được cảm xúc." : error.getMessage()));
     }
 
     public void setLeaderboardFilter(boolean weekly) {
@@ -533,6 +609,23 @@ public class GameRepository {
 
     public int getUnsyncedCount() {
         return historyDao.getUnsyncedCount();
+    }
+
+    public long getLastSyncTime() {
+        return preferenceManager.getLong(PreferenceManager.KEY_LAST_SYNC_TIME, 0L);
+    }
+
+    public String getLastHistorySyncStatusMessage() {
+        return lastHistorySyncStatusMessage == null ? "" : lastHistorySyncStatusMessage;
+    }
+
+    public void syncPendingHistoryNow(@Nullable HistorySyncCallback callback) {
+        ioExecutor.execute(() -> {
+            HistorySyncResult result = syncPendingHistoryBlocking();
+            if (callback != null) {
+                mainHandler.post(() -> callback.onCompleted(result));
+            }
+        });
     }
 
     public List<LocalHistory> getHistory(@Nullable String filter) {
@@ -798,25 +891,84 @@ public class GameRepository {
         }
 
         ioExecutor.execute(() -> {
-            String currentUid = getCurrentUid();
-            String cachedNickname = getCurrentNickname();
-            boolean syncedAnyRecord = false;
-            if (firebaseManager.canSyncHistoryResults(currentUid)) {
-                List<LocalHistory> pendingItems = historyDao.getUnsyncedHistory();
-                for (LocalHistory history : pendingItems) {
-                    if (firebaseManager.syncHistoryRecord(history, currentUid, cachedNickname)) {
-                        historyDao.markSynced(history.id);
-                        syncedAnyRecord = true;
-                    }
-                }
-            }
-
-            if (syncedAnyRecord) {
-                preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
-            }
-
+            syncPendingHistoryBlocking();
             mainHandler.post(() -> fetchLeaderboardFromCloud(weekly, callback));
         });
+    }
+
+    private HistorySyncResult syncPendingHistoryBlocking() {
+        int pendingCount = historyDao.getUnsyncedCount();
+        if (pendingCount <= 0) {
+            lastHistorySyncStatusMessage = "Không còn bản ghi nào chờ đồng bộ.";
+            return new HistorySyncResult(true, 0, 0, lastHistorySyncStatusMessage);
+        }
+
+        if (!NetworkUtils.isOnline(appContext)) {
+            lastHistorySyncStatusMessage = "Không có mạng. Kết quả đã lưu trên máy và sẽ tự đồng bộ khi có mạng.";
+            Log.w(TAG, "History sync skipped because device is offline. pending=" + pendingCount);
+            triggerHistorySyncIfNeeded();
+            return new HistorySyncResult(false, 0, pendingCount, lastHistorySyncStatusMessage);
+        }
+
+        syncSessionFromFirebase();
+        String currentUid = getCurrentUid();
+        if (!firebaseManager.canSyncHistoryResults(currentUid)) {
+            lastHistorySyncStatusMessage = "Chưa có tài khoản đăng nhập để đồng bộ Game_Records.";
+            Log.w(TAG, "History sync skipped because current uid is missing.");
+            triggerHistorySyncIfNeeded();
+            return new HistorySyncResult(false, 0, pendingCount, lastHistorySyncStatusMessage);
+        }
+
+        String cachedNickname = getCurrentNickname();
+        List<LocalHistory> pendingItems = historyDao.getUnsyncedHistory();
+        int syncedCount = 0;
+        String firstError = "";
+        for (LocalHistory history : pendingItems) {
+            FirebaseManager.SyncHistoryResult syncResult = firebaseManager.syncHistoryRecordDetailed(history, currentUid, cachedNickname);
+            if (syncResult.success) {
+                historyDao.markSynced(history.id);
+                syncedCount++;
+            } else if (firstError.isEmpty()) {
+                firstError = syncResult.message;
+            }
+        }
+
+        int remainingCount = historyDao.getUnsyncedCount();
+        if (syncedCount > 0) {
+            preferenceManager.putLong(PreferenceManager.KEY_LAST_SYNC_TIME, System.currentTimeMillis());
+        }
+
+        String message;
+        boolean success;
+        if (remainingCount <= 0) {
+            success = true;
+            message = syncedCount > 0
+                    ? String.format(Locale.getDefault(), "Đã đồng bộ %d trận lên Firebase.", syncedCount)
+                    : "Không còn bản ghi nào chờ đồng bộ.";
+        } else if (syncedCount > 0) {
+            success = false;
+            message = String.format(
+                    Locale.getDefault(),
+                    "Đã đồng bộ %d trận, còn %d trận chưa lên Firebase. %s",
+                    syncedCount,
+                    remainingCount,
+                    firstError.isEmpty() ? "" : firstError
+            ).trim();
+        } else {
+            success = false;
+            message = firstError.isEmpty()
+                    ? "Chưa đồng bộ được trận nào lên Firebase."
+                    : "Lỗi đồng bộ Firebase: " + firstError;
+        }
+
+        lastHistorySyncStatusMessage = message;
+        if (!success) {
+            Log.w(TAG, "History sync incomplete. pending=" + pendingCount + ", synced=" + syncedCount + ", remaining=" + remainingCount + ", message=" + message);
+            triggerHistorySyncIfNeeded();
+        } else {
+            Log.i(TAG, "History sync completed. synced=" + syncedCount);
+        }
+        return new HistorySyncResult(success, syncedCount, remainingCount, message);
     }
 
     private void fetchLeaderboardFromCloud(boolean weekly, LeaderboardCallback callback) {
@@ -1091,7 +1243,11 @@ public class GameRepository {
                 readString(document, "sender_uid"),
                 readString(document, "sender_nickname", "Người chơi"),
                 readString(document, "content"),
-                readLong(document, "timestamp")
+                readLong(document, "timestamp"),
+                readString(document, "reply_to_message_id"),
+                readString(document, "reply_to_sender_nickname"),
+                readString(document, "reply_to_content"),
+                readStringMap(document, "reactions_by_uid")
         );
     }
 
@@ -1113,6 +1269,14 @@ public class GameRepository {
         return message.getSenderNickname().trim().toLowerCase(Locale.getDefault());
     }
 
+    private String buildReplyPreviewContent(String content) {
+        String trimmed = content == null ? "" : content.trim();
+        if (trimmed.length() <= 72) {
+            return trimmed;
+        }
+        return trimmed.substring(0, 69).trim() + "...";
+    }
+
     private String readString(DocumentSnapshot document, String field) {
         return readString(document, field, "");
     }
@@ -1120,6 +1284,25 @@ public class GameRepository {
     private String readString(DocumentSnapshot document, String field, String fallback) {
         String value = document.getString(field);
         return value == null ? fallback : value;
+    }
+
+    private Map<String, String> readStringMap(DocumentSnapshot document, String field) {
+        Object rawValue = document.get(field);
+        if (!(rawValue instanceof Map)) {
+            return Collections.emptyMap();
+        }
+        Map<?, ?> rawMap = (Map<?, ?>) rawValue;
+        if (rawMap.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> normalized = new HashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                continue;
+            }
+            normalized.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+        }
+        return normalized;
     }
 
     private int readInt(DocumentSnapshot document, String field) {

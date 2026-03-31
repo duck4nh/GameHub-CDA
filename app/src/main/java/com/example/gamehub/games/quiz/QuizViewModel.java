@@ -56,6 +56,7 @@ public class QuizViewModel extends AndroidViewModel {
     private String selectedAnswerKey = "";
     private String message = "";
     private String bestHistoryText = "Đang cập nhật lịch sử...";
+    private String pendingSyncToastMessage = "";
     private QuizManager quizManager;
     private QuizManager.AnswerOutcome latestOutcome;
 
@@ -391,6 +392,16 @@ public class QuizViewModel extends AndroidViewModel {
         return bestHistoryText;
     }
 
+    @Nullable
+    public String consumePendingSyncToastMessage() {
+        if (pendingSyncToastMessage == null || pendingSyncToastMessage.trim().isEmpty()) {
+            return null;
+        }
+        String value = pendingSyncToastMessage;
+        pendingSyncToastMessage = "";
+        return value;
+    }
+
     private void finishGame() {
         currentScreen = Screen.RESULT;
         pauseVisible = false;
@@ -411,7 +422,12 @@ public class QuizViewModel extends AndroidViewModel {
         );
 
         executor.execute(() -> {
-            repository.saveHistory(currentHistory);
+            repository.saveHistory(currentHistory, result -> {
+                if (!result.success && result.message != null && !result.message.trim().isEmpty()) {
+                    pendingSyncToastMessage = result.message;
+                    notifyObservers();
+                }
+            });
             LocalHistory bestHistory = repository.getBestHistoryForGame("quiz");
             mainHandler.post(() -> {
                 bestHistoryText = buildBestHistoryText(bestHistory);

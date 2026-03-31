@@ -29,7 +29,6 @@ public class StatisticsFragment extends Fragment {
     private TextView metricWeeklyDelta;
     private TextView metricStreak;
     private TextView metricStreakCaption;
-    private View offlineBanner;
     private TextView leaderboardSummaryCaption;
     private View bestQuizRow;
     private TextView bestQuizTime;
@@ -60,7 +59,6 @@ public class StatisticsFragment extends Fragment {
         metricWeeklyDelta = view.findViewById(R.id.metric_weekly_delta);
         metricStreak = view.findViewById(R.id.metric_streak);
         metricStreakCaption = view.findViewById(R.id.metric_streak_caption);
-        offlineBanner = view.findViewById(R.id.offline_banner);
         leaderboardSummaryCaption = view.findViewById(R.id.leaderboard_summary_caption);
         bestQuizRow = view.findViewById(R.id.best_quiz_row);
         bestQuizTime = view.findViewById(R.id.best_quiz_time);
@@ -113,10 +111,6 @@ public class StatisticsFragment extends Fragment {
 
         if (requireActivity() instanceof MainActivity) {
             ((MainActivity) requireActivity()).setBottomNavVisible(true);
-        }
-
-        if (offlineBanner != null) {
-            offlineBanner.setVisibility(View.GONE);
         }
 
         bindCurrentUserAvatar();

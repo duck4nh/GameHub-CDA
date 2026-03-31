@@ -319,6 +319,10 @@ public class QuizActivity extends AppCompatActivity {
         resultNoteView.setText(viewModel.isWin()
                 ? "Kết quả của bạn đã được lưu. Bạn đạt ngưỡng thắng từ 60% số câu đúng."
                 : "Kết quả của bạn đã được lưu. Hãy thử lại để cải thiện độ chính xác và điểm số.");
+        String syncToastMessage = viewModel.consumePendingSyncToastMessage();
+        if (syncToastMessage != null && !syncToastMessage.trim().isEmpty()) {
+            Toast.makeText(this, syncToastMessage, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void renderPause() {

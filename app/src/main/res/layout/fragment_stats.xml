@@ -544,36 +544,6 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/offline_banner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:background="@drawable/bg_card_success_20"
-                android:orientation="vertical"
-                android:padding="18dp"
-                android:visibility="gone"
-                tools:visibility="gone">
-
-                <TextView
-                    android:id="@+id/offline_banner_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="14sp"
-                    tools:text="Kết quả mới" />
-
-                <TextView
-                    android:id="@+id/offline_banner_subtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="14sp"
-                    tools:text="Mở lại để xem chi tiết từng trận." />
-            </LinearLayout>
-
-            <LinearLayout
                 android:id="@+id/leaderboard_summary_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

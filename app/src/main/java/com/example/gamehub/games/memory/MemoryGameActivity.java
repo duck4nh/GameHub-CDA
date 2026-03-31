@@ -9,6 +9,7 @@ import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
@@ -272,6 +273,10 @@ public class MemoryGameActivity extends AppCompatActivity {
                 : "Đây là màn cao nhất đã mở. Bạn có thể quay lại danh sách để chơi lại các màn trước.");
         nextLevelButton.setEnabled(viewModel.canPlayNextLevel());
         nextLevelButton.setAlpha(nextLevelButton.isEnabled() ? 1f : 0.45f);
+        String syncToastMessage = viewModel.consumePendingSyncToastMessage();
+        if (syncToastMessage != null && !syncToastMessage.trim().isEmpty()) {
+            Toast.makeText(this, syncToastMessage, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void renderPause() {
