@@ -4,6 +4,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -66,19 +67,15 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_memory_card, parent, false);
-        int spanCount = 4;
-        RecyclerView.LayoutManager layoutManager = parent instanceof RecyclerView ? ((RecyclerView) parent).getLayoutManager() : null;
-        if (layoutManager instanceof GridLayoutManager) {
-            spanCount = ((GridLayoutManager) layoutManager).getSpanCount();
-        }
-        final int finalSpanCount = spanCount;
+        int spanCount = resolveSpanCount(parent);
         view.post(() -> {
             int parentWidth = parent.getWidth();
             if (parentWidth <= 0) {
                 return;
             }
             int horizontalPadding = parent.getPaddingStart() + parent.getPaddingEnd();
-            int size = Math.max(56, ((parentWidth - horizontalPadding) / finalSpanCount) - 8);
+            int spacingAllowance = dpToPx(view, spanCount >= 5 ? 4 : 6);
+            int size = Math.max(dpToPx(view, spanCount >= 5 ? 58 : 64), ((parentWidth - horizontalPadding) / spanCount) - spacingAllowance);
             RecyclerView.LayoutParams params = (RecyclerView.LayoutParams) view.getLayoutParams();
             if (params == null) {
                 params = new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, size);
@@ -94,9 +91,12 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         MemoryCard card = items.get(position);
         boolean showFront = card.revealed || card.matched;
+        boolean compactCard = resolveSpanCount(holder.itemView.getParent()) >= 5;
+
         holder.itemView.animate().cancel();
         holder.labelView.setText(card.label);
-        holder.metaView.setText(card.matched ? "khớp" : "cặp");
+        holder.labelView.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactCard ? 24f : 30f);
+        holder.metaView.setVisibility(View.GONE);
         applyFrontTint(holder.frontFace, card);
 
         if (!holder.bound || holder.boundCardId != card.cardId) {
@@ -154,6 +154,20 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
                     }
                 })
                 .start();
+    }
+
+    private int resolveSpanCount(Object parent) {
+        if (parent instanceof RecyclerView) {
+            RecyclerView.LayoutManager layoutManager = ((RecyclerView) parent).getLayoutManager();
+            if (layoutManager instanceof GridLayoutManager) {
+                return ((GridLayoutManager) layoutManager).getSpanCount();
+            }
+        }
+        return 4;
+    }
+
+    private int dpToPx(View view, int dp) {
+        return Math.round(dp * view.getResources().getDisplayMetrics().density);
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

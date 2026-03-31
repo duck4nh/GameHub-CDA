@@ -3,9 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipToPadding="false"
-    android:paddingStart="20dp"
+    android:paddingStart="12dp"
     android:paddingTop="22dp"
-    android:paddingEnd="20dp"
+    android:paddingEnd="12dp"
     android:paddingBottom="32dp">
 
     <LinearLayout
@@ -32,7 +32,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
+                android:layout_marginStart="18dp"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
@@ -41,23 +41,23 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="Ghi nhớ · 3x4"
+                    android:text="Ghi nhớ · Level 1"
                     android:textColor="@color/gh_text_primary"
-                    android:textSize="20sp" />
+                    android:textSize="21sp" />
 
                 <TextView
                     android:id="@+id/memory_meta_small"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Đang thi đấu"
+                    android:text="3x4 · 6 cặp · 3 hàng · 4 cột"
                     android:textColor="@color/gh_text_secondary"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <TextView
                 android:id="@+id/memory_pause"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:background="@drawable/bg_card_surface_20"
                 android:gravity="center"
                 android:text="⋯"
@@ -67,12 +67,12 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:layout_marginTop="22dp"
+            android:layout_height="84dp"
+            android:layout_marginTop="20dp"
             android:background="@drawable/bg_card_surface_24"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="18dp">
+            android:paddingHorizontal="16dp">
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -95,12 +95,12 @@
                     android:fontFamily="sans-serif-medium"
                     android:text="0 cặp liên tiếp"
                     android:textColor="@color/gh_text_primary"
-                    android:textSize="20sp" />
+                    android:textSize="22sp" />
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="130dp"
-                android:layout_height="44dp"
+                android:layout_width="132dp"
+                android:layout_height="48dp"
                 android:background="@drawable/bg_chip_success"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -135,7 +135,7 @@
                         android:fontFamily="sans-serif-medium"
                         android:text="00:00"
                         android:textColor="@color/gh_text_primary"
-                        android:textSize="16sp" />
+                        android:textSize="17sp" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
@@ -147,7 +147,7 @@
             android:layout_marginTop="16dp"
             android:text="Số lượt đoán cặp"
             android:textColor="@color/gh_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/memory_progress"
@@ -158,13 +158,13 @@
             android:fontFamily="sans-serif-medium"
             android:text="0 lượt"
             android:textColor="@color/gh_text_primary"
-            android:textSize="24sp" />
+            android:textSize="26sp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/memory_board"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="14dp"
             android:nestedScrollingEnabled="false" />
     </LinearLayout>
 </ScrollView>

@@ -221,7 +221,7 @@ public class HistoryDetailFragment extends Fragment {
             return "Chơi bàn Sudoku khác";
         }
         if (isMemoryGame(item)) {
-            return "Chơi màn ghi nhớ khác";
+            return "Chơi level ghi nhớ khác";
         }
         return "Chơi lượt đố vui khác";
     }

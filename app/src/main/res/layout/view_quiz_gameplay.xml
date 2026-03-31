@@ -1,123 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipToPadding="false"
+    android:orientation="vertical"
     android:paddingStart="20dp"
     android:paddingTop="22dp"
     android:paddingEnd="20dp"
-    android:paddingBottom="32dp">
+    android:paddingBottom="18dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/quiz_play_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_back_button"
+            android:gravity="center"
+            android:text="‹"
+            android:textColor="@color/gh_text_primary"
+            android:textSize="24sp" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_marginStart="20dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/quiz_play_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_back_button"
-                android:gravity="center"
-                android:text="‹"
+                android:id="@+id/quiz_play_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="Kiến thức tổng hợp"
                 android:textColor="@color/gh_text_primary"
-                android:textSize="24sp" />
+                android:textSize="20sp" />
+
+            <TextView
+                android:id="@+id/quiz_play_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Câu 1 / 20"
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/quiz_pause"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_card_surface_20"
+            android:gravity="center"
+            android:text="⋯"
+            android:textColor="@color/gh_text_secondary"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/quiz_progress_track"
+            android:layout_width="0dp"
+            android:layout_height="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_progress_track">
+
+            <View
+                android:id="@+id/quiz_progress_fill"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_progress_fill" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="132dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_card_brand_20"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <TextView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_primary_button_round"
+                android:gravity="center"
+                android:text="T"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
-                android:layout_weight="1"
+                android:layout_marginStart="8dp"
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/quiz_play_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="Kiến thức tổng hợp"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="20sp" />
-
-                <TextView
-                    android:id="@+id/quiz_play_progress"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Câu 1 / 20"
+                    android:text="Còn lại"
                     android:textColor="@color/gh_text_secondary"
                     android:textSize="11sp" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/quiz_pause"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="@drawable/bg_card_surface_20"
-                android:gravity="center"
-                android:text="⋯"
-                android:textColor="@color/gh_text_secondary"
-                android:textSize="16sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <FrameLayout
-                android:id="@+id/quiz_progress_track"
-                android:layout_width="0dp"
-                android:layout_height="8dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_progress_track">
-
-                <View
-                    android:id="@+id/quiz_progress_fill"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_progress_fill" />
-            </FrameLayout>
-
-            <LinearLayout
-                android:layout_width="132dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="12dp"
-                android:background="@drawable/bg_card_brand_20"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
-
-                <TextView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:background="@drawable/bg_primary_button_round"
-                    android:gravity="center"
-                    android:text="T"
-                    android:textColor="@color/white"
-                    android:textSize="12sp" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Còn lại"
-                        android:textColor="@color/gh_text_secondary"
-                        android:textSize="11sp" />
 
                     <TextView
                         android:id="@+id/quiz_timer"
@@ -127,226 +123,226 @@
                         android:text="00:15"
                         android:textColor="@color/gh_text_primary"
                         android:textSize="16sp" />
-                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal">
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="74dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_card_surface_20"
-                android:orientation="vertical"
-                android:padding="14dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Điểm"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/quiz_live_score"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="0"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="22sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="74dp"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_chip_success"
-                android:orientation="vertical"
-                android:padding="14dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Combo"
-                    android:textColor="@color/gh_text_secondary"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/quiz_live_combo"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="0"
-                    android:textColor="@color/gh_text_primary"
-                    android:textSize="22sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/quiz_feedback"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_width="0dp"
+            android:layout_height="74dp"
+            android:layout_weight="1"
             android:background="@drawable/bg_card_surface_20"
-            android:padding="14dp"
-            android:textColor="@color/gh_text_secondary"
-            android:textSize="14sp"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/quiz_question_card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_card_surface_24"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="14dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Câu hỏi"
+                android:text="Điểm"
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="12sp" />
 
             <TextView
-                android:id="@+id/quiz_question"
-                android:layout_width="match_parent"
+                android:id="@+id/quiz_live_score"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:fontFamily="sans-serif-medium"
-                android:text="..."
+                android:text="0"
                 android:textColor="@color/gh_text_primary"
-                android:textSize="18sp" />
+                android:textSize="22sp" />
         </LinearLayout>
 
-        <FrameLayout
-            android:id="@+id/quiz_image_container"
-            android:layout_width="match_parent"
-            android:layout_height="180dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_card_brand_22"
-            android:visibility="gone">
-
-            <ImageView
-                android:id="@+id/quiz_image"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#26000000" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="74dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_chip_success"
+            android:orientation="vertical"
+            android:padding="14dp">
 
             <TextView
-                android:id="@+id/quiz_illustration_caption"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:paddingStart="16dp"
-                android:paddingTop="12dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="14dp"
-                android:text="Minh họa cho câu hỏi hiện tại"
-                android:textColor="@color/white"
-                android:textSize="13sp" />
-        </FrameLayout>
+                android:text="Combo"
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="12sp" />
 
-        <Button
-            android:id="@+id/quiz_option_a"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_quiz_option_default"
-            android:backgroundTint="@null"
-            android:gravity="start|center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
-            android:text="A"
-            android:textAllCaps="false"
-            android:textColor="@color/gh_text_primary"
-            android:textSize="15sp"
-            app:backgroundTint="@null" />
+            <TextView
+                android:id="@+id/quiz_live_combo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="0"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="22sp" />
+        </LinearLayout>
+    </LinearLayout>
 
-        <Button
-            android:id="@+id/quiz_option_b"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_quiz_option_default"
-            android:backgroundTint="@null"
-            android:gravity="start|center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
-            android:text="B"
-            android:textAllCaps="false"
-            android:textColor="@color/gh_text_primary"
-            android:textSize="15sp"
-            app:backgroundTint="@null" />
+    <TextView
+        android:id="@+id/quiz_feedback"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_card_surface_20"
+        android:padding="14dp"
+        android:textColor="@color/gh_text_secondary"
+        android:textSize="14sp"
+        android:visibility="gone" />
 
-        <Button
-            android:id="@+id/quiz_option_c"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_quiz_option_default"
-            android:backgroundTint="@null"
-            android:gravity="start|center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
-            android:text="C"
-            android:textAllCaps="false"
-            android:textColor="@color/gh_text_primary"
-            android:textSize="15sp"
-            app:backgroundTint="@null" />
+    <ScrollView
+        android:id="@+id/quiz_gameplay_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:paddingTop="12dp">
 
-        <Button
-            android:id="@+id/quiz_option_d"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_quiz_option_default"
-            android:backgroundTint="@null"
-            android:gravity="start|center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
-            android:text="D"
-            android:textAllCaps="false"
-            android:textColor="@color/gh_text_primary"
-            android:textSize="15sp"
-            app:backgroundTint="@null" />
-
-        <Button
-            android:id="@+id/quiz_submit_answer"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_primary_button_round"
-            android:backgroundTint="@null"
-            android:text="Gửi đáp án"
-            android:textAllCaps="false"
-            android:textColor="@color/white"
-            app:backgroundTint="@null" />
-
-        <TextView
-            android:id="@+id/quiz_empty"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center"
-            android:text="Chưa có câu hỏi phù hợp để hiển thị."
-            android:textColor="@color/gh_text_secondary"
-            android:textSize="14sp"
-            android:visibility="gone" />
-    </LinearLayout>
-</ScrollView>
+            android:orientation="vertical"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:id="@+id/quiz_question_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_surface_24"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Câu hỏi"
+                    android:textColor="@color/gh_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/quiz_question"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="..."
+                    android:textColor="@color/gh_text_primary"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/quiz_image_container"
+                android:layout_width="match_parent"
+                android:layout_height="148dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_card_brand_22"
+                android:clipToOutline="true"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/quiz_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
+
+            <Button
+                android:id="@+id/quiz_option_a"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_quiz_option_default"
+                android:backgroundTint="@null"
+                android:gravity="start|center_vertical"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="A"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="15sp"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/quiz_option_b"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_quiz_option_default"
+                android:backgroundTint="@null"
+                android:gravity="start|center_vertical"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="B"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="15sp"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/quiz_option_c"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_quiz_option_default"
+                android:backgroundTint="@null"
+                android:gravity="start|center_vertical"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="C"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="15sp"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/quiz_option_d"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_quiz_option_default"
+                android:backgroundTint="@null"
+                android:gravity="start|center_vertical"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="D"
+                android:textAllCaps="false"
+                android:textColor="@color/gh_text_primary"
+                android:textSize="15sp"
+                app:backgroundTint="@null" />
+
+            <TextView
+                android:id="@+id/quiz_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center"
+                android:text="Chưa có câu hỏi phù hợp để hiển thị."
+                android:textColor="@color/gh_text_secondary"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/quiz_submit_answer"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_primary_button_round"
+        android:backgroundTint="@null"
+        android:text="Gửi đáp án"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        app:backgroundTint="@null" />
+
+</LinearLayout>

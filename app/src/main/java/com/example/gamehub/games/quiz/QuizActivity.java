@@ -75,6 +75,7 @@ public class QuizActivity extends AppCompatActivity {
     private View pauseOverlay;
     private View questionCard;
     private View imageContainer;
+    private ScrollView gameplayScrollView;
     private TextView selectedTopicHeroView;
     private TextView selectedSummaryView;
     private TextView selectedTopicView;
@@ -92,7 +93,6 @@ public class QuizActivity extends AppCompatActivity {
     private TextView liveComboView;
     private TextView feedbackView;
     private TextView questionView;
-    private TextView illustrationCaptionView;
     private ImageView illustrationView;
     private TextView emptyView;
     private Button optionAButton;
@@ -135,6 +135,7 @@ public class QuizActivity extends AppCompatActivity {
         pauseOverlay = findViewById(R.id.quiz_pause_screen);
         questionCard = findViewById(R.id.quiz_question_card);
         imageContainer = findViewById(R.id.quiz_image_container);
+        gameplayScrollView = findViewById(R.id.quiz_gameplay_scroll);
 
         selectedTopicHeroView = findViewById(R.id.quiz_selected_topic_hero);
         selectedSummaryView = findViewById(R.id.quiz_selected_summary);
@@ -153,7 +154,6 @@ public class QuizActivity extends AppCompatActivity {
         liveComboView = findViewById(R.id.quiz_live_combo);
         feedbackView = findViewById(R.id.quiz_feedback);
         questionView = findViewById(R.id.quiz_question);
-        illustrationCaptionView = findViewById(R.id.quiz_illustration_caption);
         illustrationView = findViewById(R.id.quiz_image);
         emptyView = findViewById(R.id.quiz_empty);
         optionAButton = findViewById(R.id.quiz_option_a);
@@ -340,20 +340,27 @@ public class QuizActivity extends AppCompatActivity {
             renderedIllustrationUrl = "";
             return;
         }
-        imageContainer.setVisibility(View.VISIBLE);
-        illustrationCaptionView.setText("Minh họa cho chủ đề " + question.category);
-        if (imageUrl.equals(renderedIllustrationUrl)) {
+        if (imageUrl.equals(renderedIllustrationUrl)
+                && imageContainer.getVisibility() == View.VISIBLE
+                && illustrationView.getDrawable() != null) {
             return;
         }
         renderedIllustrationUrl = imageUrl;
+        imageContainer.setVisibility(View.GONE);
         illustrationView.setImageDrawable(null);
         ImageLoader.load(imageUrl, illustrationView, success -> {
-            if (!success && imageUrl.equals(renderedIllustrationUrl)) {
-                illustrationCaptionView.setText("Không tải được minh họa, bạn vẫn có thể trả lời bình thường.");
+            if (!imageUrl.equals(renderedIllustrationUrl)) {
+                return;
+            }
+            if (success) {
+                imageContainer.setVisibility(View.VISIBLE);
+            } else {
+                imageContainer.setVisibility(View.GONE);
+                illustrationView.setImageDrawable(null);
+                renderedIllustrationUrl = "";
             }
         });
     }
-
     private void renderAnswerButtons(QuizQuestion question, @Nullable QuizManager.AnswerOutcome outcome) {
         optionAButton.setText(question.optionA);
         optionBButton.setText(question.optionB);
@@ -426,8 +433,10 @@ public class QuizActivity extends AppCompatActivity {
         optionDButton.setVisibility(visibility);
         submitAnswerButton.setVisibility(visibility);
         progressTrackView.setVisibility(visibility);
+        if (!visible) {
+            imageContainer.setVisibility(View.GONE);
+        }
     }
-
     private void updateProgressFill(float ratio) {
         progressTrackView.post(() -> {
             int width = progressTrackView.getWidth();
@@ -638,6 +647,7 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     private void animateQuestionCard() {
+        scrollGameplayToTop();
         if (!isAnimationOn()) {
             return;
         }
@@ -649,6 +659,12 @@ public class QuizActivity extends AppCompatActivity {
         }
     }
 
+    private void scrollGameplayToTop() {
+        if (gameplayScrollView == null) {
+            return;
+        }
+        gameplayScrollView.post(() -> gameplayScrollView.smoothScrollTo(0, 0));
+    }
     private void animateResultScreen() {
         if (!isAnimationOn()) {
             return;

@@ -2,13 +2,13 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp">
+    android:layout_margin="2dp">
 
     <FrameLayout
         android:id="@+id/memory_card_back_face"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:minHeight="56dp"
+        android:minHeight="60dp"
         android:background="@drawable/bg_card_surface_22"
         android:foreground="?attr/selectableItemBackgroundBorderless">
 
@@ -20,14 +20,14 @@
             android:gravity="center"
             android:text="?"
             android:textColor="@color/gh_text_secondary"
-            android:textSize="24sp" />
+            android:textSize="28sp" />
     </FrameLayout>
 
     <LinearLayout
         android:id="@+id/memory_card_front_face"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:minHeight="56dp"
+        android:minHeight="60dp"
         android:background="@drawable/bg_card_brand_22"
         android:gravity="center"
         android:orientation="vertical"
@@ -40,17 +40,18 @@
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
-            android:text="A"
+            android:text="😀"
             android:textColor="@color/gh_text_primary"
-            android:textSize="24sp" />
+            android:textSize="28sp" />
 
         <TextView
             android:id="@+id/memory_card_meta"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="3dp"
             android:text="cặp"
             android:textColor="@color/gh_text_secondary"
-            android:textSize="10sp" />
+            android:textSize="11sp"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

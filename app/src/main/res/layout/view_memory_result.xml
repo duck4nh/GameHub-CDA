@@ -44,7 +44,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Màn 1 · 3x4 · 6 cặp khớp · 9 lượt đoán"
+                android:text="Level 1 (3x4) · 6 cặp khớp · 9 lượt đoán"
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
 
@@ -81,7 +81,7 @@
                         android:backgroundTint="@null"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
-                        android:text="Màn tiếp"
+                        android:text="Level tiếp theo"
                         android:textAllCaps="false"
                         android:textColor="@color/gh_button_secondary_text"
                         android:textSize="12sp"
@@ -211,7 +211,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Đã mở màn tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng màn mới."
+                android:text="Đã mở level tiếp theo. Bạn có thể quay lại danh sách level hoặc sang thẳng level mới."
                 android:textColor="@color/gh_text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>
