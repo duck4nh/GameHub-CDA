@@ -204,7 +204,7 @@ public class SudokuActivity extends AppCompatActivity {
         });
         findViewById(R.id.sudoku_pause_exit).setOnClickListener(v -> finish());
 
-        findViewById(R.id.sudoku_result_retry).setOnClickListener(v -> startSelectedLevel());
+        findViewById(R.id.sudoku_result_retry).setOnClickListener(v -> restartCurrentBoard());
         findViewById(R.id.sudoku_result_change_level).setOnClickListener(v -> showSetupScreen());
         findViewById(R.id.sudoku_result_close).setOnClickListener(v -> finish());
 
@@ -469,13 +469,21 @@ public class SudokuActivity extends AppCompatActivity {
     }
 
     private void startSelectedLevel() {
-        SudokuBoard board = sudokuDao.getBoardByLevel(selectedLevel);
+        SudokuBoard board = createFreshBoardForLevel(selectedLevel);
         if (board == null) {
-            Toast.makeText(this, "Chưa có bàn Sudoku cho cấp độ này.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Không thể tạo bàn Sudoku mới lúc này.", Toast.LENGTH_SHORT).show();
             return;
         }
-        sudokuGameStateDao.clearStateForBoard(board.id);
         startBoard(board, null);
+    }
+
+    private void restartCurrentBoard() {
+        if (currentBoardEntity == null) {
+            startSelectedLevel();
+            return;
+        }
+        sudokuGameStateDao.clearStateForBoard(currentBoardEntity.id);
+        startBoard(currentBoardEntity, null);
     }
 
     private void startSavedBoard() {
@@ -483,6 +491,36 @@ public class SudokuActivity extends AppCompatActivity {
             return;
         }
         startBoard(continueBoard, continueState);
+    }
+
+    private SudokuBoard createFreshBoardForLevel(String level) {
+        SudokuBoard existingBoard = sudokuDao.getBoardByLevel(level);
+        int boardId = existingBoard != null ? existingBoard.id : getFallbackBoardId(level);
+        try {
+            SudokuBoard generatedBoard = SudokuGenerator.generate(boardId, level);
+            sudokuDao.insert(generatedBoard);
+            sudokuGameStateDao.clearStateForBoard(boardId);
+            SudokuBoard persistedBoard = sudokuDao.getBoard(boardId);
+            return persistedBoard == null ? generatedBoard : persistedBoard;
+        } catch (RuntimeException exception) {
+            if (existingBoard != null) {
+                sudokuGameStateDao.clearStateForBoard(existingBoard.id);
+            }
+            return existingBoard;
+        }
+    }
+
+    private int getFallbackBoardId(String level) {
+        if ("medium".equals(level)) {
+            return 2;
+        }
+        if ("hard".equals(level)) {
+            return 3;
+        }
+        if ("expert".equals(level)) {
+            return 4;
+        }
+        return 1;
     }
 
     private void startBoard(SudokuBoard board, @Nullable SudokuGameState savedState) {
