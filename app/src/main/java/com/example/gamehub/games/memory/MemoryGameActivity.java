@@ -659,8 +659,14 @@ public class MemoryGameActivity extends AppCompatActivity {
         MemoryLevel level = viewModel.getCurrentLevel();
         StringBuilder builder = new StringBuilder();
         builder.append("Bạn là huấn luyện viên cho game lật hình. ")
-                .append("Hãy viết đúng 2 đến 3 câu tiếng Việt tự nhiên, khách quan và dễ nghe. ")
-                .append("Nêu một điểm làm tốt và một gợi ý cải thiện cụ thể về khả năng ghi nhớ, tốc độ hoặc độ ổn định, không dùng gạch đầu dòng, không xưng là AI.\n\n")
+                .append("Hãy phân tích đúng theo luật chơi của game Ghi nhớ trong GameHub để viết nhận xét cuối ván. ")
+                .append("Mục tiêu là lật và ghép đúng toàn bộ các cặp trong thời gian giới hạn; ít lượt đoán hơn, chính xác cao hơn, chuỗi ghép liên tiếp cao hơn và hoàn thành nhanh hơn nghĩa là chơi tốt hơn. ")
+                .append("Nếu lượt đoán cao so với số cặp, nhiều lần úp lại thẻ không khớp, hoặc chuỗi liên tiếp thấp thì đó là dấu hiệu nhớ vị trí chưa ổn hoặc còn đoán vội. ")
+                .append("Nhật ký thao tác bên dưới là log theo trình tự thời gian. ")
+                .append("Các dòng lật thẻ đầu tiên/đầu hai cho biết cách dò vị trí; 'khớp' nghĩa là ghi nhớ tốt; 'úp lại hai thẻ không khớp' nghĩa là chọn sai cặp; 'hết giờ' nghĩa là xử lý còn chậm. ")
+                .append("Hãy đọc log để suy ra người chơi đang nhớ có hệ thống hay chủ yếu thử may, rồi nhận xét khách quan, dễ nghe. ")
+                .append("Kết quả thấp thì nói theo hướng tạm ổn, còn khoảng để cải thiện, không gay gắt. ")
+                .append("Nhận xét phải có đủ khen và chê: nêu rõ một điểm làm tốt, một điểm cần cải thiện, và nếu cần thì thêm một câu chốt ngắn.\n\n")
                 .append("Tóm tắt ván chơi:\n")
                 .append("- Level: ").append(level == null ? "--" : level.levelId).append('\n')
                 .append("- Lưới: ").append(level == null ? "--" : level.getDisplayLabel()).append('\n')

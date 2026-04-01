@@ -436,8 +436,14 @@ public class QuizViewModel extends AndroidViewModel {
     public String buildAiReviewPrompt() {
         StringBuilder builder = new StringBuilder();
         builder.append("Bạn là huấn luyện viên cho game đố vui. ")
-                .append("Hãy viết đúng 2 đến 3 câu tiếng Việt tự nhiên, khách quan và dễ nghe. ")
-                .append("Nêu ngắn gọn một điểm người chơi làm tốt và một hướng cải thiện cụ thể, không dùng gạch đầu dòng, không xưng là AI.\n\n")
+                .append("Hãy phân tích đúng theo luật chơi của Quiz trong GameHub để viết nhận xét cuối ván. ")
+                .append("Mỗi câu hỏi có 15 giây; trả lời đúng càng sớm thì điểm thưởng càng cao; trả lời đúng liên tiếp sẽ tăng combo; hết giờ hoặc trả lời sai sẽ làm mất nhịp. ")
+                .append("Kết quả tốt phải dựa vào tỉ lệ đúng trên tổng số câu, điểm số, combo tốt nhất, số lần hết giờ và tốc độ giữ nhịp qua nhiều câu. ")
+                .append("Nếu kết quả thấp thì dùng giọng nhẹ nhàng, kiểu tạm ổn hoặc còn khoảng để cải thiện, không chê gay gắt. ")
+                .append("Nhật ký thao tác bên dưới là log theo trình tự thời gian. ")
+                .append("Các dòng như 'Hiển thị câu...' nghĩa là bắt đầu một câu mới; 'trả lời đúng' nghĩa là chọn đúng đáp án; 'trả lời sai' nghĩa là chọn sai; 'hết giờ' nghĩa là không kịp trả lời; thời gian còn lại thể hiện tốc độ xử lý câu; combo phản ánh độ ổn định qua nhiều câu liên tiếp. ")
+                .append("Hãy dùng chính các log này để suy ra người chơi hiểu bài, đoán nhanh, hay bị cuống thời gian. ")
+                .append("Nhận xét phải có đủ khen và chê: nêu rõ một điểm làm tốt, một điểm cần cải thiện, và nếu cần thì thêm một câu chốt ngắn.\n\n")
                 .append("Tóm tắt ván chơi:\n")
                 .append("- Chủ đề: ").append(getSelectedCategoriesLabel()).append('\n')
                 .append("- Độ khó: ").append(getSelectedDifficultyLabel()).append('\n')

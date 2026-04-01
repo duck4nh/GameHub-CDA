@@ -30,8 +30,9 @@ public class GeminiReviewService {
         void onError(String message);
     }
 
+    private static final String MODEL_NAME = "gemini-2.5-flash";
     private static final String MODEL_ENDPOINT =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL_NAME + ":generateContent";
     private static final String MISSING_KEY_ERROR = "Chưa cấu hình GEMINI_API_KEY trong local.properties.";
     private static final String GENERIC_ERROR = "Chưa thể tạo nhận xét AI lúc này. Hãy thử lại sau.";
     private static final String BUSY_ERROR = "AI đang bận do có nhiều yêu cầu cùng lúc. Hãy thử lại sau ít phút.";
@@ -44,6 +45,23 @@ public class GeminiReviewService {
             "Không dùng gạch đầu dòng, không xưng là AI, không dùng tiếng Anh trừ tên riêng hoặc thuật ngữ game. " +
             "Trả về đúng 2 đến 3 câu.";
     private static final int MIN_REVIEW_CHAR_COUNT = 28;
+    private static final int MIN_REVIEW_CHAR_COUNT_STRICT = 45;
+    private static final String STRUCTURED_REVIEW_REQUIREMENTS =
+            "Bat buoc viet 2 hoac 3 cau hoan chinh. Cau 1 neu mot diem lam tot noi bat dua tren so lieu hoac hanh vi cu the. " +
+            "Cau 2 bat buoc neu mot diem can cai thien that cu the va huong dieu chinh ngan gon. " +
+            "Neu co cau 3 thi do la mot loi khuyen thuc hanh ngan. Khong duoc tra ve 1 cau duy nhat va khong duoc nhan xet chung chung.";
+    private static final String STRUCTURED_REVIEW_TONE_GUIDE =
+            "Use a tone that matches the result: very good results can be praised clearly, average results should sound fairly positive but still point out the gap, " +
+            "and weak results should sound gentle and constructive, like tam on or can cai thien, not harsh. " +
+            "If the prompt includes score versus total, accuracy, time, combo, attempts, mistakes, or level, the review should refer to those signals directly.";
+    private static final String STRUCTURED_JSON_PROMPT =
+            "Return valid JSON only. " +
+            "Use this exact shape: " +
+            "{\"overall_tone\":\"excellent|good|average|needs_work\",\"praise\":\"...\",\"improvement\":\"...\",\"closing\":\"...\"}. " +
+            "The praise field must be sentence 1 and clearly mention what the player did well based on the real round stats. " +
+            "The improvement field must be sentence 2 and must mention one concrete weakness plus one practical way to improve it. " +
+            "The closing field is optional sentence 3 and should be empty if not needed. " +
+            "Always write in natural Vietnamese with accents. Never use markdown or bullet points. Never return more than 3 sentences total.";
 
     private static GeminiReviewService instance;
 
@@ -79,8 +97,10 @@ public class GeminiReviewService {
                 }
                 postSuccess(callback, review);
             } catch (ReviewException exception) {
+                Log.w(TAG, "Gemini review request failed: " + exception.getMessage());
                 postError(callback, exception.getMessage());
             } catch (Exception exception) {
+                Log.e(TAG, "Unexpected Gemini review failure", exception);
                 postError(callback, GENERIC_ERROR);
             }
         });
@@ -88,23 +108,30 @@ public class GeminiReviewService {
 
     private String executePrompt(String apiKey, String prompt) throws Exception {
         String rawResponse = performRequest(apiKey, prompt);
-        String review = parseReview(rawResponse);
+        String review = normalizeCandidateReview(parseReview(rawResponse));
         if (review.isEmpty()) {
             Log.w(TAG, "Gemini returned empty review for initial prompt.");
             return "";
         }
 
         if (needsRepair(review)) {
-            String repaired = parseReview(performRequest(apiKey, buildRecoveryPrompt(prompt, review)));
-            if (isAcceptableReview(repaired)) {
+            String repaired = normalizeCandidateReview(parseReview(performRequest(apiKey, buildRecoveryPrompt(prompt, review))));
+            if (isAcceptableReview(repaired) || isDisplayableReview(repaired)) {
                 review = repaired;
             }
         }
 
         if (looksEnglish(review) && !containsVietnameseChars(review)) {
-            String localizedReview = parseReview(performRequest(apiKey, buildLocalizationPrompt(review)));
-            if (isAcceptableReview(localizedReview) && containsVietnameseChars(localizedReview)) {
+            String localizedReview = normalizeCandidateReview(parseReview(performRequest(apiKey, buildLocalizationPrompt(review))));
+            if ((isAcceptableReview(localizedReview) || isDisplayableReview(localizedReview))
+                    && containsVietnameseChars(localizedReview)) {
                 review = localizedReview;
+            }
+        }
+        if (!isAcceptableReview(review)) {
+            String rewritten = normalizeCandidateReview(parseReview(performRequest(apiKey, buildStructurePrompt(prompt, review))));
+            if (isAcceptableReview(rewritten) || isDisplayableReview(rewritten)) {
+                review = rewritten;
             }
         }
         if (isAcceptableReview(review)) {
@@ -141,6 +168,7 @@ public class GeminiReviewService {
                     : connection.getErrorStream();
             String rawResponse = readFully(responseStream);
             if (responseCode < 200 || responseCode >= 300) {
+                Log.w(TAG, "Gemini HTTP " + responseCode + " for " + MODEL_NAME + ": " + abbreviate(rawResponse));
                 throw new ReviewException(extractErrorMessage(responseCode, rawResponse));
             }
             return rawResponse;
@@ -156,7 +184,11 @@ public class GeminiReviewService {
 
         JSONObject systemInstruction = new JSONObject();
         JSONArray systemParts = new JSONArray();
-        systemParts.put(new JSONObject().put("text", VIETNAMESE_SYSTEM_PROMPT));
+        systemParts.put(new JSONObject().put("text",
+                VIETNAMESE_SYSTEM_PROMPT + " " +
+                        STRUCTURED_REVIEW_REQUIREMENTS + " " +
+                        STRUCTURED_REVIEW_TONE_GUIDE + " " +
+                        STRUCTURED_JSON_PROMPT));
         systemInstruction.put("parts", systemParts);
         root.put("systemInstruction", systemInstruction);
 
@@ -172,7 +204,8 @@ public class GeminiReviewService {
         generationConfig.put("temperature", 0.6);
         generationConfig.put("topP", 0.9);
         generationConfig.put("maxOutputTokens", 220);
-        generationConfig.put("responseMimeType", "text/plain");
+        generationConfig.put("responseMimeType", "application/json");
+        generationConfig.put("responseJsonSchema", buildStructuredReviewSchema());
         root.put("generationConfig", generationConfig);
         return root.toString();
     }
@@ -213,13 +246,94 @@ public class GeminiReviewService {
                 builder.append(text.trim());
             }
         }
-        return sanitizeReview(builder.toString());
+        return parseStructuredReviewText(builder.toString());
     }
 
     private String sanitizeReview(String text) {
         String sanitized = text == null ? "" : text.replaceAll("\\s+", " ").trim();
         sanitized = sanitized.replaceAll("^(?i)(nhận xét|feedback|review)[:\\-\\s]*", "");
         return sanitized.trim();
+    }
+
+    private JSONObject buildStructuredReviewSchema() throws Exception {
+        JSONObject schema = new JSONObject();
+        schema.put("type", "object");
+
+        JSONObject properties = new JSONObject();
+        properties.put("overall_tone", new JSONObject()
+                .put("type", "string")
+                .put("description", "Overall tone bucket for the review.")
+                .put("enum", new JSONArray()
+                        .put("excellent")
+                        .put("good")
+                        .put("average")
+                        .put("needs_work")));
+        properties.put("praise", new JSONObject()
+                .put("type", "string")
+                .put("description", "Sentence 1. Praise a concrete strength from the real round data."));
+        properties.put("improvement", new JSONObject()
+                .put("type", "string")
+                .put("description", "Sentence 2. Point out a concrete weakness and one practical improvement."));
+        properties.put("closing", new JSONObject()
+                .put("type", "string")
+                .put("description", "Optional sentence 3. Use an empty string if not needed."));
+        schema.put("properties", properties);
+        schema.put("required", new JSONArray()
+                .put("overall_tone")
+                .put("praise")
+                .put("improvement")
+                .put("closing"));
+        return schema;
+    }
+
+    private String parseStructuredReviewText(String rawText) {
+        String candidate = sanitizeReview(rawText);
+        if (candidate.isEmpty()) {
+            return "";
+        }
+
+        try {
+            JSONObject root = new JSONObject(candidate);
+            String praise = normalizeStructuredSentence(root.optString("praise", ""));
+            String improvement = normalizeStructuredSentence(root.optString("improvement", ""));
+            String closing = normalizeStructuredSentence(root.optString("closing", ""));
+            if (praise.isEmpty() || improvement.isEmpty()) {
+                return "";
+            }
+
+            StringBuilder builder = new StringBuilder();
+            builder.append(praise).append(' ').append(improvement);
+            if (!closing.isEmpty()) {
+                builder.append(' ').append(closing);
+            }
+            return sanitizeReview(builder.toString());
+        } catch (Exception ignored) {
+            return sanitizeReview(candidate);
+        }
+    }
+
+    private String normalizeStructuredSentence(String value) {
+        String normalized = sanitizeReview(value);
+        if (normalized.isEmpty()) {
+            return "";
+        }
+        if (!endsWithTerminalPunctuation(normalized)) {
+            normalized = normalized + ".";
+        }
+        return normalized;
+    }
+
+    private String normalizeCandidateReview(String review) {
+        String normalized = sanitizeReview(review);
+        if (normalized.isEmpty()) {
+            return "";
+        }
+        if (!endsWithTerminalPunctuation(normalized)
+                && isDisplayableReview(normalized)
+                && !endsWithIncompleteToken(normalized)) {
+            normalized = normalized + ".";
+        }
+        return normalized;
     }
 
     private String extractErrorMessage(int responseCode, String rawResponse) {
@@ -270,10 +384,14 @@ public class GeminiReviewService {
             return false;
         }
         String normalized = review.trim();
-        if (normalized.length() < MIN_REVIEW_CHAR_COUNT) {
+        if (normalized.length() < MIN_REVIEW_CHAR_COUNT_STRICT) {
             return false;
         }
-        if (countWords(normalized) < 6) {
+        if (countWords(normalized) < 10) {
+            return false;
+        }
+        int sentenceCount = countSentences(normalized);
+        if (sentenceCount < 2 || sentenceCount > 3) {
             return false;
         }
         return endsWithTerminalPunctuation(normalized);
@@ -284,7 +402,9 @@ public class GeminiReviewService {
             return false;
         }
         String normalized = review.trim();
-        return normalized.length() >= 24 && countWords(normalized) >= 5;
+        return normalized.length() >= MIN_REVIEW_CHAR_COUNT
+                && countWords(normalized) >= 8
+                && countSentences(normalized) >= 2;
     }
 
     private boolean needsRepair(String review) {
@@ -315,6 +435,35 @@ public class GeminiReviewService {
         return normalized.split("\\s+").length;
     }
 
+    private int countSentences(String text) {
+        String normalized = text == null ? "" : text.trim();
+        if (normalized.isEmpty()) {
+            return 0;
+        }
+        String[] parts = normalized.split("(?<=[.!?])\\s+");
+        int count = 0;
+        for (String part : parts) {
+            if (!part.trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean hasImprovementCue(String text) {
+        String normalized = " " + (text == null ? "" : text).toLowerCase(Locale.US) + " ";
+        String[] cues = {
+                " cần ", " nên ", " hãy ", " cải thiện ", " giảm ", " tăng ", " ổn định ",
+                " tập trung ", " chú ý ", " thử ", " ưu tiên ", " chậm lại ", " nhanh hơn "
+        };
+        for (String cue : cues) {
+            if (normalized.contains(cue)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean endsWithTerminalPunctuation(String text) {
         return text.endsWith(".") || text.endsWith("!") || text.endsWith("?");
     }
@@ -330,18 +479,40 @@ public class GeminiReviewService {
         return normalized.length() < 40 || countWords(normalized) < 8;
     }
 
+    private boolean endsWithIncompleteToken(String text) {
+        String normalized = text == null ? "" : text.trim().toLowerCase(Locale.US);
+        if (normalized.isEmpty()) {
+            return true;
+        }
+        String[] hardCutTokens = {
+                "v", "va", "và", "nhưng", "cần", "để", "khi", "với", "về", "ở",
+                "là", "một", "nhờ", "do", "vì", "nên", "đã", "có", "theo", "cho"
+        };
+        for (String token : hardCutTokens) {
+            if (normalized.endsWith(" " + token) || normalized.equals(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private String buildLocalizationPrompt(String review) {
-        return "Hãy viết lại đoạn nhận xét sau hoàn toàn bằng tiếng Việt có dấu, giữ nguyên ý chính, " +
-                "giữ giọng khách quan, gói gọn trong 2 đến 3 câu, không dùng gạch đầu dòng và phải kết thúc bằng dấu câu.\n\n" +
+        return STRUCTURED_JSON_PROMPT + " " + STRUCTURED_REVIEW_REQUIREMENTS + " " + STRUCTURED_REVIEW_TONE_GUIDE + "\n\n" +
+                "Rewrite the following review into natural Vietnamese with accents while keeping the same meaning:\n" +
                 review;
     }
 
+    private String buildStructurePrompt(String originalPrompt, String currentReview) {
+        return STRUCTURED_JSON_PROMPT + " " + STRUCTURED_REVIEW_REQUIREMENTS + " " + STRUCTURED_REVIEW_TONE_GUIDE + "\n\n" +
+                "Current review that needs to be rewritten:\n" + currentReview + "\n\n" +
+                "Round context:\n" + originalPrompt;
+    }
+
     private String buildRecoveryPrompt(String originalPrompt, String partialReview) {
-        return "Phần nhận xét sau đang bị cụt hoặc quá ngắn. " +
-                "Hãy viết lại thành 2 đến 3 câu tiếng Việt có dấu, đủ ý, tự nhiên, khách quan, không gạch đầu dòng, " +
-                "ít nhất 28 ký tự và phải kết thúc bằng dấu câu.\n\n" +
-                "Nhận xét đang bị lỗi:\n" + partialReview + "\n\n" +
-                "Ngữ cảnh ván chơi:\n" + originalPrompt;
+        return STRUCTURED_JSON_PROMPT + " " + STRUCTURED_REVIEW_REQUIREMENTS + " " + STRUCTURED_REVIEW_TONE_GUIDE + "\n\n" +
+                "The review below is cut off or too short. Rewrite it into a complete review that follows the required structure.\n\n" +
+                "Broken review:\n" + partialReview + "\n\n" +
+                "Round context:\n" + originalPrompt;
     }
 
     private String abbreviate(String value) {

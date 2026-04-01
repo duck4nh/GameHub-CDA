@@ -758,8 +758,14 @@ public class SudokuActivity extends AppCompatActivity {
     private String buildSudokuReviewPrompt() {
         StringBuilder builder = new StringBuilder();
         builder.append("Bạn là huấn luyện viên Sudoku. ")
-                .append("Hãy viết đúng 2 đến 3 câu tiếng Việt tự nhiên, khách quan và dễ nghe. ")
-                .append("Nêu một điểm người chơi làm tốt và một gợi ý cải thiện cụ thể về độ chính xác, tốc độ hoặc quản lý lỗi/gợi ý, không dùng gạch đầu dòng, không xưng là AI.\n\n")
+                .append("Hãy phân tích đúng theo luật chơi của Sudoku trong GameHub để viết nhận xét cuối ván. ")
+                .append("Mục tiêu là hoàn thành toàn bộ bàn trước khi chạm ngưỡng 3 lỗi; càng ít lỗi, ít dùng gợi ý, quản lý thời gian tốt và hoàn thành được bàn thì càng chơi chắc tay. ")
+                .append("Nếu lỗi tăng nhanh, dùng nhiều gợi ý, hoặc dừng ở mức chưa hoàn thành thì đó là dấu hiệu suy luận chưa ổn định hoặc thao tác còn vội. ")
+                .append("Nhật ký thao tác bên dưới là log theo trình tự thời gian. ")
+                .append("Các dòng chọn ô, nhập số, xóa số, bật/tắt nháp, dùng gợi ý và báo lỗi đều có ý nghĩa hành vi: dùng nháp hợp lý thường là chơi cẩn thận; nhiều lỗi liên tiếp thường là thử sai; nhiều gợi ý nghĩa là đang phụ thuộc trợ giúp. ")
+                .append("Hãy dựa vào log để suy ra cách suy nghĩ của người chơi, không chỉ nhìn kết quả cuối cùng. ")
+                .append("Nếu kết quả chưa tốt thì dùng giọng nhẹ nhàng, kiểu tạm ổn hoặc còn khoảng để cải thiện, không gay gắt. ")
+                .append("Nhận xét phải có đủ khen và chê: nêu rõ một điểm làm tốt, một điểm cần cải thiện, và nếu cần thì thêm một câu chốt ngắn.\n\n")
                 .append("Tóm tắt ván chơi:\n")
                 .append("- Cấp độ: ").append(getLevelLabel(selectedLevel)).append('\n')
                 .append("- Kết quả: ").append(currentErrorCount >= 3 ? "Thua" : "Hoàn thành").append('\n')
