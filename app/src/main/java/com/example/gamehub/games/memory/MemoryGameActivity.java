@@ -685,7 +685,26 @@ public class MemoryGameActivity extends AppCompatActivity {
                 builder.append("- ").append(entry).append('\n');
             }
         }
+        appendAiMetricsBlock(builder, level);
         return builder.toString();
+    }
+
+    private void appendAiMetricsBlock(StringBuilder builder, @Nullable MemoryLevel level) {
+        int totalPairs = level == null ? viewModel.getMatchedPairs() : (level.rowCount * level.columnCount) / 2;
+        builder.append('\n')
+                .append("AI_METRICS\n")
+                .append("game_type=memory\n")
+                .append("total_questions=").append(totalPairs).append('\n')
+                .append("correct_count=").append(viewModel.getMatchedPairs()).append('\n')
+                .append("accuracy_percent=").append(viewModel.getAccuracyPercent()).append('\n')
+                .append("score=").append(viewModel.getScore()).append('\n')
+                .append("best_combo=").append(viewModel.getBestStreak()).append('\n')
+                .append("total_pairs=").append(totalPairs).append('\n')
+                .append("matched_pairs=").append(viewModel.getMatchedPairs()).append('\n')
+                .append("pair_attempts=").append(viewModel.getPairAttempts()).append('\n')
+                .append("best_streak=").append(viewModel.getBestStreak()).append('\n')
+                .append("elapsed_ms=").append(viewModel.getElapsedTimeMs()).append('\n')
+                .append("won=").append(viewModel.didLastGameWin() ? 1 : 0).append('\n');
     }
 
     private void appendSessionLog(String entry) {

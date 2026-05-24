@@ -640,6 +640,11 @@ public class GeminiReviewService {
     }
 
     private String buildLocalFallbackReview(String prompt) {
+        String gameType = extractMetricString(prompt, "game_type");
+        if ("memory".equalsIgnoreCase(gameType)) {
+            return buildMemoryLocalFallbackReview(prompt);
+        }
+
         int totalQuestions = extractMetricInt(prompt, "total_questions");
         int correctCount = extractMetricInt(prompt, "correct_count");
         int accuracyPercent = extractMetricInt(prompt, "accuracy_percent");
@@ -696,6 +701,83 @@ public class GeminiReviewService {
         return praise + " " + improvement;
     }
 
+    private String buildMemoryLocalFallbackReview(String prompt) {
+        int totalPairs = extractMetricInt(prompt, "total_pairs");
+        int matchedPairs = extractMetricInt(prompt, "matched_pairs");
+        int pairAttempts = extractMetricInt(prompt, "pair_attempts");
+        int accuracyPercent = extractMetricInt(prompt, "accuracy_percent");
+        int score = extractMetricInt(prompt, "score");
+        int bestStreak = extractMetricInt(prompt, "best_streak");
+        int elapsedMs = extractMetricInt(prompt, "elapsed_ms");
+        int won = extractMetricInt(prompt, "won");
+
+        if (totalPairs < 0) {
+            totalPairs = 0;
+        }
+        if (matchedPairs < 0) {
+            matchedPairs = 0;
+        }
+        if (pairAttempts < 0) {
+            pairAttempts = 0;
+        }
+        if (accuracyPercent < 0) {
+            accuracyPercent = 0;
+        }
+        if (score < 0) {
+            score = 0;
+        }
+        if (bestStreak < 0) {
+            bestStreak = 0;
+        }
+        if (elapsedMs < 0) {
+            elapsedMs = 0;
+        }
+
+        if (totalPairs <= 0 && matchedPairs <= 0 && pairAttempts <= 0 && score <= 0) {
+            return "";
+        }
+
+        String praise;
+        if (totalPairs > 0 && matchedPairs >= totalPairs) {
+            praise = String.format(Locale.getDefault(),
+                    "Bạn đã ghép đúng toàn bộ %d cặp và giữ được chuỗi tốt nhất %d, đây là dấu hiệu nhớ vị trí khá chắc.",
+                    totalPairs,
+                    bestStreak);
+        } else if (matchedPairs > 0) {
+            praise = String.format(Locale.getDefault(),
+                    "Bạn đã ghép đúng %d/%d cặp và giữ được chuỗi tốt nhất %d, nền tảng ghi nhớ đã có nhưng chưa thật ổn định.",
+                    matchedPairs,
+                    Math.max(1, totalPairs),
+                    bestStreak);
+        } else {
+            praise = String.format(Locale.getDefault(),
+                    "Ván này chưa ghép đúng cặp nào, nhưng bạn vẫn có %d lượt thử để tạo dữ liệu luyện tập.",
+                    Math.max(1, pairAttempts));
+        }
+
+        String improvement;
+        if (accuracyPercent < 50) {
+            improvement = "Điểm cần cải thiện là độ chính xác và cách dò vị trí, hãy chậm lại một nhịp sau mỗi lượt lật để ghi nhớ tốt hơn.";
+        } else if (bestStreak <= 1) {
+            improvement = "Bạn nên cố giữ chuỗi ghép liên tiếp lâu hơn bằng cách ưu tiên các ô đã lộ thông tin thay vì chọn vội.";
+        } else if (pairAttempts > Math.max(1, totalPairs)) {
+            improvement = "Bạn có thể tiết kiệm lượt đoán bằng cách thu hẹp phạm vi các cặp khả nghi trước khi lật tiếp.";
+        } else {
+            improvement = "Bạn đã đi đúng hướng, chỉ cần giữ nhịp ổn định hơn ở các lượt còn phân vân để tăng điểm và tốc độ.";
+        }
+
+        String closing;
+        if (won > 0) {
+            closing = "Nếu giữ nhịp này, bạn sẽ cải thiện rõ ở các ván sau.";
+        } else if (elapsedMs > 0) {
+            closing = "Càng bình tĩnh ở những lượt đầu, bạn sẽ càng nhớ vị trí tốt hơn về sau.";
+        } else {
+            closing = "";
+        }
+
+        return closing.isEmpty() ? praise + " " + improvement : praise + " " + improvement + " " + closing;
+    }
+
     private int extractMetricInt(String prompt, String key) {
         if (prompt == null || key == null || key.trim().isEmpty()) {
             return -1;
@@ -721,6 +803,27 @@ public class GeminiReviewService {
         } catch (NumberFormatException ignored) {
             return -1;
         }
+    }
+
+    private String extractMetricString(String prompt, String key) {
+        if (prompt == null || key == null || key.trim().isEmpty()) {
+            return "";
+        }
+        String marker = key.trim() + "=";
+        int markerIndex = prompt.indexOf(marker);
+        if (markerIndex < 0) {
+            return "";
+        }
+        int valueStart = markerIndex + marker.length();
+        int valueEnd = valueStart;
+        while (valueEnd < prompt.length()) {
+            char current = prompt.charAt(valueEnd);
+            if (current == '\n' || current == '\r') {
+                break;
+            }
+            valueEnd++;
+        }
+        return prompt.substring(valueStart, valueEnd).trim();
     }
 
     private String buildLocalizationPrompt(String review) {
