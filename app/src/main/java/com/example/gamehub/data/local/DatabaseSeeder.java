@@ -10,12 +10,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Seeds bundled offline data into Room.
+ *
+ * Quiz questions come from the packaged asset database, while Memory and
+ * Sudoku rows are generated/seeded here so the app can start without network.
+ */
 public final class DatabaseSeeder {
     private static final int MEMORY_LEVEL_COUNT = 30;
 
     private DatabaseSeeder() {
     }
 
+    /**
+     * Populates the local database if seed tables are empty.
+     */
     public static void seedIfNeeded(AppDatabase database) {
         syncMemoryLevels(database);
         if (database.sudokuDao().getCount() == 0) {
@@ -23,6 +32,10 @@ public final class DatabaseSeeder {
         }
     }
 
+    /**
+     * Rebuilds Memory levels deterministically so best-time and unlock state are
+     * preserved when the level table shape changes.
+     */
     private static void syncMemoryLevels(AppDatabase database) {
         List<MemoryLevel> targetLevels = buildMemoryLevels();
         List<MemoryLevel> existingLevels = database.memoryDao().getAllLevels();
@@ -69,6 +82,10 @@ public final class DatabaseSeeder {
         return true;
     }
 
+    /**
+     * Generates the level list used by the Memory game. Each row in Memory_Levels
+     * defines grid size, unlock state, time limit, and best time.
+     */
     private static List<MemoryLevel> buildMemoryLevels() {
         Map<Integer, LevelSpec> specsByPairCount = new LinkedHashMap<>();
         for (int rowCount = 3; rowCount <= 40; rowCount++) {

@@ -6,6 +6,12 @@ import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
+/**
+ * Local record for one finished game round.
+ *
+ * Unsynced rows are kept on device and uploaded to Firebase later by
+ * GameRepository/SyncWorker when network and login state allow it.
+ */
 @Entity(tableName = "Local_History")
 public class LocalHistory {
     @PrimaryKey(autoGenerate = true)

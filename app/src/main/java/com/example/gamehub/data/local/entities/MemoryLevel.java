@@ -5,6 +5,12 @@ import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
+/**
+ * Memory level configuration and progress row.
+ *
+ * The table stores grid size, time limit, best local completion time, and
+ * whether the level is currently unlocked.
+ */
 @Entity(tableName = "Memory_Levels")
 public class MemoryLevel {
     @PrimaryKey

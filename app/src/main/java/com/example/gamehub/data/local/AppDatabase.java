@@ -21,6 +21,12 @@ import com.example.gamehub.data.local.entities.SudokuBoard;
 import com.example.gamehub.data.local.entities.SudokuGameState;
 import com.example.gamehub.data.local.entities.SudokuStats;
 
+/**
+ * Central Room database for GameHub.
+ *
+ * The app stores quiz questions, memory levels, sudoku data, local history,
+ * friends, and saved sudoku state in one shared SQLite file: gamehub.db.
+ */
 @Database(
         entities = {
                 QuizQuestion.class,
@@ -45,6 +51,10 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract HistoryDao historyDao();
     public abstract FriendDao friendDao();
 
+    /**
+     * Returns the singleton Room instance and seeds bundled data the first time
+     * the database is created.
+     */
     public static AppDatabase getInstance(Context context) {
         if (instance == null) {
             synchronized (AppDatabase.class) {

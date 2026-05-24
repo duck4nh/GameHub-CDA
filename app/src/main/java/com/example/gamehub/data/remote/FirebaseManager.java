@@ -14,6 +14,12 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Small Firestore helper used by the repository and background worker.
+ *
+ * It converts LocalHistory rows into Game_Records documents and updates the
+ * matching Users document with aggregate score data.
+ */
 public class FirebaseManager {
     public static final class SyncHistoryResult {
         public final boolean success;
@@ -49,10 +55,17 @@ public class FirebaseManager {
         return currentUid != null && !currentUid.trim().isEmpty();
     }
 
+    /**
+     * Convenience wrapper for callers that only need success/failure.
+     */
     public boolean syncHistoryRecord(LocalHistory history, String currentUid, String cachedNickname) {
         return syncHistoryRecordDetailed(history, currentUid, cachedNickname).success;
     }
 
+    /**
+     * Writes one finished game into Firestore inside a transaction so the
+     * record insert and user total-score update stay consistent.
+     */
     public SyncHistoryResult syncHistoryRecordDetailed(LocalHistory history, String currentUid, String cachedNickname) {
         if (history == null || currentUid == null || currentUid.trim().isEmpty()) {
             return new SyncHistoryResult(false, "Thiếu tài khoản hiện tại để đồng bộ.");
@@ -116,6 +129,9 @@ public class FirebaseManager {
         }
     }
 
+    /**
+     * Builds a stable document id from the current user and local row id.
+     */
     private String buildRecordId(String currentUid, int localHistoryId) {
         return String.format(Locale.US, "local_%s_%d", currentUid, localHistoryId);
     }

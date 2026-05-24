@@ -9,6 +9,9 @@ import com.example.gamehub.data.local.entities.QuizQuestion;
 
 import java.util.List;
 
+/**
+ * Room queries for selecting offline quiz questions by category/difficulty.
+ */
 @Dao
 public interface QuizDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)

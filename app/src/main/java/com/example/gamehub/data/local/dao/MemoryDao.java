@@ -9,6 +9,9 @@ import com.example.gamehub.data.local.entities.MemoryLevel;
 
 import java.util.List;
 
+/**
+ * Room queries for Memory levels and local progress tracking.
+ */
 @Dao
 public interface MemoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)

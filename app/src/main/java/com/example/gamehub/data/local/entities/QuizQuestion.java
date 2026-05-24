@@ -6,6 +6,9 @@ import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
+/**
+ * Offline quiz question row imported from the packaged seed database.
+ */
 @Entity(tableName = "Quiz_Questions")
 public class QuizQuestion {
     @PrimaryKey

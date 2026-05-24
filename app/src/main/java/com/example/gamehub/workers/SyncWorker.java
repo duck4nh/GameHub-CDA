@@ -18,6 +18,12 @@ import com.google.firebase.auth.FirebaseUser;
 
 import java.util.List;
 
+/**
+ * Background worker that retries unsynced Local_History rows.
+ *
+ * It is scheduled by GameRepository when there are pending results and runs
+ * only when network access is available.
+ */
 public class SyncWorker extends Worker {
     private static final String TAG = "SyncWorker";
 
@@ -27,6 +33,9 @@ public class SyncWorker extends Worker {
 
     @NonNull
     @Override
+    /**
+     * Reads pending history rows from Room and pushes them to Firebase.
+     */
     public Result doWork() {
         if (!NetworkUtils.isOnline(getApplicationContext())) {
             return Result.retry();

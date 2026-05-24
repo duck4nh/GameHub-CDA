@@ -13,6 +13,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Imports bundled quiz questions from an asset SQLite database.
+ *
+ * The packaged DB keeps the app usable offline and avoids requiring a network
+ * request before a quiz session can start.
+ */
 public final class QuizAssetImporter {
     private static final String ASSET_DB_PATH = "databases/quiz_questions_500_vi_entity_images.db";
     private static final String CACHE_DB_NAME = "quiz_questions_seed.db";
@@ -20,6 +26,10 @@ public final class QuizAssetImporter {
     private QuizAssetImporter() {
     }
 
+    /**
+     * Copies the asset DB into cache if needed and reads Quiz_Questions rows
+     * into Room entity objects.
+     */
     public static List<QuizQuestion> readQuestions(Context context) throws IOException {
         File cacheFile = ensureSeedDatabaseCopied(context);
         SQLiteDatabase database = SQLiteDatabase.openDatabase(cacheFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
@@ -55,6 +65,10 @@ public final class QuizAssetImporter {
         return questions;
     }
 
+    /**
+     * SQLiteDatabase needs a real filesystem path, so the asset is copied once
+     * to the app cache before opening it read-only.
+     */
     private static File ensureSeedDatabaseCopied(Context context) throws IOException {
         File cacheDir = new File(context.getCacheDir(), "quiz_seed");
         if (!cacheDir.exists() && !cacheDir.mkdirs()) {

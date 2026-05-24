@@ -9,6 +9,9 @@ import com.example.gamehub.data.local.entities.LocalHistory;
 
 import java.util.List;
 
+/**
+ * Room queries for finished game history, best records, and pending sync rows.
+ */
 @Dao
 public interface HistoryDao {
     @Query("SELECT * FROM Local_History ORDER BY play_date DESC")

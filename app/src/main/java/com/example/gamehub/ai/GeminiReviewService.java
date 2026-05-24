@@ -23,7 +23,18 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Generates final-round AI reviews for GameHub games.
+ *
+ * The service calls Gemini with a structured JSON schema first, then retries with
+ * a plain-text prompt, and finally falls back to deterministic local text when
+ * the network response is empty, boilerplate, or too short for display.
+ */
 public class GeminiReviewService {
+    /**
+     * Callback used by result screens. All callback methods are posted back to
+     * the main thread so Activity code can update views directly.
+     */
     public interface Callback {
         void onSuccess(String review);
 
@@ -82,6 +93,12 @@ public class GeminiReviewService {
         return instance;
     }
 
+    /**
+     * Starts review generation for a completed game round.
+     *
+     * @param prompt full game summary, event log, and AI_METRICS block.
+     * @param callback receives a displayable review or a user-facing error.
+     */
     public void requestReview(@NonNull String prompt, @NonNull Callback callback) {
         String apiKey = BuildConfig.GEMINI_API_KEY == null ? "" : BuildConfig.GEMINI_API_KEY.trim();
         if (apiKey.isEmpty()) {
@@ -107,6 +124,10 @@ public class GeminiReviewService {
         });
     }
 
+    /**
+     * Runs the Gemini review pipeline and validates that the final text is safe
+     * to show in the result screen.
+     */
     private String executePrompt(String apiKey, String prompt) throws Exception {
         String rawResponse = performRequest(apiKey, prompt);
         String review = normalizeCandidateReview(parseReview(rawResponse));
@@ -154,6 +175,12 @@ public class GeminiReviewService {
         return performRequestBody(apiKey, buildPlainTextRequestBody(prompt, rejectedReview));
     }
 
+    /**
+     * External API boundary for Gemini generateContent.
+     *
+     * HTTP details stay in this method so callers only handle normalized review
+     * text or mapped Vietnamese error messages.
+     */
     private String performRequestBody(String apiKey, String requestBody) throws Exception {
         HttpURLConnection connection = null;
         try {
@@ -188,6 +215,13 @@ public class GeminiReviewService {
         }
     }
 
+    /**
+     * Fallback chain after Gemini returns unusable structured JSON.
+     *
+     * Plain-text Gemini is tried first. If that also fails validation, the
+     * service creates a local review from AI_METRICS so the result screen still
+     * has useful feedback for offline-like or degraded AI responses.
+     */
     private String buildFallbackReview(String apiKey, String prompt, String rejectedReview) throws Exception {
         String plainReview = requestPlainTextReview(apiKey, prompt, rejectedReview);
         if (!plainReview.isEmpty()) {
@@ -218,6 +252,11 @@ public class GeminiReviewService {
         return "";
     }
 
+    /**
+     * Builds the primary Gemini request with responseMimeType and JSON schema.
+     * This keeps model output predictable enough to parse into praise,
+     * improvement, and optional closing sentences.
+     */
     private String buildRequestBody(String prompt) throws Exception {
         JSONObject root = new JSONObject();
 
@@ -639,6 +678,12 @@ public class GeminiReviewService {
         return false;
     }
 
+    /**
+     * Builds deterministic feedback from the AI_METRICS block.
+     *
+     * Quiz is the default format. Memory adds game_type=memory and is routed to
+     * a game-specific fallback so wording and metrics stay correct.
+     */
     private String buildLocalFallbackReview(String prompt) {
         String gameType = extractMetricString(prompt, "game_type");
         if ("memory".equalsIgnoreCase(gameType)) {
@@ -701,6 +746,11 @@ public class GeminiReviewService {
         return praise + " " + improvement;
     }
 
+    /**
+     * Local fallback for Memory rounds, based on pairs, attempts, streak, score,
+     * and win state. It prevents the UI from showing an empty AI review when
+     * Gemini returns boilerplate or an incomplete answer.
+     */
     private String buildMemoryLocalFallbackReview(String prompt) {
         int totalPairs = extractMetricInt(prompt, "total_pairs");
         int matchedPairs = extractMetricInt(prompt, "matched_pairs");

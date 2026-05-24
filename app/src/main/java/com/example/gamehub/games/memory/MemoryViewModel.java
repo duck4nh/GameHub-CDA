@@ -20,6 +20,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Holds Memory game state and rules.
+ *
+ * The Activity renders this state through RecyclerView/GridLayout, while this
+ * ViewModel controls level loading, deck generation, turn resolution, scoring,
+ * local history persistence, and level unlock progress.
+ */
 public class MemoryViewModel extends AndroidViewModel {
     // Keep this pool visually distinct so players can remember pairs quickly.
     private static final String[] EMOJI_POOL = {
@@ -110,6 +117,10 @@ public class MemoryViewModel extends AndroidViewModel {
         observers.remove(observer);
     }
 
+    /**
+     * Loads seeded Memory levels from Room. DatabaseSeeder creates the level
+     * list and preserves unlocked/best-time progress across app launches.
+     */
     public void initialize() {
         if (initialized || loading) {
             notifyObservers();
@@ -219,6 +230,10 @@ public class MemoryViewModel extends AndroidViewModel {
         startLevel(selectedLevelIndex);
     }
 
+    /**
+     * Resets all session counters and creates a shuffled deck for the selected
+     * unlocked level.
+     */
     public void startLevel(int index) {
         if (index < 0 || index >= levels.size()) {
             return;
@@ -261,6 +276,10 @@ public class MemoryViewModel extends AndroidViewModel {
         return false;
     }
 
+    /**
+     * Resolves one card tap. The first tap only reveals a card; the second tap
+     * increments attempts and returns MATCH, MISMATCH, or WIN for the Activity.
+     */
     public TurnOutcome onCardSelected(int position) {
         if (currentScreen != Screen.GAMEPLAY || boardLocked || position < 0 || position >= cards.size()) {
             return new TurnOutcome(TurnType.NONE, -1, -1, 0);
@@ -408,6 +427,10 @@ public class MemoryViewModel extends AndroidViewModel {
         return value;
     }
 
+    /**
+     * Saves final Memory results, updates best time/unlocked level locally, and
+     * asks the repository to sync history when network/login state allows it.
+     */
     private void finishGame(boolean won) {
         currentScreen = Screen.RESULT;
         pauseVisible = false;
@@ -470,6 +493,10 @@ public class MemoryViewModel extends AndroidViewModel {
         markBoardChanged();
     }
 
+    /**
+     * Tries several shuffled layouts and picks the one with the fewest adjacent
+     * identical pairs so early lucky matches do not dominate the level.
+     */
     private List<Integer> buildSmartArrangement(int pairCount, int rowCount, int columnCount) {
         List<Integer> source = new ArrayList<>();
         for (int identifier = 1; identifier <= pairCount; identifier++) {

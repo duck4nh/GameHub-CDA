@@ -22,6 +22,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Holds the full Quiz game state and rules outside the Activity.
+ *
+ * The Activity only renders state and forwards button events; this ViewModel
+ * loads local questions, controls the timer lifecycle, records session events,
+ * persists history, and builds the AI review prompt for the result screen.
+ */
 public class QuizViewModel extends AndroidViewModel {
     public enum Screen {
         SETUP,
@@ -33,7 +40,9 @@ public class QuizViewModel extends AndroidViewModel {
         void onStateChanged();
     }
 
+    /** Fixed time budget for each quiz question. */
     public static final long QUESTION_TIME_MS = 15_000L;
+    /** Delay used to keep feedback visible before moving to the next question. */
     public static final long FEEDBACK_DELAY_MS = 2500L;
 
     private final GameRepository repository;
@@ -75,6 +84,10 @@ public class QuizViewModel extends AndroidViewModel {
         observers.remove(observer);
     }
 
+    /**
+     * Prepares local quiz data and category filters before the setup screen is
+     * used. The repository imports bundled questions when Room is still empty.
+     */
     public void initialize() {
         if (initialized || loading) {
             notifyObservers();
@@ -222,6 +235,10 @@ public class QuizViewModel extends AndroidViewModel {
         notifyObservers();
     }
 
+    /**
+     * Starts a new quiz session with the selected category, difficulty, and
+     * question count filters.
+     */
     public void startGame() {
         if (loading) {
             return;
@@ -265,6 +282,11 @@ public class QuizViewModel extends AndroidViewModel {
         });
     }
 
+    /**
+     * Advances the per-question timer by one second.
+     *
+     * @return true when the current question has timed out.
+     */
     public boolean tickQuestion() {
         if (currentScreen != Screen.GAMEPLAY || pauseVisible || answerLocked || emptyState || quizManager == null) {
             return false;
@@ -290,6 +312,9 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     @Nullable
+    /**
+     * Locks the current answer and computes score/combo through QuizManager.
+     */
     public QuizManager.AnswerOutcome submitAnswer() {
         if (quizManager == null || answerLocked || selectedAnswerKey.isEmpty()) {
             return null;
@@ -305,6 +330,9 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     @Nullable
+    /**
+     * Handles timeout as an answered question with no selected option.
+     */
     public QuizManager.AnswerOutcome timeoutCurrentQuestion() {
         if (quizManager == null || answerLocked) {
             return null;
@@ -320,6 +348,10 @@ public class QuizViewModel extends AndroidViewModel {
         return latestOutcome;
     }
 
+    /**
+     * Moves to the next question after the feedback delay, or closes the round
+     * and persists history when the last question is reached.
+     */
     public void advanceAfterFeedback() {
         if (quizManager == null) {
             return;
@@ -433,6 +465,11 @@ public class QuizViewModel extends AndroidViewModel {
         );
     }
 
+    /**
+     * Builds the full AI review prompt from round stats and chronological logs.
+     * The text block is for Gemini; AI_METRICS is a machine-readable fallback
+     * section used by GeminiReviewService when model output is unusable.
+     */
     public String buildAiReviewPrompt() {
         StringBuilder builder = new StringBuilder();
         builder.append("Bạn là huấn luyện viên cho game đố vui. ")
@@ -466,6 +503,10 @@ public class QuizViewModel extends AndroidViewModel {
         return builder.toString();
     }
 
+    /**
+     * Adds stable key=value metrics so local fallback review generation does not
+     * need to parse human Vietnamese text.
+     */
     private void appendAiMetricsBlock(StringBuilder builder) {
         builder.append('\n')
                 .append("AI_METRICS\n")
@@ -487,6 +528,10 @@ public class QuizViewModel extends AndroidViewModel {
         return value;
     }
 
+    /**
+     * Finalizes the round, saves LocalHistory, triggers sync through repository,
+     * and refreshes the best historical quiz result shown on the result screen.
+     */
     private void finishGame() {
         currentScreen = Screen.RESULT;
         pauseVisible = false;

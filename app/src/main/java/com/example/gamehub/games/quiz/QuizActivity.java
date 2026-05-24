@@ -32,6 +32,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Quiz screen controller.
+ *
+ * The activity only coordinates rendering and user interaction. Timers,
+ * scoring, persistence, and AI prompt generation live in QuizViewModel and
+ * QuizManager.
+ */
 public class QuizActivity extends AppCompatActivity {
     private interface ChoiceListener {
         void onSelected(String value);
@@ -423,6 +430,10 @@ public class QuizActivity extends AppCompatActivity {
         render();
     }
 
+    /**
+     * Shows the selected answer result, plays feedback, and keeps the result
+     * visible for the configured delay before advancing.
+     */
     private void handleOutcome(@Nullable QuizManager.AnswerOutcome outcome) {
         if (outcome == null) {
             Toast.makeText(this, "Hãy chọn một đáp án trước khi gửi.", Toast.LENGTH_SHORT).show();
@@ -702,6 +713,11 @@ public class QuizActivity extends AppCompatActivity {
                 .start();
     }
 
+    /**
+     * Requests a single AI review per finished round and caches it by
+     * getAiReviewRequestKey() so repeated renders do not trigger duplicate API
+     * calls.
+     */
     private void ensureQuizAiReview() {
         String reviewKey = viewModel.getAiReviewRequestKey();
         if (reviewKey == null || reviewKey.trim().isEmpty() || reviewKey.equals(activeReviewKey)) {

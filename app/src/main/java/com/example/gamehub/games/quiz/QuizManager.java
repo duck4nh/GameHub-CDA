@@ -6,6 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Pure quiz rules engine.
+ *
+ * It owns the question list, answer validation, score calculation, combo
+ * tracking, and win condition. The Activity/ViewModel layer delegates all game
+ * logic here to keep UI code thin.
+ */
 public class QuizManager {
     public static final int WIN_THRESHOLD_PERCENT = 60;
 
@@ -48,6 +55,10 @@ public class QuizManager {
             this.hasNextQuestion = hasNextQuestion;
         }
 
+        /**
+         * Generates a short in-game message used directly on the gameplay
+         * screen after the player submits an answer or times out.
+         */
         public String buildFeedbackMessage() {
             if (correct) {
                 if (combo > 1) {
@@ -81,6 +92,10 @@ public class QuizManager {
         return questions.get(currentIndex);
     }
 
+    /**
+     * Applies the round rules to the current question and produces a complete
+     * outcome object for the UI layer.
+     */
     public AnswerOutcome answerCurrentQuestion(String optionKey, long remainingQuestionMs, boolean timedOut) {
         QuizQuestion question = getCurrentQuestion();
         if (question == null) {
@@ -165,6 +180,10 @@ public class QuizManager {
         return getAccuracyPercent() >= WIN_THRESHOLD_PERCENT;
     }
 
+    /**
+     * Score formula: base points + difficulty bonus + remaining-time bonus +
+     * combo bonus. This keeps late answers from scoring as highly as fast ones.
+     */
     private int calculateScore(String difficulty, long remainingQuestionMs, int combo) {
         int baseScore = 100;
         int difficultyBonus = 0;
