@@ -34,7 +34,7 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     public static final long QUESTION_TIME_MS = 15_000L;
-    public static final long FEEDBACK_DELAY_MS = 900L;
+    public static final long FEEDBACK_DELAY_MS = 2500L;
 
     private final GameRepository repository;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -462,7 +462,19 @@ public class QuizViewModel extends AndroidViewModel {
                 builder.append("- ").append(entry).append('\n');
             }
         }
+        appendAiMetricsBlock(builder);
         return builder.toString();
+    }
+
+    private void appendAiMetricsBlock(StringBuilder builder) {
+        builder.append('\n')
+                .append("AI_METRICS\n")
+                .append("total_questions=").append(getTotalQuestions()).append('\n')
+                .append("correct_count=").append(getCorrectCount()).append('\n')
+                .append("accuracy_percent=").append(getAccuracyPercent()).append('\n')
+                .append("score=").append(getScore()).append('\n')
+                .append("best_combo=").append(getBestCombo()).append('\n')
+                .append("elapsed_ms=").append(elapsedSessionMs).append('\n');
     }
 
     @Nullable
