@@ -13,6 +13,18 @@ Tài liệu kỹ thuật chi tiết, bao gồm phân tích lớp, hàm, bảng C
 
 - `docs/quiz_memory_technical_documentation.md`
 
+## Mục lục
+
+- [1. Tổng quan chức năng cá nhân thực hiện](#1-tổng-quan-chức-năng-cá-nhân-thực-hiện)
+- [2. Kiến trúc triển khai](#2-kiến-trúc-triển-khai)
+- [3. Cơ sở dữ liệu SQLite/Room](#3-cơ-sở-dữ-liệu-sqliteroom)
+- [4. Thiết kế giao diện và animation](#4-thiết-kế-giao-diện-và-animation)
+- [5. Tích hợp nhận xét AI](#5-tích-hợp-nhận-xét-ai)
+- [6. Danh sách file liên quan đến phần cá nhân thực hiện](#6-danh-sách-file-liên-quan-đến-phần-cá-nhân-thực-hiện)
+- [7. Cấu hình và chạy dự án](#7-cấu-hình-và-chạy-dự-án)
+- [8. Ghi chú kỹ thuật](#8-ghi-chú-kỹ-thuật)
+- [9. Thông tin GitHub](#9-thông-tin-github)
+
 ## 1. Tổng quan chức năng cá nhân thực hiện
 
 ### 1.1. Game Quiz
