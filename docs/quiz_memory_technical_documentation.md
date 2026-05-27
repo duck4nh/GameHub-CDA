@@ -1,4 +1,23 @@
-# Báo cáo kỹ thuật cá nhân - Module Game Quiz & Memory
+﻿# Báo cáo kỹ thuật cá nhân - Module Game Quiz & Memory
+
+## Mục lục
+
+- [1. Thông tin chung](#1-thông-tin-chung)
+- [2. Danh sách chức năng được phân công](#2-danh-sách-chức-năng-được-phân-công)
+- [3. Kiến trúc chi tiết hệ thống](#3-kiến-trúc-chi-tiết-hệ-thống)
+- [4. Thiết kế giao diện và trải nghiệm người dùng](#4-thiết-kế-giao-diện-và-trải-nghiệm-người-dùng)
+- [5. Thiết kế cơ sở dữ liệu](#5-thiết-kế-cơ-sở-dữ-liệu)
+- [6. Phân tích code đáp ứng chức năng](#6-phân-tích-code-đáp-ứng-chức-năng)
+- [7. Tích hợp API và đồng bộ ngoài](#7-tích-hợp-api-và-đồng-bộ-ngoài)
+- [8. Hướng dẫn cài đặt và triển khai](#8-hướng-dẫn-cài-đặt-và-triển-khai)
+- [9. Kiểm thử và xác nhận](#9-kiểm-thử-và-xác-nhận)
+- [10. Hạn chế của chức năng cá nhân](#10-hạn-chế-của-chức-năng-cá-nhân)
+- [11. Rủi ro và hướng xử lý](#11-rủi-ro-và-hướng-xử-lý)
+- [12. Danh sách file liên quan đến phần cá nhân](#12-danh-sách-file-liên-quan-đến-phần-cá-nhân)
+- [13. Link GitHub](#13-link-github)
+- [Phụ lục A. Code Entity và DAO](#phụ-lục-a-code-entity-và-dao)
+- [Phụ lục B. Code import và seed dữ liệu](#phụ-lục-b-code-import-và-seed-dữ-liệu)
+- [Phụ lục C. Code API gọi ngoài](#phụ-lục-c-code-api-gọi-ngoài)
 
 ## 1. Thông tin chung
 
@@ -802,184 +821,48 @@ Phần này bổ sung theo yêu cầu: **"Code đáp ứng chức năng (Lớp, 
 | WorkManager | `GameRepository.java` | `triggerHistorySyncIfNeeded()` | Hẹn đồng bộ nền | Khi offline hoặc chưa sync được, lịch sử local được giữ lại và sync sau |
 | HTTP ảnh câu hỏi | `ImageLoader.java` | `load(...)` | Tải ảnh minh họa Quiz | Tải ảnh URL trên background thread, cache bằng `LruCache`, trả kết quả về main thread |
 
-### 6.4. Trích đoạn code lớp và hàm đáp ứng chức năng
+### 6.4. Code tiêu biểu trong báo cáo chính
 
-Các đoạn code dưới đây được rút từ source chính của module. Một số đoạn được rút gọn bằng `...` để tập trung vào phần xử lý cốt lõi, nhưng vẫn giữ nguyên logic quan trọng.
+Báo cáo chính chỉ giữ các đoạn code đại diện cho những quyết định kỹ thuật quan trọng nhất. Các đoạn code đầy đủ của Entity, DAO, import dữ liệu, Gemini request, Firebase transaction và seeder được chuyển xuống phụ lục để tài liệu không bị nặng như source code.
 
-#### 6.4.1. `QuizManager` - kiểm tra đáp án, tính điểm, combo, điều kiện thắng
+#### 6.4.1. `QuizManager.answerCurrentQuestion(...)`
 
 File: `app/src/main/java/com/example/gamehub/games/quiz/QuizManager.java`
 
 ```java
-public class QuizManager {
-    public static final int WIN_THRESHOLD_PERCENT = 60;
-
-    public AnswerOutcome answerCurrentQuestion(String optionKey, long remainingQuestionMs, boolean timedOut) {
-        QuizQuestion question = getCurrentQuestion();
-        if (question == null) {
-            return null;
-        }
-
-        String normalizedSelectedKey = optionKey == null ? "" : optionKey.trim().toUpperCase(Locale.getDefault());
-        String correctAnswerKey = question.correctAnswer == null ? "" : question.correctAnswer.trim().toUpperCase(Locale.getDefault());
-        boolean isCorrect = !timedOut && correctAnswerKey.equals(normalizedSelectedKey);
-
-        int awardedScore = 0;
-        if (isCorrect) {
-            correctCount++;
-            combo++;
-            bestCombo = Math.max(bestCombo, combo);
-            awardedScore = calculateScore(question.difficulty, remainingQuestionMs, combo);
-            score += awardedScore;
-        } else {
-            combo = 0;
-        }
-        answeredCount++;
-
-        return new AnswerOutcome(
-                question,
-                normalizedSelectedKey,
-                correctAnswerKey,
-                isCorrect,
-                timedOut,
-                awardedScore,
-                score,
-                combo,
-                correctCount,
-                answeredCount,
-                currentIndex < questions.size() - 1
-        );
+public AnswerOutcome answerCurrentQuestion(String optionKey, long remainingQuestionMs, boolean timedOut) {
+    QuizQuestion question = getCurrentQuestion();
+    if (question == null) {
+        return null;
     }
 
-    private int calculateScore(String difficulty, long remainingQuestionMs, int combo) {
-        int baseScore = 100;
-        int difficultyBonus = 0;
-        if ("medium".equalsIgnoreCase(difficulty)) {
-            difficultyBonus = 35;
-        } else if ("hard".equalsIgnoreCase(difficulty)) {
-            difficultyBonus = 60;
-        }
-        int timeBonus = (int) Math.max(0L, remainingQuestionMs / 1000L) * 8;
-        int comboBonus = Math.max(0, combo - 1) * 20;
-        return baseScore + difficultyBonus + timeBonus + comboBonus;
-    }
+    String normalizedSelectedKey = optionKey == null ? "" : optionKey.trim().toUpperCase(Locale.getDefault());
+    String correctAnswerKey = question.correctAnswer == null ? "" : question.correctAnswer.trim().toUpperCase(Locale.getDefault());
+    boolean isCorrect = !timedOut && correctAnswerKey.equals(normalizedSelectedKey);
 
-    public boolean isWin() {
-        return getAccuracyPercent() >= WIN_THRESHOLD_PERCENT;
+    int awardedScore = 0;
+    if (isCorrect) {
+        correctCount++;
+        combo++;
+        bestCombo = Math.max(bestCombo, combo);
+        awardedScore = calculateScore(question.difficulty, remainingQuestionMs, combo);
+        score += awardedScore;
+    } else {
+        combo = 0;
     }
+    answeredCount++;
+
+    return new AnswerOutcome(question, normalizedSelectedKey, correctAnswerKey, isCorrect,
+            timedOut, awardedScore, score, combo, correctCount, answeredCount,
+            currentIndex < questions.size() - 1);
 }
 ```
 
-Giải thích:
+Đoạn code này thể hiện phần lõi của Game Quiz: kiểm tra đáp án, xử lý timeout, cập nhật số câu đúng, combo, điểm và trả về kết quả để UI hiển thị feedback.
 
-- `answerCurrentQuestion(...)` là hàm trung tâm của luật Quiz.
-- `timedOut = true` làm câu trả lời tự động sai dù người chơi có chọn gì.
-- Khi đúng, hệ thống tăng `correctCount`, tăng `combo`, cập nhật `bestCombo`, tính điểm và cộng vào `score`.
-- Khi sai hoặc hết giờ, `combo` được reset về 0.
-- `calculateScore(...)` thể hiện rõ công thức điểm: điểm nền + thưởng độ khó + thưởng thời gian + thưởng combo.
-- `isWin()` gắn điều kiện thắng với tỷ lệ đúng từ 60% trở lên.
-
-#### 6.4.2. `QuizViewModel` - lấy câu hỏi, submit đáp án, lưu lịch sử, tạo prompt AI
+#### 6.4.2. `QuizViewModel.finishGame()`
 
 File: `app/src/main/java/com/example/gamehub/games/quiz/QuizViewModel.java`
-
-```java
-public void initialize() {
-    if (initialized || loading) {
-        notifyObservers();
-        return;
-    }
-    loading = true;
-    notifyObservers();
-    executor.execute(() -> {
-        try {
-            repository.ensureLocalDataReady();
-            List<String> categories = repository.getQuizCategories();
-            mainHandler.post(() -> {
-                initialized = true;
-                loading = false;
-                availableCategories.clear();
-                availableCategories.addAll(categories);
-                if (selectedCategories.isEmpty()) {
-                    selectedCategories.addAll(categories);
-                }
-                notifyObservers();
-            });
-        } catch (IOException exception) {
-            mainHandler.post(() -> {
-                loading = false;
-                message = "Không thể tải bộ câu hỏi lúc này.";
-                notifyObservers();
-            });
-        }
-    });
-}
-```
-
-```java
-public void startGame() {
-    if (loading) {
-        return;
-    }
-    loading = true;
-    message = "";
-    notifyObservers();
-    executor.execute(() -> {
-        List<QuizQuestion> questions = repository.getRandomQuizQuestions(
-                getSelectedCategories(),
-                "all".equals(selectedDifficulty) ? null : selectedDifficulty,
-                selectedQuestionCount
-        );
-        mainHandler.post(() -> {
-            loading = false;
-            quizManager = new QuizManager(questions);
-            currentScreen = Screen.GAMEPLAY;
-            pauseVisible = false;
-            emptyState = questions.isEmpty();
-            answerLocked = emptyState;
-            latestOutcome = null;
-            selectedAnswerKey = "";
-            remainingQuestionMs = QUESTION_TIME_MS;
-            elapsedSessionMs = 0L;
-            message = emptyState ? "Chưa có câu hỏi phù hợp với bộ lọc hiện tại." : "";
-            sessionLog.clear();
-            appendQuestionShownLog();
-            notifyObservers();
-        });
-    });
-}
-```
-
-```java
-public QuizManager.AnswerOutcome submitAnswer() {
-    if (quizManager == null || answerLocked || selectedAnswerKey.isEmpty()) {
-        return null;
-    }
-    latestOutcome = quizManager.answerCurrentQuestion(selectedAnswerKey, remainingQuestionMs, false);
-    answerLocked = true;
-    if (latestOutcome != null) {
-        message = latestOutcome.buildFeedbackMessage();
-        appendOutcomeLog(latestOutcome);
-    }
-    notifyObservers();
-    return latestOutcome;
-}
-
-public QuizManager.AnswerOutcome timeoutCurrentQuestion() {
-    if (quizManager == null || answerLocked) {
-        return null;
-    }
-    latestOutcome = quizManager.answerCurrentQuestion("", 0L, true);
-    answerLocked = true;
-    selectedAnswerKey = "";
-    if (latestOutcome != null) {
-        message = latestOutcome.buildFeedbackMessage();
-        appendOutcomeLog(latestOutcome);
-    }
-    notifyObservers();
-    return latestOutcome;
-}
-```
 
 ```java
 private void finishGame() {
@@ -1002,12 +885,7 @@ private void finishGame() {
     );
 
     executor.execute(() -> {
-        repository.saveHistory(currentHistory, result -> {
-            if (!result.success && result.message != null && !result.message.trim().isEmpty()) {
-                pendingSyncToastMessage = result.message;
-                notifyObservers();
-            }
-        });
+        repository.saveHistory(currentHistory, result -> { ... });
         LocalHistory bestHistory = repository.getBestHistoryForGame("quiz");
         mainHandler.post(() -> {
             bestHistoryText = buildBestHistoryText(bestHistory);
@@ -1017,69 +895,11 @@ private void finishGame() {
 }
 ```
 
-```java
-public String buildAiReviewPrompt() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("Bạn là huấn luyện viên cho game đố vui. ")
-            .append("Hãy phân tích đúng theo luật chơi của Quiz trong GameHub ...\n\n")
-            .append("Tóm tắt ván chơi:\n")
-            .append("- Chủ đề: ").append(getSelectedCategoriesLabel()).append('\n')
-            .append("- Độ khó: ").append(getSelectedDifficultyLabel()).append('\n')
-            .append("- Số câu: ").append(getTotalQuestions()).append('\n')
-            .append("- Đúng: ").append(getCorrectCount()).append('\n')
-            .append("- Chính xác: ").append(getAccuracyPercent()).append("%\n")
-            .append("- Điểm: ").append(getScore()).append('\n')
-            .append("- Combo tốt nhất: ").append(getBestCombo()).append('\n')
-            .append("- Thời gian: ").append(formatDuration(elapsedSessionMs)).append('\n')
-            .append("- Kết quả: ").append(isWin() ? "Đạt" : "Chưa đạt").append("\n\n")
-            .append("Nhật ký thao tác:\n");
-    ...
-    appendAiMetricsBlock(builder);
-    return builder.toString();
-}
-```
+Đoạn code này cho thấy luồng kết thúc ván Quiz theo hướng local-first: chuyển sang màn kết quả, tạo `LocalHistory`, lưu vào Room và cập nhật thành tích tốt nhất để hiển thị.
 
-Giải thích:
-
-- `initialize()` đảm bảo dữ liệu local đã sẵn sàng trước khi chơi.
-- `startGame()` lấy câu hỏi từ Room theo bộ lọc người chơi chọn.
-- `submitAnswer()` và `timeoutCurrentQuestion()` đều gọi chung engine `QuizManager`.
-- `finishGame()` lưu kết quả vào `Local_History` với `game_name = "quiz"`.
-- `buildAiReviewPrompt()` tạo dữ liệu đầu vào cho AI dựa trên thống kê thật và log thao tác.
-
-#### 6.4.3. `MemoryViewModel` - luật lật thẻ, match/mismatch, thắng/thua, mở khóa level
+#### 6.4.3. `MemoryViewModel.onCardSelected(...)`
 
 File: `app/src/main/java/com/example/gamehub/games/memory/MemoryViewModel.java`
-
-```java
-public void startLevel(int index) {
-    if (index < 0 || index >= levels.size()) {
-        return;
-    }
-    MemoryLevel level = levels.get(index);
-    if (!level.isUnlocked) {
-        return;
-    }
-    selectedLevelIndex = index;
-    currentLevelIndex = index;
-    currentScreen = Screen.GAMEPLAY;
-    pauseVisible = false;
-    boardLocked = false;
-    lastGameWon = false;
-    unlockedNextLevelThisRound = false;
-    firstSelectedPosition = -1;
-    secondSelectedPosition = -1;
-    matchedPairs = 0;
-    pairAttempts = 0;
-    currentStreak = 0;
-    bestStreak = 0;
-    score = 0;
-    elapsedTimeMs = 0L;
-    remainingTimeMs = level.timeLimitSec * 1000L;
-    buildDeck(level);
-    notifyObservers();
-}
-```
 
 ```java
 public TurnOutcome onCardSelected(int position) {
@@ -1108,21 +928,18 @@ public TurnOutcome onCardSelected(int position) {
     if (firstCard.identifier == secondCard.identifier) {
         firstCard.matched = true;
         secondCard.matched = true;
-        markBoardChanged();
         matchedPairs++;
         currentStreak++;
         bestStreak = Math.max(bestStreak, currentStreak);
         int awardedScore = 80 + (int) (remainingTimeMs / 1000L) * 3 + Math.max(0, currentStreak - 1) * 15;
         score += awardedScore;
-        int resolvedFirst = firstSelectedPosition;
-        int resolvedSecond = secondSelectedPosition;
-        resetSelection();
         if (matchedPairs == cards.size() / 2) {
             finishGame(true);
-            return new TurnOutcome(TurnType.WIN, resolvedFirst, resolvedSecond, awardedScore);
+            return new TurnOutcome(TurnType.WIN, firstSelectedPosition, secondSelectedPosition, awardedScore);
         }
+        resetSelection();
         notifyObservers();
-        return new TurnOutcome(TurnType.MATCH, resolvedFirst, resolvedSecond, awardedScore);
+        return new TurnOutcome(TurnType.MATCH, -1, -1, awardedScore);
     }
 
     currentStreak = 0;
@@ -1132,132 +949,9 @@ public TurnOutcome onCardSelected(int position) {
 }
 ```
 
-```java
-public void resolveMismatch() {
-    if (firstSelectedPosition < 0 || secondSelectedPosition < 0) {
-        boardLocked = false;
-        notifyObservers();
-        return;
-    }
-    cards.get(firstSelectedPosition).revealed = false;
-    cards.get(secondSelectedPosition).revealed = false;
-    markBoardChanged();
-    resetSelection();
-    boardLocked = false;
-    notifyObservers();
-}
-```
+Đây là hàm chính của luật Memory. Hàm phân biệt lượt lật đầu, lượt lật thứ hai, ghép đúng, ghép sai, tính điểm, cập nhật streak và xác định điều kiện thắng.
 
-```java
-private void finishGame(boolean won) {
-    currentScreen = Screen.RESULT;
-    pauseVisible = false;
-    boardLocked = true;
-    lastGameWon = won;
-    unlockedNextLevelThisRound = false;
-
-    MemoryLevel currentLevel = getCurrentLevel();
-    if (currentLevel != null && won) {
-        if (currentLevel.bestTimeMs == 0L || elapsedTimeMs < currentLevel.bestTimeMs) {
-            currentLevel.bestTimeMs = elapsedTimeMs;
-        }
-        if (currentLevelIndex + 1 < levels.size() && !levels.get(currentLevelIndex + 1).isUnlocked) {
-            levels.get(currentLevelIndex + 1).isUnlocked = true;
-            unlockedNextLevelThisRound = true;
-        }
-    }
-    notifyObservers();
-
-    if (currentLevel == null) {
-        return;
-    }
-    LocalHistory history = new LocalHistory(
-            "memory",
-            won ? "won" : "lost",
-            score,
-            elapsedTimeMs,
-            System.currentTimeMillis(),
-            false,
-            String.format(Locale.getDefault(), "Level %d (%s)", currentLevel.levelId, currentLevel.getDisplayLabel()),
-            pairAttempts
-    );
-
-    executor.execute(() -> {
-        repository.saveHistory(history, result -> { ... });
-        repository.completeMemoryLevel(currentLevel.levelId, elapsedTimeMs, won);
-        List<MemoryLevel> refreshedLevels = repository.getMemoryLevels();
-        mainHandler.post(() -> {
-            levels.clear();
-            levels.addAll(refreshedLevels);
-            selectedLevelIndex = findHighestUnlockedLevelIndex();
-            notifyObservers();
-        });
-    });
-}
-```
-
-```java
-private void buildDeck(MemoryLevel level) {
-    cards.clear();
-    int pairCount = level.getPairCount();
-    List<Integer> bestArrangement = buildSmartArrangement(pairCount, level.rowCount, level.columnCount);
-    long nextCardId = 1L;
-    for (Integer identifier : bestArrangement) {
-        cards.add(new MemoryCard(nextCardId++, identifier, buildLabel(identifier), identifier % 8));
-    }
-    markBoardChanged();
-}
-```
-
-Giải thích:
-
-- `startLevel(...)` reset toàn bộ state cho một ván mới và chỉ cho chơi level đã mở khóa.
-- `onCardSelected(...)` xử lý đủ 4 trường hợp: không hợp lệ, lật thẻ đầu, ghép đúng, ghép sai.
-- Khi match, hệ thống cộng điểm dựa trên điểm nền, thời gian còn lại và streak.
-- Khi mismatch, board bị khóa để người chơi không click thêm trước khi hai thẻ úp lại.
-- `finishGame(...)` lưu `LocalHistory(game_name = "memory")`, cập nhật best time và mở khóa level tiếp theo.
-- `buildDeck(...)` tạo bộ thẻ từ cấu hình bảng `Memory_Levels`.
-
-#### 6.4.4. `MemoryBoardAdapter` - animation lật thẻ
-
-File: `app/src/main/java/com/example/gamehub/games/memory/MemoryBoardAdapter.java`
-
-```java
-private void applyStateImmediately(ViewHolder holder, boolean showFront) {
-    holder.frontFace.setVisibility(showFront ? View.VISIBLE : View.GONE);
-    holder.backFace.setVisibility(showFront ? View.GONE : View.VISIBLE);
-    holder.itemView.setRotationY(0f);
-    holder.itemView.setAlpha(1f);
-}
-
-private void animateFlip(ViewHolder holder, boolean showFront) {
-    holder.itemView.animate()
-            .rotationY(90f)
-            .setDuration(110L)
-            .setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    applyStateImmediately(holder, showFront);
-                    holder.itemView.setRotationY(-90f);
-                    holder.itemView.animate()
-                            .rotationY(0f)
-                            .setDuration(110L)
-                            .setListener(null)
-                            .start();
-                }
-            })
-            .start();
-}
-```
-
-Giải thích:
-
-- Animation gồm hai chặng xoay theo trục Y.
-- Ở 90 độ, adapter đổi mặt thẻ từ mặt sau sang mặt trước hoặc ngược lại.
-- Sau đó thẻ xoay từ -90 độ về 0 độ để tạo cảm giác lật tự nhiên.
-- Adapter chỉ xử lý hiển thị; luật đúng/sai vẫn nằm trong `MemoryViewModel`.
-
-#### 6.4.5. `GameRepository` - dữ liệu local, truy vấn câu hỏi, lưu lịch sử, mở khóa level
+#### 6.4.4. `GameRepository.ensureLocalDataReady()`
 
 File: `app/src/main/java/com/example/gamehub/data/repository/GameRepository.java`
 
@@ -1276,478 +970,13 @@ public synchronized void ensureLocalDataReady() throws IOException {
 }
 ```
 
-```java
-public List<QuizQuestion> getRandomQuizQuestions(List<String> categories, String difficulty, int limit) {
-    List<String> normalizedCategories = categories == null ? new ArrayList<>() : new ArrayList<>(categories);
-    if (normalizedCategories.isEmpty()) {
-        normalizedCategories.addAll(quizDao.getDistinctCategories());
-    }
+Đoạn code này thể hiện cơ chế chuẩn bị dữ liệu offline. Quiz import câu hỏi từ SQLite asset vào Room, còn Memory level được seed qua `DatabaseSeeder` khi database khởi tạo.
 
-    boolean filterAllCategories = normalizedCategories.size() >= quizDao.getDistinctCategories().size();
-    boolean hasDifficulty = difficulty != null && !difficulty.trim().isEmpty() && !"all".equalsIgnoreCase(difficulty);
-
-    if (filterAllCategories) {
-        return hasDifficulty
-                ? quizDao.getRandomQuestionsByDifficulty(difficulty, limit)
-                : quizDao.getRandomQuestions(limit);
-    }
-    return hasDifficulty
-            ? quizDao.getRandomQuestionsByCategoriesAndDifficulty(normalizedCategories, difficulty, limit)
-            : quizDao.getRandomQuestionsByCategories(normalizedCategories, limit);
-}
-```
-
-```java
-public void completeMemoryLevel(int levelId, long elapsedMs, boolean won) {
-    if (!won) {
-        return;
-    }
-    MemoryLevel currentLevel = memoryDao.getLevel(levelId);
-    if (currentLevel == null) {
-        return;
-    }
-    if (currentLevel.bestTimeMs == 0L || elapsedMs < currentLevel.bestTimeMs) {
-        memoryDao.updateBestTime(levelId, elapsedMs);
-    }
-    MemoryLevel nextLevel = memoryDao.getLevel(levelId + 1);
-    if (nextLevel != null && !nextLevel.isUnlocked) {
-        memoryDao.unlockLevel(nextLevel.levelId);
-    }
-}
-```
-
-```java
-public long saveHistory(LocalHistory historyItem, HistorySyncCallback callback) {
-    long insertedId = historyDao.insert(historyItem);
-    syncPendingHistoryNow(callback);
-    triggerHistorySyncIfNeeded();
-    return insertedId;
-}
-```
-
-Giải thích:
-
-- Repository là lớp trung gian để ViewModel không truy cập DAO trực tiếp.
-- `ensureLocalDataReady()` đảm bảo câu hỏi Quiz và level Memory có sẵn trước khi chơi.
-- `getRandomQuizQuestions(...)` chọn query phù hợp theo bộ lọc người chơi.
-- `completeMemoryLevel(...)` cập nhật tiến độ Memory local-first.
-- `saveHistory(...)` lưu local trước, sau đó mới kích hoạt sync.
-
-### 6.5. Trích đoạn code bảng trong CSDL Room/SQLite
-
-#### 6.5.1. `AppDatabase` - khai báo database và DAO
-
-File: `app/src/main/java/com/example/gamehub/data/local/AppDatabase.java`
-
-```java
-@Database(
-        entities = {
-                QuizQuestion.class,
-                SudokuBoard.class,
-                MemoryLevel.class,
-                LocalHistory.class,
-                LocalFriend.class,
-                SudokuGameState.class,
-                SudokuStats.class
-        },
-        version = 6,
-        exportSchema = false
-)
-public abstract class AppDatabase extends RoomDatabase {
-    public abstract QuizDao quizDao();
-    public abstract MemoryDao memoryDao();
-    public abstract HistoryDao historyDao();
-
-    public static AppDatabase getInstance(Context context) {
-        if (instance == null) {
-            synchronized (AppDatabase.class) {
-                if (instance == null) {
-                    instance = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "gamehub.db")
-                            .fallbackToDestructiveMigration()
-                            .allowMainThreadQueries()
-                            .build();
-                    DatabaseSeeder.seedIfNeeded(instance);
-                }
-            }
-        }
-        return instance;
-    }
-}
-```
-
-Giải thích:
-
-- `AppDatabase` là Room database trung tâm.
-- `QuizQuestion`, `MemoryLevel`, `LocalHistory` là ba entity trực tiếp phục vụ Quiz/Memory.
-- Database name là `gamehub.db`.
-- `DatabaseSeeder.seedIfNeeded(instance)` seed dữ liệu offline khi khởi tạo.
-
-#### 6.5.2. Bảng `Quiz_Questions`
-
-File: `app/src/main/java/com/example/gamehub/data/local/entities/QuizQuestion.java`
-
-```java
-@Entity(tableName = "Quiz_Questions")
-public class QuizQuestion {
-    @PrimaryKey
-    public int id;
-
-    @NonNull
-    public String category = "";
-
-    @NonNull
-    public String question = "";
-
-    @ColumnInfo(name = "link_image")
-    public String linkImage = "";
-
-    @ColumnInfo(name = "opt_a")
-    public String optionA = "";
-
-    @ColumnInfo(name = "opt_b")
-    public String optionB = "";
-
-    @ColumnInfo(name = "opt_c")
-    public String optionC = "";
-
-    @ColumnInfo(name = "opt_d")
-    public String optionD = "";
-
-    @ColumnInfo(name = "correct_ans")
-    public String correctAnswer = "";
-
-    @NonNull
-    public String difficulty = "easy";
-}
-```
-
-Giải thích:
-
-- Đây là bảng câu hỏi cho Game Quiz.
-- `category` dùng cho bộ lọc chủ đề.
-- `difficulty` dùng cho bộ lọc độ khó và bonus điểm.
-- `link_image` dùng để hiển thị ảnh minh họa nếu câu hỏi có ảnh.
-- `correct_ans` lưu khóa đáp án đúng A/B/C/D.
-
-#### 6.5.3. Bảng `Memory_Levels`
-
-File: `app/src/main/java/com/example/gamehub/data/local/entities/MemoryLevel.java`
-
-```java
-@Entity(tableName = "Memory_Levels")
-public class MemoryLevel {
-    @PrimaryKey
-    @ColumnInfo(name = "level_id")
-    public int levelId;
-
-    @ColumnInfo(name = "row_count")
-    public int rowCount;
-
-    @ColumnInfo(name = "column_count")
-    public int columnCount;
-
-    @ColumnInfo(name = "time_limit_sec")
-    public long timeLimitSec;
-
-    @ColumnInfo(name = "best_time_ms")
-    public long bestTimeMs;
-
-    @ColumnInfo(name = "is_unlocked")
-    public boolean isUnlocked;
-
-    @Ignore
-    public int getPairCount() {
-        return (rowCount * columnCount) / 2;
-    }
-
-    @Ignore
-    public String getDisplayLabel() {
-        return rowCount + "x" + columnCount;
-    }
-}
-```
-
-Giải thích:
-
-- Đây là bảng cấu hình và tiến độ cho Game Memory.
-- `row_count` và `column_count` quyết định kích thước board.
-- `time_limit_sec` quyết định thời gian chơi của level.
-- `best_time_ms` lưu thành tích tốt nhất local.
-- `is_unlocked` quyết định level có được chơi hay không.
-- `getPairCount()` tính số cặp thẻ từ kích thước board.
-
-#### 6.5.4. Bảng `Local_History`
-
-File: `app/src/main/java/com/example/gamehub/data/local/entities/LocalHistory.java`
-
-```java
-@Entity(tableName = "Local_History")
-public class LocalHistory {
-    @PrimaryKey(autoGenerate = true)
-    public int id;
-
-    @NonNull
-    @ColumnInfo(name = "game_name")
-    public String gameName = "";
-
-    @NonNull
-    public String status = "";
-
-    public int score;
-
-    @ColumnInfo(name = "time_spent")
-    public long timeSpent;
-
-    @ColumnInfo(name = "play_date")
-    public long playDate;
-
-    @ColumnInfo(name = "is_synced")
-    public boolean isSynced;
-
-    @NonNull
-    public String detail = "";
-
-    @ColumnInfo(name = "attempt_count")
-    public int attemptCount;
-}
-```
-
-Giải thích:
-
-- Bảng này lưu lịch sử chơi local của Quiz và Memory.
-- `game_name` phân biệt `quiz`, `memory`.
-- `status` lưu `won` hoặc `lost`.
-- `is_synced = false` nghĩa là bản ghi còn chờ upload Firebase.
-- `detail` và `attempt_count` phục vụ riêng cho Memory level và số lượt đoán.
-
-#### 6.5.5. DAO truy vấn Quiz
-
-File: `app/src/main/java/com/example/gamehub/data/local/dao/QuizDao.java`
-
-```java
-@Dao
-public interface QuizDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertAll(List<QuizQuestion> items);
-
-    @Query("SELECT COUNT(*) FROM Quiz_Questions")
-    int getCount();
-
-    @Query("SELECT DISTINCT category FROM Quiz_Questions ORDER BY category ASC")
-    List<String> getDistinctCategories();
-
-    @Query("SELECT * FROM Quiz_Questions ORDER BY RANDOM() LIMIT :limit")
-    List<QuizQuestion> getRandomQuestions(int limit);
-
-    @Query("SELECT * FROM Quiz_Questions WHERE difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit")
-    List<QuizQuestion> getRandomQuestionsByDifficulty(String difficulty, int limit);
-
-    @Query("SELECT * FROM Quiz_Questions WHERE category IN (:categories) ORDER BY RANDOM() LIMIT :limit")
-    List<QuizQuestion> getRandomQuestionsByCategories(List<String> categories, int limit);
-
-    @Query("SELECT * FROM Quiz_Questions WHERE category IN (:categories) AND difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit")
-    List<QuizQuestion> getRandomQuestionsByCategoriesAndDifficulty(List<String> categories, String difficulty, int limit);
-}
-```
-
-Giải thích:
-
-- DAO này đáp ứng yêu cầu lấy câu hỏi theo category, difficulty và random.
-- `getCount()` giúp xác định có cần import SQLite asset không.
-- Các query `ORDER BY RANDOM()` đảm bảo mỗi ván có bộ câu hỏi khác nhau.
-
-#### 6.5.6. DAO truy vấn Memory
-
-File: `app/src/main/java/com/example/gamehub/data/local/dao/MemoryDao.java`
-
-```java
-@Dao
-public interface MemoryDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertAll(List<MemoryLevel> items);
-
-    @Query("SELECT COUNT(*) FROM Memory_Levels")
-    int getCount();
-
-    @Query("SELECT * FROM Memory_Levels ORDER BY level_id ASC")
-    List<MemoryLevel> getAllLevels();
-
-    @Query("SELECT * FROM Memory_Levels WHERE level_id = :levelId LIMIT 1")
-    MemoryLevel getLevel(int levelId);
-
-    @Query("DELETE FROM Memory_Levels")
-    void clearAll();
-
-    @Query("UPDATE Memory_Levels SET best_time_ms = :bestTimeMs WHERE level_id = :levelId")
-    void updateBestTime(int levelId, long bestTimeMs);
-
-    @Query("UPDATE Memory_Levels SET is_unlocked = 1 WHERE level_id = :levelId")
-    void unlockLevel(int levelId);
-}
-```
-
-Giải thích:
-
-- DAO này đáp ứng yêu cầu quản lý level Memory local.
-- `getAllLevels()` dùng cho màn chọn level.
-- `updateBestTime(...)` cập nhật thành tích.
-- `unlockLevel(...)` mở khóa level tiếp theo sau khi thắng.
-
-#### 6.5.7. DAO lịch sử chơi
-
-File: `app/src/main/java/com/example/gamehub/data/local/dao/HistoryDao.java`
-
-```java
-@Dao
-public interface HistoryDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    long insert(LocalHistory historyItem);
-
-    @Query("SELECT * FROM Local_History ORDER BY play_date DESC")
-    List<LocalHistory> getAllNewestFirst();
-
-    @Query("SELECT COUNT(*) FROM Local_History WHERE is_synced = 0")
-    int getUnsyncedCount();
-
-    @Query("SELECT * FROM Local_History WHERE is_synced = 0 ORDER BY play_date ASC")
-    List<LocalHistory> getUnsyncedHistory();
-
-    @Query("SELECT * FROM Local_History WHERE lower(game_name) LIKE '%' || lower(:gameName) || '%' AND lower(status) IN ('won', 'completed') AND time_spent > 0 ORDER BY time_spent ASC, play_date DESC LIMIT 1")
-    LocalHistory getBestRecordForGame(String gameName);
-
-    @Query("UPDATE Local_History SET is_synced = 1 WHERE id = :historyId")
-    void markSynced(int historyId);
-}
-```
-
-Giải thích:
-
-- `insert(...)` được Quiz/Memory gọi khi ván kết thúc.
-- `getUnsyncedHistory()` là hàng đợi đồng bộ Firebase.
-- `getBestRecordForGame(...)` phục vụ màn kết quả.
-- `markSynced(...)` đánh dấu bản ghi đã upload thành công.
-
-#### 6.5.8. Import SQLite asset câu hỏi Quiz
-
-File: `app/src/main/java/com/example/gamehub/data/local/QuizAssetImporter.java`
-
-```java
-public final class QuizAssetImporter {
-    private static final String ASSET_DB_PATH = "databases/quiz_questions_500_vi_entity_images.db";
-    private static final String CACHE_DB_NAME = "quiz_questions_seed.db";
-
-    public static List<QuizQuestion> readQuestions(Context context) throws IOException {
-        File cacheFile = ensureSeedDatabaseCopied(context);
-        SQLiteDatabase database = SQLiteDatabase.openDatabase(cacheFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
-        List<QuizQuestion> questions = new ArrayList<>();
-        Cursor cursor = database.query(
-                "Quiz_Questions",
-                new String[]{"id", "category", "question", "link_image", "opt_a", "opt_b", "opt_c", "opt_d", "correct_ans", "difficulty"},
-                null,
-                null,
-                null,
-                null,
-                "id ASC"
-        );
-        try {
-            while (cursor.moveToNext()) {
-                questions.add(new QuizQuestion(
-                        cursor.getInt(0),
-                        value(cursor, 1),
-                        value(cursor, 2),
-                        value(cursor, 3),
-                        value(cursor, 4),
-                        value(cursor, 5),
-                        value(cursor, 6),
-                        value(cursor, 7),
-                        value(cursor, 8),
-                        value(cursor, 9)
-                ));
-            }
-        } finally {
-            cursor.close();
-            database.close();
-        }
-        return questions;
-    }
-}
-```
-
-Giải thích:
-
-- File SQLite asset không được query trực tiếp trong gameplay.
-- Importer copy asset vào cache vì `SQLiteDatabase.openDatabase(...)` cần đường dẫn file thật.
-- Sau khi đọc, dữ liệu được chuyển thành `QuizQuestion` và insert vào Room.
-
-#### 6.5.9. Seed level Memory
-
-File: `app/src/main/java/com/example/gamehub/data/local/DatabaseSeeder.java`
-
-```java
-public final class DatabaseSeeder {
-    private static final int MEMORY_LEVEL_COUNT = 30;
-
-    public static void seedIfNeeded(AppDatabase database) {
-        syncMemoryLevels(database);
-        if (database.sudokuDao().getCount() == 0) {
-            database.sudokuDao().insertAll(buildSudokuBoards());
-        }
-    }
-
-    private static List<MemoryLevel> buildMemoryLevels() {
-        Map<Integer, LevelSpec> specsByPairCount = new LinkedHashMap<>();
-        for (int rowCount = 3; rowCount <= 40; rowCount++) {
-            for (int columnCount = 4; columnCount <= 5; columnCount++) {
-                if ((rowCount * columnCount) % 2 != 0) {
-                    continue;
-                }
-                int pairCount = (rowCount * columnCount) / 2;
-                if (pairCount < 6) {
-                    continue;
-                }
-                ...
-            }
-        }
-
-        List<MemoryLevel> items = new ArrayList<>();
-        int levelId = 1;
-        for (LevelSpec spec : sortedSpecs) {
-            items.add(new MemoryLevel(
-                    levelId,
-                    spec.rowCount,
-                    spec.columnCount,
-                    35L + spec.pairCount * 5L,
-                    0L,
-                    levelId == 1
-            ));
-            levelId++;
-            if (levelId > MEMORY_LEVEL_COUNT) {
-                break;
-            }
-        }
-        return items;
-    }
-}
-```
-
-Giải thích:
-
-- `MEMORY_LEVEL_COUNT = 30` đáp ứng yêu cầu có nhiều level Memory offline.
-- Level được sinh theo số hàng/cột hợp lệ và số cặp tăng dần.
-- Level 1 mở khóa mặc định bằng `levelId == 1`.
-- Các level sau được mở khóa qua `MemoryDao.unlockLevel(...)`.
-
-### 6.6. Trích đoạn code API gọi ngoài
-
-#### 6.6.1. Gemini API - nhận xét AI cuối ván
+#### 6.4.5. `GeminiReviewService.requestReview(...)`
 
 File: `app/src/main/java/com/example/gamehub/ai/GeminiReviewService.java`
 
 ```java
-private static final String MODEL_NAME = "gemini-2.5-flash";
-private static final String MODEL_ENDPOINT =
-        "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL_NAME + ":generateContent";
-
 public void requestReview(@NonNull String prompt, @NonNull Callback callback) {
     String apiKey = BuildConfig.GEMINI_API_KEY == null ? "" : BuildConfig.GEMINI_API_KEY.trim();
     if (apiKey.isEmpty()) {
@@ -1772,211 +1001,9 @@ public void requestReview(@NonNull String prompt, @NonNull Callback callback) {
 }
 ```
 
-```java
-private String performRequestBody(String apiKey, String requestBody) throws Exception {
-    HttpURLConnection connection = null;
-    try {
-        connection = (HttpURLConnection) new URL(MODEL_ENDPOINT).openConnection();
-        connection.setRequestMethod("POST");
-        connection.setConnectTimeout(15_000);
-        connection.setReadTimeout(20_000);
-        connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("x-goog-api-key", apiKey);
+Đoạn code này thể hiện ranh giới gọi API AI: kiểm tra API key, chạy request ở background thread, trả kết quả về callback và xử lý lỗi theo thông báo tiếng Việt.
 
-        byte[] body = requestBody.getBytes(StandardCharsets.UTF_8);
-        try (OutputStream outputStream = connection.getOutputStream()) {
-            outputStream.write(body);
-        }
-
-        int responseCode = connection.getResponseCode();
-        InputStream responseStream = responseCode >= 200 && responseCode < 300
-                ? connection.getInputStream()
-                : connection.getErrorStream();
-        String rawResponse = readFully(responseStream);
-        if (responseCode < 200 || responseCode >= 300) {
-            throw new ReviewException(extractErrorMessage(responseCode, rawResponse));
-        }
-        return rawResponse;
-    } finally {
-        if (connection != null) {
-            connection.disconnect();
-        }
-    }
-}
-```
-
-Giải thích:
-
-- API gọi ngoài là Gemini `generateContent`.
-- API key lấy từ `BuildConfig.GEMINI_API_KEY`, được cấu hình qua `local.properties`.
-- Request chạy ở background thread để không block UI.
-- Response được đưa về main thread thông qua callback.
-- Service có validate và fallback local nếu Gemini lỗi hoặc trả nội dung không đạt.
-
-#### 6.6.2. Quiz gọi Gemini review
-
-File: `app/src/main/java/com/example/gamehub/games/quiz/QuizActivity.java`
-
-```java
-private void ensureQuizAiReview() {
-    String reviewKey = viewModel.getAiReviewRequestKey();
-    if (reviewKey == null || reviewKey.trim().isEmpty() || reviewKey.equals(activeReviewKey)) {
-        return;
-    }
-    activeReviewKey = reviewKey;
-    aiReviewLoading = true;
-    aiReviewText = "";
-    reviewService.requestReview(viewModel.buildAiReviewPrompt(), new GeminiReviewService.Callback() {
-        @Override
-        public void onSuccess(String review) {
-            if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
-                return;
-            }
-            aiReviewLoading = false;
-            aiReviewText = review == null ? "" : review.trim();
-            if (viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT) {
-                renderResult();
-            }
-        }
-
-        @Override
-        public void onError(String message) {
-            ...
-        }
-    });
-}
-```
-
-Giải thích:
-
-- `reviewKey` chống gọi Gemini lặp lại khi màn result render nhiều lần.
-- Prompt lấy từ `QuizViewModel.buildAiReviewPrompt()`.
-- Khi AI trả kết quả, UI được render lại nếu vẫn đang ở màn `RESULT`.
-
-#### 6.6.3. Memory gọi Gemini review
-
-File: `app/src/main/java/com/example/gamehub/games/memory/MemoryGameActivity.java`
-
-```java
-private void ensureMemoryAiReview() {
-    String reviewKey = buildMemoryReviewKey();
-    if (reviewKey.equals(activeReviewKey)) {
-        return;
-    }
-    activeReviewKey = reviewKey;
-    aiReviewLoading = true;
-    aiReviewText = "";
-    reviewService.requestReview(buildMemoryReviewPrompt(), new GeminiReviewService.Callback() {
-        @Override
-        public void onSuccess(String review) {
-            if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
-                return;
-            }
-            aiReviewLoading = false;
-            aiReviewText = review == null ? "" : review.trim();
-            if (viewModel.getCurrentScreen() == MemoryViewModel.Screen.RESULT) {
-                renderResult();
-            }
-        }
-
-        @Override
-        public void onError(String message) {
-            ...
-        }
-    });
-}
-```
-
-Giải thích:
-
-- Memory có prompt riêng vì chỉ số đánh giá khác Quiz.
-- Khóa review gồm level, điểm, số cặp đúng, lượt đoán và thời gian.
-- AI nhận xét dựa trên thống kê Memory và log thao tác.
-
-#### 6.6.4. Firebase Firestore - đồng bộ lịch sử chơi
-
-File: `app/src/main/java/com/example/gamehub/data/remote/FirebaseManager.java`
-
-```java
-public SyncHistoryResult syncHistoryRecordDetailed(LocalHistory history, String currentUid, String cachedNickname) {
-    if (history == null || currentUid == null || currentUid.trim().isEmpty()) {
-        return new SyncHistoryResult(false, "Thiếu tài khoản hiện tại để đồng bộ.");
-    }
-
-    String recordId = buildRecordId(currentUid, history.id);
-    DocumentReference recordRef = firestore.collection(COL_RECORDS).document(recordId);
-    DocumentReference userRef = firestore.collection(COL_USERS).document(currentUid);
-
-    try {
-        Tasks.await(firestore.runTransaction(transaction -> {
-            DocumentSnapshot existingRecord = transaction.get(recordRef);
-            DocumentSnapshot userSnapshot = transaction.get(userRef);
-            if (existingRecord.exists()) {
-                return null;
-            }
-
-            Map<String, Object> recordPayload = new HashMap<>();
-            recordPayload.put("record_id", recordId);
-            recordPayload.put(FIELD_UID, currentUid);
-            recordPayload.put("game_type", mapGameType(history.gameName));
-            recordPayload.put("score", history.score);
-            recordPayload.put("time_played", history.timeSpent);
-            recordPayload.put("status", mapStatus(history.status));
-            recordPayload.put("date", history.playDate);
-            transaction.set(recordRef, recordPayload);
-
-            if (userSnapshot.exists()) {
-                long currentScore = readLong(userSnapshot.get(FIELD_TOTAL_SCORE));
-                Map<String, Object> updates = new HashMap<>();
-                updates.put(FIELD_TOTAL_SCORE, currentScore + history.score);
-                transaction.update(userRef, updates);
-            } else {
-                FirebaseUser currentUser = auth.getCurrentUser();
-                Map<String, Object> newUser = new HashMap<>();
-                newUser.put(FIELD_UID, currentUid);
-                newUser.put(FIELD_EMAIL, currentUser != null && currentUser.getEmail() != null ? currentUser.getEmail() : "");
-                newUser.put(FIELD_NICKNAME, !isBlank(cachedNickname) ? cachedNickname : "Player");
-                newUser.put(FIELD_TOTAL_SCORE, history.score);
-                newUser.put(FIELD_CREATED_AT, System.currentTimeMillis());
-                transaction.set(userRef, newUser);
-            }
-            return null;
-        }));
-        return new SyncHistoryResult(true, "Đã đồng bộ trận lên Firebase.");
-    } catch (Exception error) {
-        return new SyncHistoryResult(false, "Không ghi được Game_Records lên Firebase.");
-    }
-}
-```
-
-Giải thích:
-
-- API ngoài ở đây là Firebase Firestore.
-- Collection liên quan: `Game_Records` và `Users`.
-- Transaction đảm bảo việc ghi record và cập nhật tổng điểm user nhất quán.
-- `recordId` được tạo từ `uid` và `LocalHistory.id` để tránh upload trùng.
-
-#### 6.6.5. Quyền Internet cho API ngoài
-
-File: `app/src/main/AndroidManifest.xml`
-
-```xml
-<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-<uses-permission android:name="android.permission.INTERNET" />
-
-<activity android:name=".games.memory.MemoryGameActivity" android:exported="false" />
-<activity android:name=".games.quiz.QuizActivity" android:exported="false" />
-```
-
-Giải thích:
-
-- `INTERNET` cần cho Gemini, Firebase và tải ảnh câu hỏi.
-- `ACCESS_NETWORK_STATE` hỗ trợ kiểm tra trạng thái mạng trước khi đồng bộ.
-- `QuizActivity` và `MemoryGameActivity` được khai báo trong manifest để app có thể mở màn chơi.
-
-### 6.7. Đối chiếu yêu cầu chức năng với code
+### 6.5. Đối chiếu yêu cầu chức năng với code
 
 | Yêu cầu được phân công | Lớp/Hàm đáp ứng | Bảng CSDL liên quan | API ngoài liên quan | Kết quả |
 |---|---|---|---|---|
@@ -2178,18 +1205,31 @@ Các kịch bản cần kiểm tra:
 
 ### 9.3. Kiểm thử build
 
-Đã chạy:
+Trong quá trình kiểm thử triển khai, project được build bằng Gradle với task `assembleDebug` để xác nhận mã nguồn có thể biên dịch thành công trên môi trường Android. Lệnh kiểm thử được sử dụng:
 
 ```powershell
 $env:ANDROID_HOME='C:\\Users\\ducan\\AppData\\Local\\Android\\Sdk'
 .\gradlew.bat assembleDebug
 ```
 
-Kết quả: build debug thành công.
+Kết quả build debug thành công, cho thấy các module Quiz, Memory, Room, Firebase và Gemini được liên kết đúng ở mức biên dịch.
 
 Lưu ý: project trước đó có lỗi trùng resource launcher do cùng tồn tại `ic_launcher.png` và `ic_launcher.webp` trong các thư mục `mipmap-*`. Đã giữ bộ `.png` và xóa bộ `.webp` trùng tên để build được.
 
-## 10. Rủi ro và hướng xử lý
+## 10. Hạn chế của chức năng cá nhân
+
+Bên cạnh các chức năng đã hoàn thành, module Quiz & Memory vẫn có một số hạn chế cần ghi nhận để đánh giá đúng phạm vi triển khai:
+
+| Hạn chế | Ảnh hưởng | Hướng cải thiện |
+|---|---|---|
+| AI Review phụ thuộc Internet và API key Gemini | Khi thiếu mạng hoặc thiếu key, app không gọi được Gemini | Giữ fallback local và bổ sung cơ chế cấu hình key rõ ràng khi triển khai |
+| Firebase sync cần người dùng đã đăng nhập | Nếu chưa có tài khoản hiện tại, lịch sử chưa thể upload lên Firestore | Giữ dữ liệu trong `Local_History` với `is_synced = false` và đồng bộ lại sau |
+| Khi mất mạng, dữ liệu chỉ lưu local | Leaderboard hoặc dữ liệu online chưa cập nhật ngay | Dùng cơ chế sync nền khi mạng trở lại |
+| `fallbackToDestructiveMigration()` có thể làm mất dữ liệu local khi đổi schema | Rủi ro mất lịch sử hoặc tiến độ nếu schema Room thay đổi | Bổ sung migration Room rõ ràng cho các phiên bản sau |
+| Board Memory ở level lớn có thể chật trên màn hình nhỏ | Trải nghiệm lật thẻ có thể khó quan sát | Tối ưu layout theo kích thước màn hình, thêm zoom hoặc chia cụm level |
+| Dữ liệu Quiz hiện chủ yếu lấy từ asset DB | Chưa có cơ chế cập nhật câu hỏi động hoàn chỉnh | Bổ sung luồng tải/cập nhật câu hỏi từ backend hoặc file seed mới |
+
+## 11. Rủi ro và hướng xử lý
 
 | Rủi ro | Ảnh hưởng | Hướng xử lý |
 |---|---|---|
@@ -2201,9 +1241,9 @@ Lưu ý: project trước đó có lỗi trùng resource launcher do cùng tồn
 | Thay đổi Room schema | Có thể mất dữ liệu local | Cần migration rõ ràng nếu triển khai thật |
 | Board Memory quá lớn | UI có thể chật | Adapter tự tính kích thước thẻ theo số cột |
 
-## 11. Danh sách file liên quan đến phần cá nhân
+## 12. Danh sách file liên quan đến phần cá nhân
 
-### 11.1. Game Quiz
+### 12.1. Game Quiz
 
 - `app/src/main/java/com/example/gamehub/games/quiz/QuizActivity.java`
 - `app/src/main/java/com/example/gamehub/games/quiz/QuizViewModel.java`
@@ -2218,7 +1258,7 @@ Lưu ý: project trước đó có lỗi trùng resource launcher do cùng tồn
 - `app/src/main/res/drawable/bg_quiz_option_correct.xml`
 - `app/src/main/res/drawable/bg_quiz_option_wrong.xml`
 
-### 11.2. Game Memory
+### 12.2. Game Memory
 
 - `app/src/main/java/com/example/gamehub/games/memory/MemoryGameActivity.java`
 - `app/src/main/java/com/example/gamehub/games/memory/MemoryViewModel.java`
@@ -2234,7 +1274,7 @@ Lưu ý: project trước đó có lỗi trùng resource launcher do cùng tồn
 - `app/src/main/res/drawable/bg_tile_memory_unlocked.xml`
 - `app/src/main/res/drawable/bg_tile_selected_memory.xml`
 
-### 11.3. CSDL, repository, API và tiện ích
+### 12.3. CSDL, repository, API và tiện ích
 
 - `app/src/main/java/com/example/gamehub/data/local/AppDatabase.java`
 - `app/src/main/java/com/example/gamehub/data/local/DatabaseSeeder.java`
@@ -2251,7 +1291,7 @@ Lưu ý: project trước đó có lỗi trùng resource launcher do cùng tồn
 - `app/src/main/java/com/example/gamehub/utils/ImageLoader.java`
 - `app/src/main/assets/databases/quiz_questions_500_vi_entity_images.db`
 
-## 12. Link GitHub
+## 13. Link GitHub
 
 Repository:
 
@@ -2268,3 +1308,648 @@ Branch làm việc:
 ```text
 main
 ```
+
+## Phụ lục A. Code Entity và DAO
+
+### A.1. `AppDatabase` - khai báo database và DAO
+
+File: `app/src/main/java/com/example/gamehub/data/local/AppDatabase.java`
+
+```java
+@Database(
+        entities = {
+                QuizQuestion.class,
+                SudokuBoard.class,
+                MemoryLevel.class,
+                LocalHistory.class,
+                LocalFriend.class,
+                SudokuGameState.class,
+                SudokuStats.class
+        },
+        version = 6,
+        exportSchema = false
+)
+public abstract class AppDatabase extends RoomDatabase {
+    public abstract QuizDao quizDao();
+    public abstract MemoryDao memoryDao();
+    public abstract HistoryDao historyDao();
+
+    public static AppDatabase getInstance(Context context) {
+        if (instance == null) {
+            synchronized (AppDatabase.class) {
+                if (instance == null) {
+                    instance = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "gamehub.db")
+                            .fallbackToDestructiveMigration()
+                            .allowMainThreadQueries()
+                            .build();
+                    DatabaseSeeder.seedIfNeeded(instance);
+                }
+            }
+        }
+        return instance;
+    }
+}
+```
+
+Giải thích:
+
+- `AppDatabase` là Room database trung tâm.
+- `QuizQuestion`, `MemoryLevel`, `LocalHistory` là ba entity trực tiếp phục vụ Quiz/Memory.
+- Database name là `gamehub.db`.
+- `DatabaseSeeder.seedIfNeeded(instance)` seed dữ liệu offline khi khởi tạo.
+
+### A.2. Bảng `Quiz_Questions`
+
+File: `app/src/main/java/com/example/gamehub/data/local/entities/QuizQuestion.java`
+
+```java
+@Entity(tableName = "Quiz_Questions")
+public class QuizQuestion {
+    @PrimaryKey
+    public int id;
+
+    @NonNull
+    public String category = "";
+
+    @NonNull
+    public String question = "";
+
+    @ColumnInfo(name = "link_image")
+    public String linkImage = "";
+
+    @ColumnInfo(name = "opt_a")
+    public String optionA = "";
+
+    @ColumnInfo(name = "opt_b")
+    public String optionB = "";
+
+    @ColumnInfo(name = "opt_c")
+    public String optionC = "";
+
+    @ColumnInfo(name = "opt_d")
+    public String optionD = "";
+
+    @ColumnInfo(name = "correct_ans")
+    public String correctAnswer = "";
+
+    @NonNull
+    public String difficulty = "easy";
+}
+```
+
+Giải thích:
+
+- Đây là bảng câu hỏi cho Game Quiz.
+- `category` dùng cho bộ lọc chủ đề.
+- `difficulty` dùng cho bộ lọc độ khó và bonus điểm.
+- `link_image` dùng để hiển thị ảnh minh họa nếu câu hỏi có ảnh.
+- `correct_ans` lưu khóa đáp án đúng A/B/C/D.
+
+### A.3. Bảng `Memory_Levels`
+
+File: `app/src/main/java/com/example/gamehub/data/local/entities/MemoryLevel.java`
+
+```java
+@Entity(tableName = "Memory_Levels")
+public class MemoryLevel {
+    @PrimaryKey
+    @ColumnInfo(name = "level_id")
+    public int levelId;
+
+    @ColumnInfo(name = "row_count")
+    public int rowCount;
+
+    @ColumnInfo(name = "column_count")
+    public int columnCount;
+
+    @ColumnInfo(name = "time_limit_sec")
+    public long timeLimitSec;
+
+    @ColumnInfo(name = "best_time_ms")
+    public long bestTimeMs;
+
+    @ColumnInfo(name = "is_unlocked")
+    public boolean isUnlocked;
+
+    @Ignore
+    public int getPairCount() {
+        return (rowCount * columnCount) / 2;
+    }
+
+    @Ignore
+    public String getDisplayLabel() {
+        return rowCount + "x" + columnCount;
+    }
+}
+```
+
+Giải thích:
+
+- Đây là bảng cấu hình và tiến độ cho Game Memory.
+- `row_count` và `column_count` quyết định kích thước board.
+- `time_limit_sec` quyết định thời gian chơi của level.
+- `best_time_ms` lưu thành tích tốt nhất local.
+- `is_unlocked` quyết định level có được chơi hay không.
+- `getPairCount()` tính số cặp thẻ từ kích thước board.
+
+### A.4. Bảng `Local_History`
+
+File: `app/src/main/java/com/example/gamehub/data/local/entities/LocalHistory.java`
+
+```java
+@Entity(tableName = "Local_History")
+public class LocalHistory {
+    @PrimaryKey(autoGenerate = true)
+    public int id;
+
+    @NonNull
+    @ColumnInfo(name = "game_name")
+    public String gameName = "";
+
+    @NonNull
+    public String status = "";
+
+    public int score;
+
+    @ColumnInfo(name = "time_spent")
+    public long timeSpent;
+
+    @ColumnInfo(name = "play_date")
+    public long playDate;
+
+    @ColumnInfo(name = "is_synced")
+    public boolean isSynced;
+
+    @NonNull
+    public String detail = "";
+
+    @ColumnInfo(name = "attempt_count")
+    public int attemptCount;
+}
+```
+
+Giải thích:
+
+- Bảng này lưu lịch sử chơi local của Quiz và Memory.
+- `game_name` phân biệt `quiz`, `memory`.
+- `status` lưu `won` hoặc `lost`.
+- `is_synced = false` nghĩa là bản ghi còn chờ upload Firebase.
+- `detail` và `attempt_count` phục vụ riêng cho Memory level và số lượt đoán.
+
+### A.5. DAO truy vấn Quiz
+
+File: `app/src/main/java/com/example/gamehub/data/local/dao/QuizDao.java`
+
+```java
+@Dao
+public interface QuizDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void insertAll(List<QuizQuestion> items);
+
+    @Query("SELECT COUNT(*) FROM Quiz_Questions")
+    int getCount();
+
+    @Query("SELECT DISTINCT category FROM Quiz_Questions ORDER BY category ASC")
+    List<String> getDistinctCategories();
+
+    @Query("SELECT * FROM Quiz_Questions ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestions(int limit);
+
+    @Query("SELECT * FROM Quiz_Questions WHERE difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestionsByDifficulty(String difficulty, int limit);
+
+    @Query("SELECT * FROM Quiz_Questions WHERE category IN (:categories) ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestionsByCategories(List<String> categories, int limit);
+
+    @Query("SELECT * FROM Quiz_Questions WHERE category IN (:categories) AND difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit")
+    List<QuizQuestion> getRandomQuestionsByCategoriesAndDifficulty(List<String> categories, String difficulty, int limit);
+}
+```
+
+Giải thích:
+
+- DAO này đáp ứng yêu cầu lấy câu hỏi theo category, difficulty và random.
+- `getCount()` giúp xác định có cần import SQLite asset không.
+- Các query `ORDER BY RANDOM()` đảm bảo mỗi ván có bộ câu hỏi khác nhau.
+
+### A.6. DAO truy vấn Memory
+
+File: `app/src/main/java/com/example/gamehub/data/local/dao/MemoryDao.java`
+
+```java
+@Dao
+public interface MemoryDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void insertAll(List<MemoryLevel> items);
+
+    @Query("SELECT COUNT(*) FROM Memory_Levels")
+    int getCount();
+
+    @Query("SELECT * FROM Memory_Levels ORDER BY level_id ASC")
+    List<MemoryLevel> getAllLevels();
+
+    @Query("SELECT * FROM Memory_Levels WHERE level_id = :levelId LIMIT 1")
+    MemoryLevel getLevel(int levelId);
+
+    @Query("DELETE FROM Memory_Levels")
+    void clearAll();
+
+    @Query("UPDATE Memory_Levels SET best_time_ms = :bestTimeMs WHERE level_id = :levelId")
+    void updateBestTime(int levelId, long bestTimeMs);
+
+    @Query("UPDATE Memory_Levels SET is_unlocked = 1 WHERE level_id = :levelId")
+    void unlockLevel(int levelId);
+}
+```
+
+Giải thích:
+
+- DAO này đáp ứng yêu cầu quản lý level Memory local.
+- `getAllLevels()` dùng cho màn chọn level.
+- `updateBestTime(...)` cập nhật thành tích.
+- `unlockLevel(...)` mở khóa level tiếp theo sau khi thắng.
+
+### A.7. DAO lịch sử chơi
+
+File: `app/src/main/java/com/example/gamehub/data/local/dao/HistoryDao.java`
+
+```java
+@Dao
+public interface HistoryDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    long insert(LocalHistory historyItem);
+
+    @Query("SELECT * FROM Local_History ORDER BY play_date DESC")
+    List<LocalHistory> getAllNewestFirst();
+
+    @Query("SELECT COUNT(*) FROM Local_History WHERE is_synced = 0")
+    int getUnsyncedCount();
+
+    @Query("SELECT * FROM Local_History WHERE is_synced = 0 ORDER BY play_date ASC")
+    List<LocalHistory> getUnsyncedHistory();
+
+    @Query("SELECT * FROM Local_History WHERE lower(game_name) LIKE '%' || lower(:gameName) || '%' AND lower(status) IN ('won', 'completed') AND time_spent > 0 ORDER BY time_spent ASC, play_date DESC LIMIT 1")
+    LocalHistory getBestRecordForGame(String gameName);
+
+    @Query("UPDATE Local_History SET is_synced = 1 WHERE id = :historyId")
+    void markSynced(int historyId);
+}
+```
+
+Giải thích:
+
+- `insert(...)` được Quiz/Memory gọi khi ván kết thúc.
+- `getUnsyncedHistory()` là hàng đợi đồng bộ Firebase.
+- `getBestRecordForGame(...)` phục vụ màn kết quả.
+- `markSynced(...)` đánh dấu bản ghi đã upload thành công.
+
+## Phụ lục B. Code import và seed dữ liệu
+
+### B.1. Import SQLite asset câu hỏi Quiz
+
+File: `app/src/main/java/com/example/gamehub/data/local/QuizAssetImporter.java`
+
+```java
+public final class QuizAssetImporter {
+    private static final String ASSET_DB_PATH = "databases/quiz_questions_500_vi_entity_images.db";
+    private static final String CACHE_DB_NAME = "quiz_questions_seed.db";
+
+    public static List<QuizQuestion> readQuestions(Context context) throws IOException {
+        File cacheFile = ensureSeedDatabaseCopied(context);
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(cacheFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+        List<QuizQuestion> questions = new ArrayList<>();
+        Cursor cursor = database.query(
+                "Quiz_Questions",
+                new String[]{"id", "category", "question", "link_image", "opt_a", "opt_b", "opt_c", "opt_d", "correct_ans", "difficulty"},
+                null,
+                null,
+                null,
+                null,
+                "id ASC"
+        );
+        try {
+            while (cursor.moveToNext()) {
+                questions.add(new QuizQuestion(
+                        cursor.getInt(0),
+                        value(cursor, 1),
+                        value(cursor, 2),
+                        value(cursor, 3),
+                        value(cursor, 4),
+                        value(cursor, 5),
+                        value(cursor, 6),
+                        value(cursor, 7),
+                        value(cursor, 8),
+                        value(cursor, 9)
+                ));
+            }
+        } finally {
+            cursor.close();
+            database.close();
+        }
+        return questions;
+    }
+}
+```
+
+Giải thích:
+
+- File SQLite asset không được query trực tiếp trong gameplay.
+- Importer copy asset vào cache vì `SQLiteDatabase.openDatabase(...)` cần đường dẫn file thật.
+- Sau khi đọc, dữ liệu được chuyển thành `QuizQuestion` và insert vào Room.
+
+### B.2. Seed level Memory
+
+File: `app/src/main/java/com/example/gamehub/data/local/DatabaseSeeder.java`
+
+```java
+public final class DatabaseSeeder {
+    private static final int MEMORY_LEVEL_COUNT = 30;
+
+    public static void seedIfNeeded(AppDatabase database) {
+        syncMemoryLevels(database);
+        if (database.sudokuDao().getCount() == 0) {
+            database.sudokuDao().insertAll(buildSudokuBoards());
+        }
+    }
+
+    private static List<MemoryLevel> buildMemoryLevels() {
+        Map<Integer, LevelSpec> specsByPairCount = new LinkedHashMap<>();
+        for (int rowCount = 3; rowCount <= 40; rowCount++) {
+            for (int columnCount = 4; columnCount <= 5; columnCount++) {
+                if ((rowCount * columnCount) % 2 != 0) {
+                    continue;
+                }
+                int pairCount = (rowCount * columnCount) / 2;
+                if (pairCount < 6) {
+                    continue;
+                }
+                ...
+            }
+        }
+
+        List<MemoryLevel> items = new ArrayList<>();
+        int levelId = 1;
+        for (LevelSpec spec : sortedSpecs) {
+            items.add(new MemoryLevel(
+                    levelId,
+                    spec.rowCount,
+                    spec.columnCount,
+                    35L + spec.pairCount * 5L,
+                    0L,
+                    levelId == 1
+            ));
+            levelId++;
+            if (levelId > MEMORY_LEVEL_COUNT) {
+                break;
+            }
+        }
+        return items;
+    }
+}
+```
+
+Giải thích:
+
+- `MEMORY_LEVEL_COUNT = 30` đáp ứng yêu cầu có nhiều level Memory offline.
+- Level được sinh theo số hàng/cột hợp lệ và số cặp tăng dần.
+- Level 1 mở khóa mặc định bằng `levelId == 1`.
+- Các level sau được mở khóa qua `MemoryDao.unlockLevel(...)`.
+
+## Phụ lục C. Code API gọi ngoài
+
+### C.1. Gemini API - nhận xét AI cuối ván
+
+File: `app/src/main/java/com/example/gamehub/ai/GeminiReviewService.java`
+
+```java
+private static final String MODEL_NAME = "gemini-2.5-flash";
+private static final String MODEL_ENDPOINT =
+        "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL_NAME + ":generateContent";
+
+public void requestReview(@NonNull String prompt, @NonNull Callback callback) {
+    String apiKey = BuildConfig.GEMINI_API_KEY == null ? "" : BuildConfig.GEMINI_API_KEY.trim();
+    if (apiKey.isEmpty()) {
+        postError(callback, MISSING_KEY_ERROR);
+        return;
+    }
+
+    executor.execute(() -> {
+        try {
+            String review = executePrompt(apiKey, prompt);
+            if (review.isEmpty()) {
+                postError(callback, EMPTY_REVIEW_ERROR);
+                return;
+            }
+            postSuccess(callback, review);
+        } catch (ReviewException exception) {
+            postError(callback, exception.getMessage());
+        } catch (Exception exception) {
+            postError(callback, GENERIC_ERROR);
+        }
+    });
+}
+```
+
+```java
+private String performRequestBody(String apiKey, String requestBody) throws Exception {
+    HttpURLConnection connection = null;
+    try {
+        connection = (HttpURLConnection) new URL(MODEL_ENDPOINT).openConnection();
+        connection.setRequestMethod("POST");
+        connection.setConnectTimeout(15_000);
+        connection.setReadTimeout(20_000);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("x-goog-api-key", apiKey);
+
+        byte[] body = requestBody.getBytes(StandardCharsets.UTF_8);
+        try (OutputStream outputStream = connection.getOutputStream()) {
+            outputStream.write(body);
+        }
+
+        int responseCode = connection.getResponseCode();
+        InputStream responseStream = responseCode >= 200 && responseCode < 300
+                ? connection.getInputStream()
+                : connection.getErrorStream();
+        String rawResponse = readFully(responseStream);
+        if (responseCode < 200 || responseCode >= 300) {
+            throw new ReviewException(extractErrorMessage(responseCode, rawResponse));
+        }
+        return rawResponse;
+    } finally {
+        if (connection != null) {
+            connection.disconnect();
+        }
+    }
+}
+```
+
+Giải thích:
+
+- API gọi ngoài là Gemini `generateContent`.
+- API key lấy từ `BuildConfig.GEMINI_API_KEY`, được cấu hình qua `local.properties`.
+- Request chạy ở background thread để không block UI.
+- Response được đưa về main thread thông qua callback.
+- Service có validate và fallback local nếu Gemini lỗi hoặc trả nội dung không đạt.
+
+### C.2. Quiz gọi Gemini review
+
+File: `app/src/main/java/com/example/gamehub/games/quiz/QuizActivity.java`
+
+```java
+private void ensureQuizAiReview() {
+    String reviewKey = viewModel.getAiReviewRequestKey();
+    if (reviewKey == null || reviewKey.trim().isEmpty() || reviewKey.equals(activeReviewKey)) {
+        return;
+    }
+    activeReviewKey = reviewKey;
+    aiReviewLoading = true;
+    aiReviewText = "";
+    reviewService.requestReview(viewModel.buildAiReviewPrompt(), new GeminiReviewService.Callback() {
+        @Override
+        public void onSuccess(String review) {
+            if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                return;
+            }
+            aiReviewLoading = false;
+            aiReviewText = review == null ? "" : review.trim();
+            if (viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT) {
+                renderResult();
+            }
+        }
+
+        @Override
+        public void onError(String message) {
+            ...
+        }
+    });
+}
+```
+
+Giải thích:
+
+- `reviewKey` chống gọi Gemini lặp lại khi màn result render nhiều lần.
+- Prompt lấy từ `QuizViewModel.buildAiReviewPrompt()`.
+- Khi AI trả kết quả, UI được render lại nếu vẫn đang ở màn `RESULT`.
+
+### C.3. Memory gọi Gemini review
+
+File: `app/src/main/java/com/example/gamehub/games/memory/MemoryGameActivity.java`
+
+```java
+private void ensureMemoryAiReview() {
+    String reviewKey = buildMemoryReviewKey();
+    if (reviewKey.equals(activeReviewKey)) {
+        return;
+    }
+    activeReviewKey = reviewKey;
+    aiReviewLoading = true;
+    aiReviewText = "";
+    reviewService.requestReview(buildMemoryReviewPrompt(), new GeminiReviewService.Callback() {
+        @Override
+        public void onSuccess(String review) {
+            if (!reviewKey.equals(activeReviewKey) || isFinishing() || isDestroyed()) {
+                return;
+            }
+            aiReviewLoading = false;
+            aiReviewText = review == null ? "" : review.trim();
+            if (viewModel.getCurrentScreen() == MemoryViewModel.Screen.RESULT) {
+                renderResult();
+            }
+        }
+
+        @Override
+        public void onError(String message) {
+            ...
+        }
+    });
+}
+```
+
+Giải thích:
+
+- Memory có prompt riêng vì chỉ số đánh giá khác Quiz.
+- Khóa review gồm level, điểm, số cặp đúng, lượt đoán và thời gian.
+- AI nhận xét dựa trên thống kê Memory và log thao tác.
+
+### C.4. Firebase Firestore - đồng bộ lịch sử chơi
+
+File: `app/src/main/java/com/example/gamehub/data/remote/FirebaseManager.java`
+
+```java
+public SyncHistoryResult syncHistoryRecordDetailed(LocalHistory history, String currentUid, String cachedNickname) {
+    if (history == null || currentUid == null || currentUid.trim().isEmpty()) {
+        return new SyncHistoryResult(false, "Thiếu tài khoản hiện tại để đồng bộ.");
+    }
+
+    String recordId = buildRecordId(currentUid, history.id);
+    DocumentReference recordRef = firestore.collection(COL_RECORDS).document(recordId);
+    DocumentReference userRef = firestore.collection(COL_USERS).document(currentUid);
+
+    try {
+        Tasks.await(firestore.runTransaction(transaction -> {
+            DocumentSnapshot existingRecord = transaction.get(recordRef);
+            DocumentSnapshot userSnapshot = transaction.get(userRef);
+            if (existingRecord.exists()) {
+                return null;
+            }
+
+            Map<String, Object> recordPayload = new HashMap<>();
+            recordPayload.put("record_id", recordId);
+            recordPayload.put(FIELD_UID, currentUid);
+            recordPayload.put("game_type", mapGameType(history.gameName));
+            recordPayload.put("score", history.score);
+            recordPayload.put("time_played", history.timeSpent);
+            recordPayload.put("status", mapStatus(history.status));
+            recordPayload.put("date", history.playDate);
+            transaction.set(recordRef, recordPayload);
+
+            if (userSnapshot.exists()) {
+                long currentScore = readLong(userSnapshot.get(FIELD_TOTAL_SCORE));
+                Map<String, Object> updates = new HashMap<>();
+                updates.put(FIELD_TOTAL_SCORE, currentScore + history.score);
+                transaction.update(userRef, updates);
+            } else {
+                FirebaseUser currentUser = auth.getCurrentUser();
+                Map<String, Object> newUser = new HashMap<>();
+                newUser.put(FIELD_UID, currentUid);
+                newUser.put(FIELD_EMAIL, currentUser != null && currentUser.getEmail() != null ? currentUser.getEmail() : "");
+                newUser.put(FIELD_NICKNAME, !isBlank(cachedNickname) ? cachedNickname : "Player");
+                newUser.put(FIELD_TOTAL_SCORE, history.score);
+                newUser.put(FIELD_CREATED_AT, System.currentTimeMillis());
+                transaction.set(userRef, newUser);
+            }
+            return null;
+        }));
+        return new SyncHistoryResult(true, "Đã đồng bộ trận lên Firebase.");
+    } catch (Exception error) {
+        return new SyncHistoryResult(false, "Không ghi được Game_Records lên Firebase.");
+    }
+}
+```
+
+Giải thích:
+
+- API ngoài ở đây là Firebase Firestore.
+- Collection liên quan: `Game_Records` và `Users`.
+- Transaction đảm bảo việc ghi record và cập nhật tổng điểm user nhất quán.
+- `recordId` được tạo từ `uid` và `LocalHistory.id` để tránh upload trùng.
+
+### C.5. Quyền Internet cho API ngoài
+
+File: `app/src/main/AndroidManifest.xml`
+
+```xml
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.INTERNET" />
+
+<activity android:name=".games.memory.MemoryGameActivity" android:exported="false" />
+<activity android:name=".games.quiz.QuizActivity" android:exported="false" />
+```
+
+Giải thích:
+
+- `INTERNET` cần cho Gemini, Firebase và tải ảnh câu hỏi.
+- `ACCESS_NETWORK_STATE` hỗ trợ kiểm tra trạng thái mạng trước khi đồng bộ.
+- `QuizActivity` và `MemoryGameActivity` được khai báo trong manifest để app có thể mở màn chơi.
