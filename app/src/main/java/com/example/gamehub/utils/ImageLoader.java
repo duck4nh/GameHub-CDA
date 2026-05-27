@@ -18,6 +18,13 @@ import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Bộ tải ảnh đơn giản cho URL minh họa câu hỏi Quiz.
+ *
+ * Lớp này tải Bitmap ở background thread, cache trong bộ nhớ và trả kết quả về
+ * main thread. Glide vẫn được dùng ở các nơi cần xử lý ảnh phức tạp hơn như
+ * avatar hồ sơ.
+ */
 public final class ImageLoader {
     public interface Callback {
         void onComplete(boolean success);
@@ -38,6 +45,12 @@ public final class ImageLoader {
     private ImageLoader() {
     }
 
+    /**
+     * Tải ảnh từ URL vào ImageView đích.
+     *
+     * Tag của ImageView lưu URL đang yêu cầu để response mạng đến muộn không ghi
+     * đè ảnh cũ lên view đã được bind cho câu hỏi khác.
+     */
     public static void load(@Nullable String url, ImageView target, @Nullable Callback callback) {
         if (url == null || url.trim().isEmpty()) {
             target.setImageDrawable(null);
@@ -81,6 +94,9 @@ public final class ImageLoader {
         });
     }
 
+    /**
+     * Thực hiện request HTTP thật sự và decode byte response thành Bitmap.
+     */
     @Nullable
     private static Bitmap downloadBitmap(String url) {
         HttpURLConnection connection = null;

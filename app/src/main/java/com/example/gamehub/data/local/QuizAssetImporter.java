@@ -14,10 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Imports bundled quiz questions from an asset SQLite database.
+ * Import câu hỏi Quiz từ file SQLite đóng gói trong thư mục assets.
  *
- * The packaged DB keeps the app usable offline and avoids requiring a network
- * request before a quiz session can start.
+ * File DB đi kèm giúp Quiz có thể chơi offline và không cần gọi mạng trước khi
+ * bắt đầu ván.
  */
 public final class QuizAssetImporter {
     private static final String ASSET_DB_PATH = "databases/quiz_questions_500_vi_entity_images.db";
@@ -27,8 +27,8 @@ public final class QuizAssetImporter {
     }
 
     /**
-     * Copies the asset DB into cache if needed and reads Quiz_Questions rows
-     * into Room entity objects.
+     * Copy asset DB vào cache nếu cần, sau đó đọc bảng Quiz_Questions thành các
+     * entity QuizQuestion để insert vào Room.
      */
     public static List<QuizQuestion> readQuestions(Context context) throws IOException {
         File cacheFile = ensureSeedDatabaseCopied(context);
@@ -66,8 +66,8 @@ public final class QuizAssetImporter {
     }
 
     /**
-     * SQLiteDatabase needs a real filesystem path, so the asset is copied once
-     * to the app cache before opening it read-only.
+     * SQLiteDatabase cần đường dẫn file thật, nên asset phải được copy một lần
+     * vào cache trước khi mở ở chế độ chỉ đọc.
      */
     private static File ensureSeedDatabaseCopied(Context context) throws IOException {
         File cacheDir = new File(context.getCacheDir(), "quiz_seed");

@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Pure quiz rules engine.
+ * Engine luật chơi thuần Java cho Game Quiz.
  *
- * It owns the question list, answer validation, score calculation, combo
- * tracking, and win condition. The Activity/ViewModel layer delegates all game
- * logic here to keep UI code thin.
+ * Lớp này giữ danh sách câu hỏi, kiểm tra đáp án, tính điểm, theo dõi combo và
+ * xác định điều kiện thắng. Activity/ViewModel gọi lớp này để UI không chứa
+ * công thức tính điểm.
  */
 public class QuizManager {
     public static final int WIN_THRESHOLD_PERCENT = 60;
@@ -56,8 +56,8 @@ public class QuizManager {
         }
 
         /**
-         * Generates a short in-game message used directly on the gameplay
-         * screen after the player submits an answer or times out.
+         * Tạo thông báo ngắn hiển thị ngay trên màn chơi sau khi người chơi trả
+         * lời hoặc hết giờ.
          */
         public String buildFeedbackMessage() {
             if (correct) {
@@ -93,8 +93,8 @@ public class QuizManager {
     }
 
     /**
-     * Applies the round rules to the current question and produces a complete
-     * outcome object for the UI layer.
+     * Áp dụng luật chơi cho câu hỏi hiện tại và trả về đầy đủ dữ liệu kết quả
+     * để UI tô màu đáp án, hiển thị điểm và feedback.
      */
     public AnswerOutcome answerCurrentQuestion(String optionKey, long remainingQuestionMs, boolean timedOut) {
         QuizQuestion question = getCurrentQuestion();
@@ -181,8 +181,8 @@ public class QuizManager {
     }
 
     /**
-     * Score formula: base points + difficulty bonus + remaining-time bonus +
-     * combo bonus. This keeps late answers from scoring as highly as fast ones.
+     * Công thức điểm: điểm nền + thưởng độ khó + thưởng thời gian còn lại +
+     * thưởng combo. Cách tính này khuyến khích trả lời nhanh và đúng liên tiếp.
      */
     private int calculateScore(String difficulty, long remainingQuestionMs, int combo) {
         int baseScore = 100;

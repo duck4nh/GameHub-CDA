@@ -24,16 +24,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Generates final-round AI reviews for GameHub games.
+ * Sinh nhận xét AI ở màn hình kết quả cuối ván cho các game trong GameHub.
  *
- * The service calls Gemini with a structured JSON schema first, then retries with
- * a plain-text prompt, and finally falls back to deterministic local text when
- * the network response is empty, boilerplate, or too short for display.
+ * Service ưu tiên gọi Gemini bằng schema JSON có cấu trúc, sau đó thử lại bằng
+ * prompt văn bản thuần, cuối cùng mới dùng nhận xét local có tính quyết định khi
+ * phản hồi mạng rỗng, quá chung chung hoặc quá ngắn để hiển thị.
  */
 public class GeminiReviewService {
     /**
-     * Callback used by result screens. All callback methods are posted back to
-     * the main thread so Activity code can update views directly.
+     * Callback cho các màn hình kết quả. Mọi callback đều được đưa về main thread
+     * để Activity có thể cập nhật UI trực tiếp mà không tự chuyển luồng.
      */
     public interface Callback {
         void onSuccess(String review);
@@ -94,10 +94,10 @@ public class GeminiReviewService {
     }
 
     /**
-     * Starts review generation for a completed game round.
+     * Bắt đầu sinh nhận xét cho một ván chơi đã kết thúc.
      *
-     * @param prompt full game summary, event log, and AI_METRICS block.
-     * @param callback receives a displayable review or a user-facing error.
+     * @param prompt phần tóm tắt ván chơi, nhật ký thao tác và khối AI_METRICS.
+     * @param callback nhận nhận xét có thể hiển thị hoặc lỗi thân thiện với người dùng.
      */
     public void requestReview(@NonNull String prompt, @NonNull Callback callback) {
         String apiKey = BuildConfig.GEMINI_API_KEY == null ? "" : BuildConfig.GEMINI_API_KEY.trim();
@@ -125,8 +125,8 @@ public class GeminiReviewService {
     }
 
     /**
-     * Runs the Gemini review pipeline and validates that the final text is safe
-     * to show in the result screen.
+     * Chạy toàn bộ pipeline nhận xét Gemini và kiểm tra văn bản cuối cùng đủ an
+     * toàn, đủ rõ để đưa lên màn hình kết quả.
      */
     private String executePrompt(String apiKey, String prompt) throws Exception {
         String rawResponse = performRequest(apiKey, prompt);
@@ -176,10 +176,10 @@ public class GeminiReviewService {
     }
 
     /**
-     * External API boundary for Gemini generateContent.
+     * Ranh giới gọi API ngoài tới Gemini generateContent.
      *
-     * HTTP details stay in this method so callers only handle normalized review
-     * text or mapped Vietnamese error messages.
+     * Toàn bộ chi tiết HTTP được gom trong phương thức này để các lớp gọi phía
+     * trên chỉ xử lý nội dung nhận xét đã chuẩn hóa hoặc thông báo lỗi tiếng Việt.
      */
     private String performRequestBody(String apiKey, String requestBody) throws Exception {
         HttpURLConnection connection = null;
@@ -216,11 +216,11 @@ public class GeminiReviewService {
     }
 
     /**
-     * Fallback chain after Gemini returns unusable structured JSON.
+     * Chuỗi dự phòng khi Gemini trả về JSON có cấu trúc nhưng không dùng được.
      *
-     * Plain-text Gemini is tried first. If that also fails validation, the
-     * service creates a local review from AI_METRICS so the result screen still
-     * has useful feedback for offline-like or degraded AI responses.
+     * Service thử gọi Gemini dạng văn bản thuần trước. Nếu kết quả vẫn không đạt
+     * điều kiện hiển thị, service tạo nhận xét local từ AI_METRICS để màn hình kết
+     * quả luôn có phản hồi hữu ích khi mạng hoặc AI hoạt động không ổn định.
      */
     private String buildFallbackReview(String apiKey, String prompt, String rejectedReview) throws Exception {
         String plainReview = requestPlainTextReview(apiKey, prompt, rejectedReview);
@@ -253,9 +253,9 @@ public class GeminiReviewService {
     }
 
     /**
-     * Builds the primary Gemini request with responseMimeType and JSON schema.
-     * This keeps model output predictable enough to parse into praise,
-     * improvement, and optional closing sentences.
+     * Tạo request chính cho Gemini với responseMimeType và JSON schema.
+     * Cấu hình này giúp đầu ra của model ổn định hơn để tách thành câu khen,
+     * câu góp ý cải thiện và câu kết tùy chọn.
      */
     private String buildRequestBody(String prompt) throws Exception {
         JSONObject root = new JSONObject();
@@ -516,7 +516,7 @@ public class GeminiReviewService {
                 }
             }
         } catch (Exception ignored) {
-            // Ignore parsing errors and use a localized fallback.
+            // Bỏ qua lỗi parse và chuyển sang thông báo dự phòng đã Việt hóa.
         }
         return mapToVietnameseError(responseCode, "");
     }
@@ -679,10 +679,10 @@ public class GeminiReviewService {
     }
 
     /**
-     * Builds deterministic feedback from the AI_METRICS block.
+     * Tạo nhận xét local có tính quyết định từ khối AI_METRICS.
      *
-     * Quiz is the default format. Memory adds game_type=memory and is routed to
-     * a game-specific fallback so wording and metrics stay correct.
+     * Quiz là định dạng mặc định. Memory thêm game_type=memory để được chuyển
+     * sang nhánh dự phòng riêng, bảo đảm câu chữ và chỉ số thống kê đúng ngữ cảnh.
      */
     private String buildLocalFallbackReview(String prompt) {
         String gameType = extractMetricString(prompt, "game_type");
@@ -747,9 +747,9 @@ public class GeminiReviewService {
     }
 
     /**
-     * Local fallback for Memory rounds, based on pairs, attempts, streak, score,
-     * and win state. It prevents the UI from showing an empty AI review when
-     * Gemini returns boilerplate or an incomplete answer.
+     * Nhận xét dự phòng local cho Memory, dựa trên số cặp, lượt đoán, chuỗi đúng,
+     * điểm và trạng thái thắng. Nhánh này tránh việc UI hiển thị nhận xét AI rỗng
+     * khi Gemini trả về nội dung chung chung hoặc câu trả lời chưa hoàn chỉnh.
      */
     private String buildMemoryLocalFallbackReview(String prompt) {
         int totalPairs = extractMetricInt(prompt, "total_pairs");

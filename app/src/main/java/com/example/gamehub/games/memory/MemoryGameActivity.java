@@ -32,10 +32,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Memory game screen controller.
+ * Activity điều khiển màn hình Game Memory.
  *
- * This Activity renders level selection, the card board, pause/result states,
- * and AI review text. Game rules and persistence stay inside MemoryViewModel.
+ * Lớp này render màn chọn level, bàn thẻ, trạng thái tạm dừng/kết quả và nhận
+ * xét AI. Luật chơi, tính điểm, lưu lịch sử và mở khóa level nằm trong
+ * MemoryViewModel.
  */
 public class MemoryGameActivity extends AppCompatActivity {
     private static final int LEVEL_GRID_COLUMNS = 2;
@@ -135,6 +136,10 @@ public class MemoryGameActivity extends AppCompatActivity {
         viewModel.initialize();
     }
 
+    /**
+     * Ánh xạ view từ các layout setup, gameplay, pause, result và board để
+     * render nhanh theo state.
+     */
     private void bindViews() {
         setupScreen = findViewById(R.id.memory_setup_screen);
         setupScrollView = setupScreen instanceof ScrollView ? (ScrollView) setupScreen : null;
@@ -160,6 +165,10 @@ public class MemoryGameActivity extends AppCompatActivity {
         resultCloseButton = findViewById(R.id.memory_result_close);
     }
 
+    /**
+     * Gắn sự kiện UI với hành động trong ViewModel. Điểm, tiến độ level và trạng
+     * thái thẻ được thay đổi trong MemoryViewModel, không sửa trực tiếp ở Activity.
+     */
     private void bindActions() {
         findViewById(R.id.memory_setup_back).setOnClickListener(v -> finish());
         findViewById(R.id.memory_back).setOnClickListener(v -> showPauseDialog());
@@ -180,6 +189,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         findViewById(R.id.memory_pause_exit).setOnClickListener(v -> finish());
     }
 
+    /** Xử lý nút Back theo trạng thái: tiếp tục, tạm dừng hoặc thoát. */
     private void installBackHandler() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -200,6 +210,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         });
     }
 
+    /** Render toàn bộ các màn Memory từ state hiện tại của ViewModel. */
     private void render() {
         renderSetup();
         renderGameplay();
@@ -207,6 +218,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         renderPause();
     }
 
+    /** Tạo lưới chọn level và cuộn đến level đã mở cao nhất. */
     private void renderSetup() {
         boolean isSetup = viewModel.getCurrentScreen() == MemoryViewModel.Screen.SETUP;
         setupScreen.setVisibility(isSetup ? View.VISIBLE : View.GONE);
@@ -217,6 +229,10 @@ public class MemoryGameActivity extends AppCompatActivity {
         scrollLevelListToFocus(viewModel.getSelectedLevelIndex());
     }
 
+    /**
+     * Cập nhật thông tin board, timer, số lượt đoán, chuỗi đúng và layout
+     * RecyclerView theo level hiện tại.
+     */
     private void renderGameplay() {
         boolean isGameplay = viewModel.getCurrentScreen() == MemoryViewModel.Screen.GAMEPLAY;
         gameplayScreen.setVisibility(isGameplay ? View.VISIBLE : View.GONE);
@@ -259,6 +275,9 @@ public class MemoryGameActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Cập nhật thống kê cuối level và gọi nhận xét AI khi màn kết quả hiển thị.
+     */
     private void renderResult() {
         boolean isResult = viewModel.getCurrentScreen() == MemoryViewModel.Screen.RESULT;
         resultScreen.setVisibility(isResult ? View.VISIBLE : View.GONE);
@@ -300,6 +319,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         }
     }
 
+    /** Hiển thị hoặc ẩn overlay tạm dừng nhưng vẫn giữ nguyên trạng thái board. */
     private void renderPause() {
         pauseOverlay.setVisibility(viewModel.isPauseVisible() ? View.VISIBLE : View.GONE);
         if (viewModel.isPauseVisible()) {
@@ -307,6 +327,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         }
     }
 
+    /** Tạo các ô level có trạng thái khóa, mở khóa và thành tích tốt nhất. */
     private void buildLevelGrid(List<MemoryLevel> levels, int selectedIndex) {
         levelGrid.removeAllViews();
         levelGrid.setColumnCount(LEVEL_GRID_COLUMNS);
@@ -336,6 +357,10 @@ public class MemoryGameActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Tạo một ô level ở màn setup. UI này được dựng bằng code vì nội dung phụ
+     * thuộc vào tiến độ lưu trong Room như best time và trạng thái mở khóa.
+     */
     private LinearLayout createLevelTile(MemoryLevel level, boolean isFocused) {
         LinearLayout tile = new LinearLayout(this);
         tile.setOrientation(LinearLayout.VERTICAL);
@@ -468,6 +493,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         return tile;
     }
 
+    /** Cuộn danh sách để level đang chọn hoặc level mở cao nhất nằm trong vùng nhìn. */
     private void scrollLevelListToFocus(int selectedIndex) {
         if (setupScrollView == null || selectedIndex < 0 || levelGrid.getChildCount() == 0) {
             return;
@@ -489,8 +515,8 @@ public class MemoryGameActivity extends AppCompatActivity {
     }
 
     /**
-     * Handles one board tap, logs the visible turn event for AI review context,
-     * and schedules mismatch hiding after MemoryViewModel.MISMATCH_DELAY_MS.
+     * Xử lý một lần bấm thẻ, ghi log thao tác cho prompt AI và đặt lịch úp lại
+     * hai thẻ sai sau MISMATCH_DELAY_MS.
      */
     private void onCardClicked(int position) {
         MemoryLevel currentLevel = viewModel.getCurrentLevel();
@@ -569,6 +595,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         scheduleTimerTick();
     }
 
+    /** Dừng timer và mở trạng thái tạm dừng cho level hiện tại. */
     private void showPauseDialog() {
         if (viewModel.getCurrentScreen() != MemoryViewModel.Screen.GAMEPLAY) {
             finish();
@@ -580,6 +607,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         render();
     }
 
+    /** Đặt lịch tick tiếp theo mỗi giây nếu board không pause và không bị khóa. */
     private void scheduleTimerTick() {
         if (timerScheduled || viewModel == null || viewModel.getCurrentScreen() != MemoryViewModel.Screen.GAMEPLAY || viewModel.isPauseVisible() || viewModel.isBoardLocked()) {
             return;
@@ -588,6 +616,7 @@ public class MemoryGameActivity extends AppCompatActivity {
         handler.postDelayed(timerRunnable, 1000L);
     }
 
+    /** Hủy tick timer đang chờ của màn chơi. */
     private void stopTimer() {
         timerScheduled = false;
         handler.removeCallbacks(timerRunnable);
@@ -617,9 +646,9 @@ public class MemoryGameActivity extends AppCompatActivity {
     }
 
     /**
-     * Requests one AI review for the current Memory result. The key combines
-     * level, score, matched pairs, attempts, and time to prevent duplicate calls
-     * during repeated renderResult() passes.
+     * Gọi một nhận xét AI cho kết quả Memory hiện tại. Khóa review gồm level,
+     * điểm, số cặp đúng, số lượt đoán và thời gian để tránh gọi API trùng khi
+     * renderResult() chạy nhiều lần.
      */
     private void ensureMemoryAiReview() {
         String reviewKey = buildMemoryReviewKey();
@@ -671,8 +700,8 @@ public class MemoryGameActivity extends AppCompatActivity {
     }
 
     /**
-     * Builds the Memory-specific AI prompt from final stats and chronological
-     * turn logs. The final AI_METRICS block is machine-readable fallback data.
+     * Tạo prompt AI riêng cho Memory từ thống kê cuối ván và log thao tác theo
+     * thời gian. Khối AI_METRICS cuối prompt dùng cho fallback local.
      */
     private String buildMemoryReviewPrompt() {
         MemoryLevel level = viewModel.getCurrentLevel();
@@ -709,9 +738,9 @@ public class MemoryGameActivity extends AppCompatActivity {
     }
 
     /**
-     * Adds stable key=value stats for GeminiReviewService local fallback. The
-     * generic total_questions/correct_count keys keep compatibility with the
-     * shared review service, while Memory-specific keys improve wording.
+     * Gắn thống kê dạng key=value cho GeminiReviewService tạo nhận xét fallback.
+     * Các key chung giúp tương thích service dùng chung, còn key riêng Memory
+     * giúp nội dung nhận xét đúng ngữ cảnh hơn.
      */
     private void appendAiMetricsBlock(StringBuilder builder, @Nullable MemoryLevel level) {
         int totalPairs = level == null ? viewModel.getMatchedPairs() : (level.rowCount * level.columnCount) / 2;

@@ -21,14 +21,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Holds Memory game state and rules.
+ * ViewModel giữ trạng thái và luật chơi của Game Memory.
  *
- * The Activity renders this state through RecyclerView/GridLayout, while this
- * ViewModel controls level loading, deck generation, turn resolution, scoring,
- * local history persistence, and level unlock progress.
+ * Activity chỉ render state qua RecyclerView/GridLayout. ViewModel chịu trách
+ * nhiệm tải level, sinh bộ thẻ, xử lý lượt lật, tính điểm, lưu lịch sử local và
+ * cập nhật tiến độ mở khóa level.
  */
 public class MemoryViewModel extends AndroidViewModel {
-    // Keep this pool visually distinct so players can remember pairs quickly.
+    // Bộ biểu tượng được chọn để người chơi dễ ghi nhớ và phân biệt các cặp thẻ.
     private static final String[] EMOJI_POOL = {
             "😀", "😎", "🤖", "👻", "👽", "🤡", "👑", "💎",
             "🔥", "⚡", "🌈", "☀️", "🌙", "⭐", "☁️", "❄️",
@@ -118,8 +118,8 @@ public class MemoryViewModel extends AndroidViewModel {
     }
 
     /**
-     * Loads seeded Memory levels from Room. DatabaseSeeder creates the level
-     * list and preserves unlocked/best-time progress across app launches.
+     * Tải danh sách level Memory đã seed từ Room. DatabaseSeeder tạo danh sách
+     * level và giữ lại trạng thái mở khóa/best time qua các lần mở app.
      */
     public void initialize() {
         if (initialized || loading) {
@@ -231,8 +231,7 @@ public class MemoryViewModel extends AndroidViewModel {
     }
 
     /**
-     * Resets all session counters and creates a shuffled deck for the selected
-     * unlocked level.
+     * Reset toàn bộ bộ đếm của ván và tạo bộ thẻ đã xáo cho level đã mở khóa.
      */
     public void startLevel(int index) {
         if (index < 0 || index >= levels.size()) {
@@ -277,8 +276,8 @@ public class MemoryViewModel extends AndroidViewModel {
     }
 
     /**
-     * Resolves one card tap. The first tap only reveals a card; the second tap
-     * increments attempts and returns MATCH, MISMATCH, or WIN for the Activity.
+     * Xử lý một lần chọn thẻ. Lần chọn đầu chỉ mở thẻ; lần chọn thứ hai tăng số
+     * lượt đoán và trả về MATCH, MISMATCH hoặc WIN cho Activity xử lý UI.
      */
     public TurnOutcome onCardSelected(int position) {
         if (currentScreen != Screen.GAMEPLAY || boardLocked || position < 0 || position >= cards.size()) {
@@ -428,8 +427,8 @@ public class MemoryViewModel extends AndroidViewModel {
     }
 
     /**
-     * Saves final Memory results, updates best time/unlocked level locally, and
-     * asks the repository to sync history when network/login state allows it.
+     * Lưu kết quả Memory cuối ván, cập nhật best time/mở khóa level ở local và
+     * yêu cầu repository đồng bộ lịch sử khi mạng và đăng nhập cho phép.
      */
     private void finishGame(boolean won) {
         currentScreen = Screen.RESULT;
@@ -494,8 +493,8 @@ public class MemoryViewModel extends AndroidViewModel {
     }
 
     /**
-     * Tries several shuffled layouts and picks the one with the fewest adjacent
-     * identical pairs so early lucky matches do not dominate the level.
+     * Thử nhiều layout xáo trộn và chọn layout có ít cặp giống nhau nằm cạnh
+     * nhau nhất để giảm khả năng người chơi thắng do may mắn ngay đầu ván.
      */
     private List<Integer> buildSmartArrangement(int pairCount, int rowCount, int columnCount) {
         List<Integer> source = new ArrayList<>();

@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Seeds bundled offline data into Room.
+ * Seed dữ liệu offline vào Room.
  *
- * Quiz questions come from the packaged asset database, while Memory and
- * Sudoku rows are generated/seeded here so the app can start without network.
+ * Câu hỏi Quiz được import từ asset database, còn Memory và Sudoku được sinh
+ * hoặc seed tại đây để app có dữ liệu khi không có mạng.
  */
 public final class DatabaseSeeder {
     private static final int MEMORY_LEVEL_COUNT = 30;
@@ -23,7 +23,7 @@ public final class DatabaseSeeder {
     }
 
     /**
-     * Populates the local database if seed tables are empty.
+     * Bổ sung dữ liệu mặc định cho các bảng cần seed nếu dữ liệu chưa sẵn sàng.
      */
     public static void seedIfNeeded(AppDatabase database) {
         syncMemoryLevels(database);
@@ -33,8 +33,8 @@ public final class DatabaseSeeder {
     }
 
     /**
-     * Rebuilds Memory levels deterministically so best-time and unlock state are
-     * preserved when the level table shape changes.
+     * Đồng bộ lại danh sách level Memory theo cấu hình sinh mới nhưng vẫn giữ
+     * best time và trạng thái mở khóa đã có của người chơi.
      */
     private static void syncMemoryLevels(AppDatabase database) {
         List<MemoryLevel> targetLevels = buildMemoryLevels();
@@ -83,8 +83,8 @@ public final class DatabaseSeeder {
     }
 
     /**
-     * Generates the level list used by the Memory game. Each row in Memory_Levels
-     * defines grid size, unlock state, time limit, and best time.
+     * Sinh danh sách level cho Game Memory. Mỗi dòng trong Memory_Levels mô tả
+     * kích thước lưới, trạng thái mở khóa, thời gian giới hạn và best time.
      */
     private static List<MemoryLevel> buildMemoryLevels() {
         Map<Integer, LevelSpec> specsByPairCount = new LinkedHashMap<>();

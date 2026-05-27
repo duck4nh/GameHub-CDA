@@ -22,10 +22,10 @@ import com.example.gamehub.data.local.entities.SudokuGameState;
 import com.example.gamehub.data.local.entities.SudokuStats;
 
 /**
- * Central Room database for GameHub.
+ * Room database trung tâm của GameHub.
  *
- * The app stores quiz questions, memory levels, sudoku data, local history,
- * friends, and saved sudoku state in one shared SQLite file: gamehub.db.
+ * Ứng dụng lưu câu hỏi Quiz, level Memory, dữ liệu Sudoku, lịch sử local, bạn
+ * bè và trạng thái Sudoku trong cùng file SQLite `gamehub.db`.
  */
 @Database(
         entities = {
@@ -43,17 +43,20 @@ import com.example.gamehub.data.local.entities.SudokuStats;
 public abstract class AppDatabase extends RoomDatabase {
     private static volatile AppDatabase instance;
 
+    /** Truy cập bảng câu hỏi Quiz để lọc chủ đề và lấy câu hỏi ngẫu nhiên. */
     public abstract QuizDao quizDao();
+    /** Truy cập bảng level Memory để đọc cấu hình, best time và trạng thái mở khóa. */
     public abstract MemoryDao memoryDao();
     public abstract SudokuDao sudokuDao();
     public abstract SudokuGameStateDao sudokuGameStateDao();
     public abstract SudokuStatsDao sudokuStatsDao();
+    /** Truy cập bảng lịch sử dùng chung cho kết quả Quiz/Memory và trạng thái sync. */
     public abstract HistoryDao historyDao();
     public abstract FriendDao friendDao();
 
     /**
-     * Returns the singleton Room instance and seeds bundled data the first time
-     * the database is created.
+     * Trả về singleton Room database và seed dữ liệu offline khi database được
+     * khởi tạo lần đầu.
      */
     public static AppDatabase getInstance(Context context) {
         if (instance == null) {

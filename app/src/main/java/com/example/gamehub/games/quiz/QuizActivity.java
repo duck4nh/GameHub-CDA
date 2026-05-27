@@ -33,11 +33,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Quiz screen controller.
+ * Activity điều khiển màn hình Quiz.
  *
- * The activity only coordinates rendering and user interaction. Timers,
- * scoring, persistence, and AI prompt generation live in QuizViewModel and
- * QuizManager.
+ * Lớp này chỉ chịu trách nhiệm hiển thị giao diện và nhận thao tác người chơi.
+ * Bộ đếm thời gian, tính điểm, lưu lịch sử và tạo prompt AI được tách sang
+ * QuizViewModel và QuizManager để tránh trộn logic game vào UI.
  */
 public class QuizActivity extends AppCompatActivity {
     private interface ChoiceListener {
@@ -143,6 +143,11 @@ public class QuizActivity extends AppCompatActivity {
         viewModel.initialize();
     }
 
+    /**
+     * Ánh xạ toàn bộ view của các màn setup, gameplay, tạm dừng và kết quả.
+     * Việc cache view giúp các hàm render cập nhật UI mà không phải gọi
+     * findViewById nhiều lần.
+     */
     private void bindViews() {
         setupScreen = findViewById(R.id.quiz_setup_screen);
         gameplayScreen = findViewById(R.id.quiz_gameplay_screen);
@@ -187,6 +192,11 @@ public class QuizActivity extends AppCompatActivity {
         pauseMessageView = findViewById(R.id.quiz_pause_message);
     }
 
+    /**
+     * Gắn các thao tác của người chơi vào sự kiện ViewModel.
+     * Activity không tự sửa điểm hoặc trạng thái câu hỏi, mà chỉ chuyển ý định
+     * của người chơi sang ViewModel rồi render lại theo state mới.
+     */
     private void bindActions() {
         findViewById(R.id.quiz_setup_back).setOnClickListener(v -> finish());
         findViewById(R.id.quiz_topic_row).setOnClickListener(v -> showCategorySheet());
@@ -227,6 +237,10 @@ public class QuizActivity extends AppCompatActivity {
         findViewById(R.id.quiz_pause_exit).setOnClickListener(v -> finish());
     }
 
+    /**
+     * Điều chỉnh hành vi nút Back theo trạng thái game: đang pause thì tiếp tục,
+     * đang chơi thì mở pause, còn lại thì thoát màn.
+     */
     private void installBackHandler() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -246,6 +260,7 @@ public class QuizActivity extends AppCompatActivity {
         });
     }
 
+    /** Render toàn bộ màn hình từ state hiện tại của ViewModel. */
     private void render() {
         renderSetup();
         renderGameplay();
@@ -253,6 +268,7 @@ public class QuizActivity extends AppCompatActivity {
         renderPause();
     }
 
+    /** Cập nhật nhãn cấu hình, bộ lọc đã chọn và trạng thái nút bắt đầu. */
     private void renderSetup() {
         selectedTopicHeroView.setText(viewModel.getSelectedCategoriesHeroLabel());
         selectedSummaryView.setText(viewModel.isLoading() ? "Đang tải câu hỏi..." : viewModel.getSetupSummary());
@@ -266,6 +282,10 @@ public class QuizActivity extends AppCompatActivity {
         setupScreen.setVisibility(viewModel.getCurrentScreen() == QuizViewModel.Screen.SETUP ? View.VISIBLE : View.GONE);
     }
 
+    /**
+     * Cập nhật màn chơi gồm câu hỏi hiện tại, điểm, combo, timer, thanh tiến độ,
+     * trạng thái đáp án và ảnh minh họa.
+     */
     private void renderGameplay() {
         boolean isGameplay = viewModel.getCurrentScreen() == QuizViewModel.Screen.GAMEPLAY;
         gameplayScreen.setVisibility(isGameplay ? View.VISIBLE : View.GONE);
@@ -314,6 +334,10 @@ public class QuizActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Cập nhật màn kết quả cuối ván và khởi tạo nhận xét AI khi state chuyển
+     * sang RESULT.
+     */
     private void renderResult() {
         boolean isResult = viewModel.getCurrentScreen() == QuizViewModel.Screen.RESULT;
         resultScreen.setVisibility(isResult ? View.VISIBLE : View.GONE);
@@ -351,6 +375,7 @@ public class QuizActivity extends AppCompatActivity {
         }
     }
 
+    /** Hiển thị hoặc ẩn lớp tạm dừng mà không hủy ván đang chơi. */
     private void renderPause() {
         pauseOverlay.setVisibility(viewModel.isPauseVisible() ? View.VISIBLE : View.GONE);
         if (viewModel.isPauseVisible()) {
@@ -358,6 +383,10 @@ public class QuizActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Tải ảnh minh họa từ URL của câu hỏi nếu có. Biến renderedIllustrationUrl
+     * giúp bỏ qua kết quả tải ảnh cũ khi người chơi đã chuyển sang câu khác.
+     */
     private void renderIllustration(QuizQuestion question) {
         String imageUrl = question.linkImage == null ? "" : question.linkImage.trim();
         if (imageUrl.isEmpty()) {
@@ -388,6 +417,10 @@ public class QuizActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Gán nội dung đáp án và trạng thái hiển thị: mặc định, đang chọn, đúng,
+     * sai hoặc bị khóa sau khi đã chốt câu trả lời.
+     */
     private void renderAnswerButtons(QuizQuestion question, @Nullable QuizManager.AnswerOutcome outcome) {
         optionAButton.setText(question.optionA);
         optionBButton.setText(question.optionB);
@@ -419,6 +452,7 @@ public class QuizActivity extends AppCompatActivity {
         }
     }
 
+    /** Dừng timer hiện tại và mở overlay tạm dừng. */
     private void showPauseDialog() {
         if (viewModel.getCurrentScreen() != QuizViewModel.Screen.GAMEPLAY || viewModel.isEmptyState()) {
             finish();
@@ -431,8 +465,8 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     /**
-     * Shows the selected answer result, plays feedback, and keeps the result
-     * visible for the configured delay before advancing.
+     * Hiển thị kết quả trả lời, phát âm thanh đúng/sai và giữ feedback trong
+     * một khoảng delay trước khi chuyển sang câu tiếp theo.
      */
     private void handleOutcome(@Nullable QuizManager.AnswerOutcome outcome) {
         if (outcome == null) {
@@ -472,6 +506,7 @@ public class QuizActivity extends AppCompatActivity {
     private void updateProgressFill(float ratio) {
         progressTrackView.post(() -> {
             int width = progressTrackView.getWidth();
+            // Giữ chiều rộng tối thiểu để thanh tiến độ vẫn nhìn thấy ở đầu ván.
             int progressWidth = Math.max(dpToPx(28), Math.round(width * ratio));
             ViewGroup.LayoutParams params = progressFillView.getLayoutParams();
             params.width = progressWidth;
@@ -714,9 +749,8 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     /**
-     * Requests a single AI review per finished round and caches it by
-     * getAiReviewRequestKey() so repeated renders do not trigger duplicate API
-     * calls.
+     * Chỉ gọi AI một lần cho mỗi ván đã kết thúc. Khóa reviewKey giúp tránh
+     * gọi Gemini lặp lại khi màn kết quả render nhiều lần.
      */
     private void ensureQuizAiReview() {
         String reviewKey = viewModel.getAiReviewRequestKey();

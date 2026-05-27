@@ -23,11 +23,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Holds the full Quiz game state and rules outside the Activity.
+ * ViewModel giữ toàn bộ trạng thái và luồng xử lý của Game Quiz.
  *
- * The Activity only renders state and forwards button events; this ViewModel
- * loads local questions, controls the timer lifecycle, records session events,
- * persists history, and builds the AI review prompt for the result screen.
+ * Activity chỉ render state và chuyển sự kiện nút bấm. ViewModel chịu trách
+ * nhiệm tải câu hỏi local, điều khiển timer, ghi log thao tác, lưu lịch sử và
+ * tạo prompt AI cho màn kết quả.
  */
 public class QuizViewModel extends AndroidViewModel {
     public enum Screen {
@@ -40,9 +40,9 @@ public class QuizViewModel extends AndroidViewModel {
         void onStateChanged();
     }
 
-    /** Fixed time budget for each quiz question. */
+    /** Thời gian cố định cho mỗi câu hỏi Quiz. */
     public static final long QUESTION_TIME_MS = 15_000L;
-    /** Delay used to keep feedback visible before moving to the next question. */
+    /** Thời gian giữ feedback đúng/sai trước khi chuyển sang câu tiếp theo. */
     public static final long FEEDBACK_DELAY_MS = 2500L;
 
     private final GameRepository repository;
@@ -85,8 +85,8 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Prepares local quiz data and category filters before the setup screen is
-     * used. The repository imports bundled questions when Room is still empty.
+     * Chuẩn bị dữ liệu câu hỏi và danh sách chủ đề cho màn setup.
+     * Nếu Room chưa có câu hỏi, repository sẽ import dữ liệu từ SQLite asset.
      */
     public void initialize() {
         if (initialized || loading) {
@@ -236,8 +236,8 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Starts a new quiz session with the selected category, difficulty, and
-     * question count filters.
+     * Bắt đầu một ván Quiz mới theo chủ đề, độ khó và số câu đã chọn.
+     * Danh sách câu hỏi được lấy ngẫu nhiên từ Room thông qua repository.
      */
     public void startGame() {
         if (loading) {
@@ -283,9 +283,9 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Advances the per-question timer by one second.
+     * Giảm timer của câu hiện tại mỗi giây.
      *
-     * @return true when the current question has timed out.
+     * @return true nếu câu hiện tại đã hết giờ.
      */
     public boolean tickQuestion() {
         if (currentScreen != Screen.GAMEPLAY || pauseVisible || answerLocked || emptyState || quizManager == null) {
@@ -311,10 +311,10 @@ public class QuizViewModel extends AndroidViewModel {
         notifyObservers();
     }
 
-    @Nullable
     /**
-     * Locks the current answer and computes score/combo through QuizManager.
+     * Khóa đáp án hiện tại và nhờ QuizManager tính đúng/sai, điểm và combo.
      */
+    @Nullable
     public QuizManager.AnswerOutcome submitAnswer() {
         if (quizManager == null || answerLocked || selectedAnswerKey.isEmpty()) {
             return null;
@@ -329,10 +329,10 @@ public class QuizViewModel extends AndroidViewModel {
         return latestOutcome;
     }
 
-    @Nullable
     /**
-     * Handles timeout as an answered question with no selected option.
+     * Xử lý trường hợp hết giờ như một lượt trả lời không chọn đáp án.
      */
+    @Nullable
     public QuizManager.AnswerOutcome timeoutCurrentQuestion() {
         if (quizManager == null || answerLocked) {
             return null;
@@ -349,8 +349,8 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Moves to the next question after the feedback delay, or closes the round
-     * and persists history when the last question is reached.
+     * Chuyển sang câu tiếp theo sau thời gian feedback, hoặc kết thúc ván và
+     * lưu lịch sử nếu đã xử lý câu cuối cùng.
      */
     public void advanceAfterFeedback() {
         if (quizManager == null) {
@@ -466,9 +466,9 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Builds the full AI review prompt from round stats and chronological logs.
-     * The text block is for Gemini; AI_METRICS is a machine-readable fallback
-     * section used by GeminiReviewService when model output is unusable.
+     * Tạo prompt đầy đủ cho nhận xét AI từ thống kê ván chơi và log thao tác.
+     * Phần AI_METRICS ở cuối dùng dạng key=value để GeminiReviewService có thể
+     * tạo nhận xét fallback mà không phải phân tích câu tiếng Việt.
      */
     public String buildAiReviewPrompt() {
         StringBuilder builder = new StringBuilder();
@@ -504,8 +504,7 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Adds stable key=value metrics so local fallback review generation does not
-     * need to parse human Vietnamese text.
+     * Gắn các chỉ số ổn định dạng key=value cho cơ chế nhận xét fallback local.
      */
     private void appendAiMetricsBlock(StringBuilder builder) {
         builder.append('\n')
@@ -529,8 +528,8 @@ public class QuizViewModel extends AndroidViewModel {
     }
 
     /**
-     * Finalizes the round, saves LocalHistory, triggers sync through repository,
-     * and refreshes the best historical quiz result shown on the result screen.
+     * Kết thúc ván, lưu LocalHistory, kích hoạt đồng bộ qua repository và cập
+     * nhật thành tích tốt nhất để hiển thị trên màn kết quả.
      */
     private void finishGame() {
         currentScreen = Screen.RESULT;

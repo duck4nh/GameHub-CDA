@@ -15,10 +15,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Small Firestore helper used by the repository and background worker.
+ * Helper làm việc với Firestore cho repository và worker nền.
  *
- * It converts LocalHistory rows into Game_Records documents and updates the
- * matching Users document with aggregate score data.
+ * Lớp này chuyển LocalHistory thành document Game_Records và cập nhật document
+ * Users tương ứng với tổng điểm mới.
  */
 public class FirebaseManager {
     public static final class SyncHistoryResult {
@@ -35,7 +35,7 @@ public class FirebaseManager {
     private final FirebaseFirestore firestore = FirebaseFirestore.getInstance();
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
 
-    // Định nghĩa hằng số để tránh sai sót chính tả và viết hoa/thường
+    // Định nghĩa hằng số collection/field để tránh sai tên khi ghi Firestore.
     public static final String COL_USERS = "Users";
     public static final String COL_RECORDS = "Game_Records";
     
@@ -56,15 +56,15 @@ public class FirebaseManager {
     }
 
     /**
-     * Convenience wrapper for callers that only need success/failure.
+     * Hàm rút gọn cho nơi gọi chỉ cần biết đồng bộ thành công hay thất bại.
      */
     public boolean syncHistoryRecord(LocalHistory history, String currentUid, String cachedNickname) {
         return syncHistoryRecordDetailed(history, currentUid, cachedNickname).success;
     }
 
     /**
-     * Writes one finished game into Firestore inside a transaction so the
-     * record insert and user total-score update stay consistent.
+     * Ghi một ván đã hoàn thành lên Firestore bằng transaction để việc tạo
+     * record và cập nhật tổng điểm user luôn nhất quán.
      */
     public SyncHistoryResult syncHistoryRecordDetailed(LocalHistory history, String currentUid, String cachedNickname) {
         if (history == null || currentUid == null || currentUid.trim().isEmpty()) {
@@ -80,6 +80,8 @@ public class FirebaseManager {
                 DocumentSnapshot existingRecord = transaction.get(recordRef);
                 DocumentSnapshot userSnapshot = transaction.get(userRef);
                 if (existingRecord.exists()) {
+                    // Bản ghi local này đã được upload ở lần sync trước, nên có
+                    // thể xem là thành công và đánh dấu synced ở Room.
                     return null;
                 }
 
@@ -98,7 +100,8 @@ public class FirebaseManager {
                     Map<String, Object> updates = new HashMap<>();
                     updates.put(FIELD_TOTAL_SCORE, currentScore + history.score);
                     
-                    // Kiểm tra nickname hiện tại trong DB, nếu trống mới cập nhật từ cache
+                    // Chỉ lấy nickname từ cache local khi Firestore chưa có
+                    // nickname trong profile.
                     String dbNickname = userSnapshot.getString(FIELD_NICKNAME);
                     if (isBlank(dbNickname) && !isBlank(cachedNickname)) {
                         updates.put(FIELD_NICKNAME, cachedNickname);
@@ -130,7 +133,7 @@ public class FirebaseManager {
     }
 
     /**
-     * Builds a stable document id from the current user and local row id.
+     * Tạo document id ổn định từ uid hiện tại và id lịch sử local.
      */
     private String buildRecordId(String currentUid, int localHistoryId) {
         return String.format(Locale.US, "local_%s_%d", currentUid, localHistoryId);
@@ -147,6 +150,7 @@ public class FirebaseManager {
         return "Sudoku";
     }
 
+    /** Chuyển trạng thái local sang định dạng hiển thị trên Firestore. */
     private String mapStatus(String status) {
         if (status == null) {
             return "Lose";

@@ -21,11 +21,18 @@ import com.example.gamehub.R;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Adapter RecyclerView dùng để hiển thị bàn thẻ Memory.
+ *
+ * Adapter chỉ xử lý phần hiển thị như màu thẻ, kích thước và animation lật.
+ * Luật ghép đúng/sai vẫn nằm trong MemoryViewModel.
+ */
 public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.ViewHolder> {
     public interface OnCardClickListener {
         void onCardClicked(int position);
     }
 
+    /** Bảng màu mặt trước giúp người chơi dễ phân biệt các thẻ đã lật. */
     private static final String[] PALETTE = {
             "#DDEBFF",
             "#F7EEDC",
@@ -50,6 +57,10 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         this.animationsEnabled = animationsEnabled;
     }
 
+    /**
+     * Cập nhật toàn bộ snapshot của board. MemoryViewModel là nguồn dữ liệu
+     * chính, adapter chỉ giữ bản sao để render.
+     */
     public void submitList(List<MemoryCard> cards) {
         items.clear();
         if (cards != null) {
@@ -68,6 +79,8 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_memory_card, parent, false);
         int spanCount = resolveSpanCount(parent);
+        // Tính kích thước thẻ theo số cột để board 4 hoặc 5 cột vẫn dễ chơi
+        // trên màn hình nhỏ mà không cần thay đổi luật game.
         view.post(() -> {
             int parentWidth = parent.getWidth();
             if (parentWidth <= 0) {
@@ -99,6 +112,8 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         holder.metaView.setVisibility(View.GONE);
         applyFrontTint(holder.frontFace, card);
 
+        // Stable id giúp chỉ animate khi trạng thái thẻ thật sự đổi, tránh lật
+        // lại khi RecyclerView tái sử dụng holder cho cùng một thẻ.
         if (!holder.bound || holder.boundCardId != card.cardId) {
             applyStateImmediately(holder, showFront);
             holder.bound = true;
@@ -130,6 +145,10 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         ViewCompat.setBackgroundTintList(frontFace, ColorStateList.valueOf(color));
     }
 
+    /**
+     * Áp dụng mặt thẻ ngay lập tức, dùng cho lần bind đầu, holder tái sử dụng,
+     * khi tắt animation hoặc khi úp lại cặp sai.
+     */
     private void applyStateImmediately(ViewHolder holder, boolean showFront) {
         holder.frontFace.setVisibility(showFront ? View.VISIBLE : View.GONE);
         holder.backFace.setVisibility(showFront ? View.GONE : View.VISIBLE);
@@ -137,6 +156,10 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
         holder.itemView.setAlpha(1f);
     }
 
+    /**
+     * Thực hiện animation lật hai bước theo trục Y: xoay ra 90 độ, đổi mặt thẻ,
+     * rồi xoay trở lại 0 độ.
+     */
     private void animateFlip(ViewHolder holder, boolean showFront) {
         holder.itemView.animate()
                 .rotationY(90f)
@@ -156,6 +179,10 @@ public class MemoryBoardAdapter extends RecyclerView.Adapter<MemoryBoardAdapter.
                 .start();
     }
 
+    /**
+     * Đọc số cột hiện tại của GridLayoutManager để kích thước thẻ đồng bộ với
+     * cấu hình columnCount của level.
+     */
     private int resolveSpanCount(Object parent) {
         if (parent instanceof RecyclerView) {
             RecyclerView.LayoutManager layoutManager = ((RecyclerView) parent).getLayoutManager();
