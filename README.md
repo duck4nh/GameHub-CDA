@@ -9,6 +9,10 @@ README này tập trung vào phần chức năng cá nhân thực hiện trong d
 
 Các chức năng khác của GameHub như đăng nhập, hồ sơ, bạn bè, chat, leaderboard hoặc Sudoku chỉ được nhắc đến khi có liên quan trực tiếp đến phần Quiz/Memory.
 
+Tài liệu kỹ thuật chi tiết, bao gồm phân tích lớp, hàm, bảng CSDL, API gọi ngoài và các đoạn code liên quan, nằm tại:
+
+- `docs/quiz_memory_technical_documentation.md`
+
 ## 1. Tổng quan chức năng cá nhân thực hiện
 
 ### 1.1. Game Quiz
@@ -247,7 +251,8 @@ Quiz tạo prompt trong:
 Memory tạo prompt và gọi AI trong:
 
 - `MemoryGameActivity`
-- `MemoryViewModel`
+
+`MemoryGameActivity` chịu trách nhiệm tạo/gửi prompt cho AI, còn `MemoryViewModel` cung cấp state và thống kê cuối ván như level, điểm, số cặp đúng, số lượt đoán, thời gian và trạng thái thắng/thua.
 
 ## 6. Danh sách file liên quan đến phần cá nhân thực hiện
 
@@ -321,7 +326,8 @@ Yêu cầu môi trường:
 - JDK 11.
 - Android SDK, compile SDK 36.
 - Thiết bị hoặc emulator Android API 24 trở lên.
-- Firebase project có `google-services.json` nếu cần đăng nhập, đồng bộ và leaderboard.
+- Firebase project có file `app/google-services.json` nếu cần đăng nhập, đồng bộ và leaderboard.
+- Firebase Authentication và Firestore Database đã được bật.
 - Gemini API key nếu muốn nhận xét AI hoạt động.
 
 Tạo hoặc cập nhật `local.properties` ở thư mục gốc:
@@ -330,6 +336,8 @@ Tạo hoặc cập nhật `local.properties` ở thư mục gốc:
 sdk.dir=C:\\Users\\<ten_user>\\AppData\\Local\\Android\\Sdk
 GEMINI_API_KEY=<api_key_gemini>
 ```
+
+Ngoài `GEMINI_API_KEY`, project cũng hỗ trợ đọc key từ `gemini.api.key` hoặc `GOOGLE_AI_STUDIO_API_KEY` trong `local.properties`.
 
 Build debug:
 
@@ -355,3 +363,21 @@ Chạy app:
 - Nếu không có `GEMINI_API_KEY`, phần nhận xét AI sẽ báo thiếu cấu hình.
 - Nếu Gemini trả nội dung không đạt, `GeminiReviewService` có cơ chế fallback để tạo nhận xét local từ thống kê ván chơi.
 - Project đang dùng `fallbackToDestructiveMigration()`, vì vậy khi đổi schema Room cần cân nhắc migration nếu muốn giữ dữ liệu local.
+
+## 9. Thông tin GitHub
+
+Repository:
+
+[https://github.com/duck4nh/GameHub-CDA](https://github.com/duck4nh/GameHub-CDA)
+
+Remote Git:
+
+```text
+https://github.com/duck4nh/GameHub-CDA.git
+```
+
+Branch làm việc:
+
+```text
+main
+```
